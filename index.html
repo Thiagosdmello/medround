@@ -1177,6 +1177,7 @@ input, textarea, select { font-family: inherit; }
       <div class="header-sub" id="header-sub">Sistema Hospitalar Inteligente</div>
     </div>
     <div class="header-actions">
+      <button class="btn btn-ghost btn-sm" id="cloud-btn" onclick="openSupaConfig()" title="Configurar Supabase">☁️</button>
       <button class="btn btn-ghost btn-sm" onclick="openImportPatient()">📄 Importar</button>
       <button class="btn btn-primary" onclick="openAddPatient()">+ Novo Paciente</button>
     </div>
@@ -1710,8 +1711,11 @@ function getApiKey() { return localStorage.getItem('medroundApiKey') || ''; }
 const sb = {
   client: null,
   channel: null,
-  url: '',
-  key: '',
+  // ══════════════════════════════════════════════
+  //  COLE SUAS CREDENCIAIS DO SUPABASE AQUI:
+  url: 'COLE_AQUI_A_PROJECT_URL',        // ex: https://abcdefgh.supabase.co
+  key: 'COLE_AQUI_A_ANON_KEY',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  // ══════════════════════════════════════════════
   isSyncing: false
 };
 
@@ -1748,20 +1752,14 @@ function sbSetStatus(status) {
 }
 
 async function sbInit() {
-  // Priority: env vars (Vercel) → localStorage (user-configured) → empty
-  const url = (window.__env?.SUPABASE_URL) || localStorage.getItem('supaUrl') || '';
-  const key = (window.__env?.SUPABASE_ANON_KEY) || localStorage.getItem('supaKey') || '';
-  // Persist env vars to localStorage so UI shows connected state
-  if (window.__env?.SUPABASE_URL && !localStorage.getItem('supaUrl')) {
-    localStorage.setItem('supaUrl', url);
-    localStorage.setItem('supaKey', key);
-  }
-  if (!url || !key) { sbSetStatus('local'); return; }
+  // Usa as credenciais fixas do código (sb.url e sb.key acima)
+  const url = sb.url || '';
+  const key = sb.key || '';
+  if (!url || !key || url.includes('COLE_AQUI')) { sbSetStatus('local'); return; }
   try {
-    sb.url = url; sb.key = key;
     sb.client = supabase.createClient(url, key);
-    await sbPull();   // load remote data
-    sbSubscribe();    // listen for remote changes
+    await sbPull();
+    sbSubscribe();
     sbSetStatus('online');
   } catch(e) {
     sbSetStatus('error');
@@ -8435,8 +8433,91 @@ function handleImportFiles(event)   { importHandleFiles(event.target?.files || e
 function handleFolderUpload(event)  { importHandleFiles(event.target?.files || []); }
 function handleImportFolder(event)  { importHandleFiles(event.target?.files || []); }
 
-// ── sortByBed ──
-function sortByBed(a, b) { return (parseInt(a.leito,10)||0)-(parseInt(b.leito,10)||0); }
+// ── Supabase Config UI ──
+function openSupaConfig() {
+  const urlInput = document.getElementById('supa-url-input');
+  const keyInput = document.getElementById('supa-key-input');
+  const msg      = document.getElementById('supa-status-msg');
+  if (urlInput) urlInput.value = localStorage.getItem('supaUrl') || '';
+  if (keyInput) keyInput.value = localStorage.getItem('supaKey') || '';
+  if (msg)      msg.style.display = 'none';
+  // Show current connection status
+  const cloudBtn = document.getElementById('cloud-btn');
+  if (sb.client && cloudBtn) cloudBtn.textContent = '✅';
+  openModal('modal-supa-config');
+}
+
+async function saveSupaConfig() {
+  const url = document.getElementById('supa-url-input')?.value?.trim();
+  const key = document.getElementById('supa-key-input')?.value?.trim();
+  const msg = document.getElementById('supa-status-msg');
+
+  if (!url || !key) {
+    if (msg) { msg.textContent = '⚠️ Preencha URL e Key'; msg.style.cssText = 'display:block;background:rgba(239,68,68,.1);color:#ef4444;font-size:12px;padding:8px 12px;border-radius:8px;'; }
+    return;
+  }
+  if (!url.includes('supabase.co')) {
+    if (msg) { msg.textContent = '⚠️ URL inválida — deve conter supabase.co'; msg.style.cssText = 'display:block;background:rgba(239,68,68,.1);color:#ef4444;font-size:12px;padding:8px 12px;border-radius:8px;'; }
+    return;
+  }
+
+  if (msg) { msg.textContent = '⏳ Testando conexão...'; msg.style.cssText = 'display:block;background:rgba(30,86,170,.1);color:var(--blue-300);font-size:12px;padding:8px 12px;border-radius:8px;'; }
+
+  try {
+    localStorage.setItem('supaUrl', url);
+    localStorage.setItem('supaKey', key);
+    sb.url = url; sb.key = key;
+    sb.client = supabase.createClient(url, key);
+
+    // Test connection
+    const { error } = await sb.client.from('medrounddata').select('id').limit(1);
+    if (error && error.code !== 'PGRST116') throw error;
+
+    // Push current local data to Supabase
+    const localData = getData();
+    const total = (localData.cmm||[]).length + (localData.cmf1||[]).length + (localData.cmf2||[]).length;
+    if (total > 0) {
+      await sbPush(localData);
+      if (msg) { msg.textContent = `✅ Conectado! ${total} pacientes sincronizados.`; msg.style.cssText = 'display:block;background:rgba(22,163,74,.1);color:#16a34a;font-size:12px;padding:8px 12px;border-radius:8px;'; }
+    } else {
+      // Pull from Supabase if local is empty
+      await sbPull();
+      if (msg) { msg.textContent = '✅ Conectado! Dados carregados da nuvem.'; msg.style.cssText = 'display:block;background:rgba(22,163,74,.1);color:#16a34a;font-size:12px;padding:8px 12px;border-radius:8px;'; }
+    }
+
+    sbSubscribe();
+
+    // Update cloud button
+    const cloudBtn = document.getElementById('cloud-btn');
+    if (cloudBtn) cloudBtn.textContent = '✅';
+
+    setTimeout(() => closeModal('modal-supa-config'), 1800);
+
+  } catch(e) {
+    console.error('[saveSupaConfig]', e);
+    const errMsg = e.message?.includes('fetch') ? 'Erro de rede — verifique a URL' :
+                   e.message?.includes('Invalid API key') ? 'Chave inválida' :
+                   e.message || 'Erro de conexão';
+    if (msg) { msg.textContent = '❌ ' + errMsg; msg.style.cssText = 'display:block;background:rgba(239,68,68,.1);color:#ef4444;font-size:12px;padding:8px 12px;border-radius:8px;'; }
+    sb.client = null;
+    const cloudBtn = document.getElementById('cloud-btn');
+    if (cloudBtn) cloudBtn.textContent = '☁️';
+  }
+}
+
+function clearSupaConfig() {
+  if (!confirm('Remover configuração do Supabase? Os dados locais serão mantidos.')) return;
+  localStorage.removeItem('supaUrl');
+  localStorage.removeItem('supaKey');
+  if (sb.channel) sb.channel.unsubscribe();
+  sb.client = null; sb.channel = null; sb.url = ''; sb.key = '';
+  const cloudBtn = document.getElementById('cloud-btn');
+  if (cloudBtn) cloudBtn.textContent = '☁️';
+  closeModal('modal-supa-config');
+  showToast('☁️ Supabase desconectado', '');
+}
+
+
 
 // ── isReadableFile ──
 function isReadableFile(f) { return /\.(docx?|pdf|txt|md)$/i.test(f.name); }
@@ -8590,5 +8671,46 @@ document.addEventListener('DOMContentLoaded', () => {
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-delete-confirm')">Cancelar</button><button class="btn btn-danger" onclick="confirmDeletePatient()">🗑️ Remover</button></div>
   </div>
 </div>
+<!-- ══ SUPABASE CONFIG MODAL ══ -->
+<div class="modal-overlay" id="modal-supa-config">
+  <div class="modal" style="max-width:480px;width:95%;">
+    <div class="modal-header">
+      <div class="modal-title">☁️ Configurar Supabase</div>
+      <button class="modal-close" onclick="closeModal('modal-supa-config')">×</button>
+    </div>
+    <div class="modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px;">
+
+      <div style="background:rgba(30,86,170,.1);border:1px solid var(--blue-700);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--blue-300);line-height:1.6;">
+        📋 <strong>Como obter as credenciais:</strong><br>
+        1. Acesse <strong>supabase.com</strong> → seu projeto<br>
+        2. Menu <strong>Settings → API</strong><br>
+        3. Copie <strong>Project URL</strong> e <strong>anon public key</strong>
+      </div>
+
+      <div>
+        <label class="form-label">Project URL</label>
+        <input class="form-input" id="supa-url-input"
+          placeholder="https://xxxxxxxxxxxx.supabase.co"
+          style="font-family:monospace;font-size:12.5px;">
+      </div>
+
+      <div>
+        <label class="form-label">Anon Public Key</label>
+        <textarea class="form-input" id="supa-key-input" rows="3"
+          placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          style="font-family:monospace;font-size:11.5px;resize:vertical;"></textarea>
+      </div>
+
+      <div id="supa-status-msg" style="font-size:12px;display:none;padding:8px 12px;border-radius:8px;"></div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="clearSupaConfig()" style="color:var(--danger);">🗑️ Remover</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-supa-config')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveSupaConfig()">✅ Conectar</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
