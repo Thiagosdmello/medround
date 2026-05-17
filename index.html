@@ -1713,8 +1713,8 @@ const sb = {
   channel: null,
   // ══════════════════════════════════════════════
   //  COLE SUAS CREDENCIAIS DO SUPABASE AQUI:
-  url: 'https://sxtihlavbggfpplhlbsm.supabase.co',        // ex: https://abcdefgh.supabase.co
-  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4dGlobGF2YmdnZnBwbGhsYnNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5ODQwMDMsImV4cCI6MjA5NDU2MDAwM30.Rjwx6xbk27oM3_j-7FPRU57cmikbXi-x71NXcplI5RU',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  url: 'COLE_AQUI_A_PROJECT_URL',        // ex: https://abcdefgh.supabase.co
+  key: 'COLE_AQUI_A_ANON_KEY',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   // ══════════════════════════════════════════════
   isSyncing: false
 };
@@ -1734,52 +1734,90 @@ create policy "allow all" on medrounddata for all using (true) with check (true)
 alter publication supabase_realtime add table medrounddata;`;
 
 function sbSetStatus(status) {
-  const dot = document.getElementById('sync-dot');
+  const btn = document.getElementById('cloud-btn');
+  const icons = { local:'☁️', syncing:'⏳', online:'✅', error:'❌' };
+  if (btn) btn.textContent = icons[status] || '☁️';
+  const dot   = document.getElementById('sync-dot');
   const label = document.getElementById('sync-label');
-  const navLabel = document.getElementById('nav-supa-label');
-  const navIcon = document.getElementById('nav-supa-icon');
-  const map = {
-    local:    { color: 'var(--gray-400)',  text: '☁️ Configurar Nuvem', nav: 'Conectar Nuvem',    icon: '☁️' },
-    syncing:  { color: 'var(--warning)',   text: '⏳ Sincronizando…',  nav: 'Sincronizando…',     icon: '⏳' },
-    online:   { color: 'var(--success)',   text: '✅ Online',           nav: 'Nuvem Conectada',    icon: '✅' },
-    error:    { color: 'var(--danger)',    text: '❌ Erro Supabase',    nav: 'Erro de conexão',    icon: '❌' },
-  };
-  const s = map[status] || map.local;
-  if (dot) dot.style.background = s.color;
-  if (label) label.textContent = s.text;
-  if (navLabel) navLabel.textContent = s.nav;
-  if (navIcon) navIcon.textContent = s.icon;
+  const colors = { local:'var(--text-muted)', syncing:'var(--warning)', online:'var(--success)', error:'var(--danger)' };
+  if (dot)   dot.style.background = colors[status] || colors.local;
+  if (label) label.textContent    = {local:'☁️ Local',syncing:'⏳ Sincronizando',online:'✅ Online',error:'❌ Erro'}[status]||'';
+}
+
+async function sbEnsureTable() {
+  const { error } = await sb.client.from('medrounddata').select('id').limit(1);
+  if (!error) return;
+  if (error.code === '42P01' || (error.message||'').includes('schema cache') || (error.message||'').includes('does not exist')) {
+    throw new Error(
+      'Tabela não existe. Execute no Supabase → SQL Editor:\n\n' +
+      "create table medrounddata (\n" +
+      "  id text primary key default 'main',\n" +
+      "  data jsonb not null default '{}'::jsonb,\n" +
+      "  updated_at timestamptz default now()\n" +
+      ");\n" +
+      "alter table medrounddata enable row level security;\n" +
+      "create policy \"allow_all\" on medrounddata for all using (true) with check (true);\n" +
+      "alter publication supabase_realtime add table medrounddata;\n" +
+      "insert into medrounddata (id,data) values ('main','{\"cmm\":[],\"cmf1\":[],\"cmf2\":[]}') on conflict do nothing;"
+    );
+  }
+  throw error;
 }
 
 async function sbInit() {
-  // Usa as credenciais fixas do código (sb.url e sb.key acima)
   const url = sb.url || '';
   const key = sb.key || '';
   if (!url || !key || url.includes('COLE_AQUI')) { sbSetStatus('local'); return; }
   try {
-    sb.client = supabase.createClient(url, key);
+    sb.client = supabase.createClient(url, key, { realtime: { params: { eventsPerSecond: 10 } } });
+    sbSetStatus('syncing');
+    await sbEnsureTable();
     await sbPull();
     sbSubscribe();
     sbSetStatus('online');
+    const btn = document.getElementById('cloud-btn');
+    if (btn) btn.textContent = '✅';
+    showToast('✅ Supabase conectado — colaboração em tempo real ativa', 'success');
   } catch(e) {
     sbSetStatus('error');
-    console.warn('Supabase init failed:', e.message);
-  }
+    console.warn('[sbInit]', e.message);
+    // Show the SQL if table missing
+    if (e.message && e.message.includes('Tabela não existe')) {
+      alert('⚠️ Tabela não encontrada no Supabase.\n\nAbra o Supabase → SQL Editor → New Query\ne execute o arquivo supabase_setup.sql');
+    }  }
 }
 
 async function sbPull() {
   if (!sb.client) return;
   sbSetStatus('syncing');
   const { data, error } = await sb.client.from('medrounddata').select('data').eq('id','main').single();
-  if (error && error.code !== 'PGRST116') { sbSetStatus('error'); throw error; }
+  // PGRST116 = no rows (table empty) — push local
+  if (error && error.code === 'PGRST116') {
+    const local = getData();
+    if ((local.cmm||[]).length+(local.cmf1||[]).length+(local.cmf2||[]).length > 0) {
+      await sb.client.from('medrounddata').upsert({id:'main',data:local,updated_at:new Date().toISOString()},{onConflict:'id'});
+    }
+    sbSetStatus('online'); return;
+  }
+  if (error) { sbSetStatus('error'); throw error; }
   if (data && data.data) {
-    localStorage.setItem('medroundData', JSON.stringify(data.data));
-    // Re-run lab sync after pulling fresh data
+    const remote = data.data;
+    const rTotal = (remote.cmm||[]).length+(remote.cmf1||[]).length+(remote.cmf2||[]).length;
+    const local  = getData();
+    const lTotal = (local.cmm||[]).length+(local.cmf1||[]).length+(local.cmf2||[]).length;
+    if (rTotal > 0) {
+      // Remote wins
+      localStorage.setItem('medroundData', JSON.stringify(remote));
+      localStorage.setItem('medroundData_backup', JSON.stringify(remote));
+    } else if (lTotal > 0) {
+      // Push local to remote
+      await sb.client.from('medrounddata').upsert({id:'main',data:local,updated_at:new Date().toISOString()},{onConflict:'id'});
+    }
     autoSyncAllLabs();
     updateCounts();
-    if (state.currentView === 'dashboard') renderDashboard();
-    if (state.currentView === 'patients') renderPatients();
-    if (state.currentView === 'passagem') renderPassagem();
+    if (state.currentView==='dashboard') renderDashboard();
+    if (state.currentView==='patients')  renderPatients();
+    if (state.currentView==='passagem')  renderPassagem();
   }
   sbSetStatus('online');
 }
@@ -1789,14 +1827,15 @@ async function sbPush(d) {
   sb.isSyncing = true;
   sbSetStatus('syncing');
   try {
-    await sb.client.from('medrounddata').upsert({
-      id: 'main',
-      data: d,
-      updated_at: new Date().toISOString()
-    });
+    const { error } = await sb.client.from('medrounddata').upsert(
+      { id:'main', data:d, updated_at:new Date().toISOString() },
+      { onConflict:'id' }
+    );
+    if (error) throw error;
     sbSetStatus('online');
   } catch(e) {
     sbSetStatus('error');
+    console.warn('[sbPush]', e.message);
   } finally {
     sb.isSyncing = false;
   }
@@ -1804,21 +1843,29 @@ async function sbPush(d) {
 
 function sbSubscribe() {
   if (!sb.client) return;
-  if (sb.channel) sb.channel.unsubscribe();
+  if (sb.channel) { sb.channel.unsubscribe(); sb.channel = null; }
   sb.channel = sb.client
-    .channel('medrounddata-changes')
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'medrounddata' }, payload => {
-      if (!payload.new || !payload.new.data) return;
-      // Remote change — update local and refresh UI
-      localStorage.setItem('medroundData', JSON.stringify(payload.new.data));
+    .channel('medrounddata-realtime', { config: { broadcast: { self: false } } })
+    .on('postgres_changes', { event:'*', schema:'public', table:'medrounddata', filter:'id=eq.main' }, payload => {
+      const newData = payload.new?.data;
+      if (!newData) return;
+      localStorage.setItem('medroundData', JSON.stringify(newData));
+      localStorage.setItem('medroundData_backup', JSON.stringify(newData));
       autoSyncAllLabs();
       updateCounts();
-      if (state.currentView === 'dashboard') renderDashboard();
-      if (state.currentView === 'patients') renderPatients();
-      if (state.currentView === 'passagem') renderPassagem();
-      showToast('🔄 Dados atualizados por outro usuário', '');
+      const v = state.currentView;
+      if (v==='dashboard') renderDashboard();
+      if (v==='patients')  renderPatients();
+      if (v==='passagem')  renderPassagem();
+      if (v==='condutas')  renderCondutasSelect();
+      if (v==='tardefixa') showTardeFixaView();
+      showToast('🔄 Atualizado por outro usuário', '');
     })
-    .subscribe();
+    .subscribe(status => {
+      if (status==='SUBSCRIBED')    sbSetStatus('online');
+      if (status==='CLOSED')        sbSetStatus('error');
+      if (status==='CHANNEL_ERROR') { sbSetStatus('error'); setTimeout(sbSubscribe, 5000); }
+    });
 }
 
 // ── Supabase Modal ──
@@ -4418,10 +4465,22 @@ async function callClaude(prompt) {
   if (!key) throw new Error('Configure a API Key primeiro');
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: 'claude-opus-4-5', max_tokens: 2048, messages: [{ role: 'user', content: prompt }] })
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5-20251022',
+      max_tokens: 2048,
+      messages: [{ role: 'user', content: prompt }]
+    })
   });
-  if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'Erro na API'); }
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error?.message || `HTTP ${res.status}`);
+  }
   const data = await res.json();
   return data.content[0].text;
 }
@@ -6400,226 +6459,176 @@ async function exportPassagemPdf(filename) {
   showToast(`✅ PDF gerado — ${pages.length} página(s)`, 'success');
 }
 
-// ─────────────────────────────────────────────────────────────────────
-//  PASSAGEM → DOCX  (landscape A4, checkboxes nativos Word, sem cortes)
-//  Estratégia: um parágrafo por linha de conteúdo (não tabela por paciente).
-//  Checkboxes usam SDT nativo do Word 2010+.
-// ─────────────────────────────────────────────────────────────────────
 async function exportPassagemDocx(filename) {
-  const data = [...getData()[passagemWard]].sort(sortByBed);
+  const ward = passagemWard;
+  const data = [...getData()[ward]].sort(sortByBed).filter(p => p.status !== 'alta');
   const wardNames = { cmm:'MASCULINA', cmf1:'FEMININA 1', cmf2:'FEMININA 2' };
   const today = new Date().toLocaleDateString('pt-BR');
   const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
-  // Helper: paragraph
-  const p = (text, opts={}) => {
-    const b   = opts.bold   ? '<w:b/><w:bCs/>' : '';
-    const col = opts.color  ? `<w:color w:val="${opts.color}"/>` : '';
-    const sz  = opts.size   ? `<w:sz w:val="${opts.size}"/><w:szCs w:val="${opts.size}"/>` : '<w:sz w:val="14"/><w:szCs w:val="14"/>';
-    const sp  = `<w:spacing w:before="${opts.before||0}" w:after="${opts.after!==undefined?opts.after:60}"/>`;
-    const ind = opts.indent ? `<w:ind w:left="${opts.indent}"/>` : '';
-    const font = '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>';
-    if (!text && text !== 0) text = ' ';
-    return `<w:p><w:pPr>${sp}${ind}</w:pPr><w:r><w:rPr>${b}${col}${sz}${font}</w:rPr><w:t xml:space="preserve">${esc(String(text))}</w:t></w:r></w:p>`;
+  // ── Column widths (twips, total = 15840 - margins = ~13440 for landscape) ──
+  // 5 columns: ID | Problemas | Dispositivos/ATB | Exames/Pareceres | Programação
+  const COL_W = [1680, 2960, 2480, 3200, 3120]; // twips, sum=13440
+
+  const rPr = (opts={}) => {
+    const b   = opts.b    ? '<w:b/><w:bCs/>' : '';
+    const col = opts.col  ? `<w:color w:val="${opts.col}"/>` : '';
+    const sz  = `<w:sz w:val="${opts.sz||14}"/><w:szCs w:val="${opts.sz||14}"/>`;
+    return `<w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>${b}${col}${sz}</w:rPr>`;
   };
 
-  // Helper: native Word checkbox SDT
-  // Text MUST be outside <w:sdt> — Word replaces sdtContent on click
-  const checkbox = (text, checked, color) => {
-    const sym    = checked ? '2611' : '2610';
-    const symChr = checked ? '&#x2611;' : '&#x2610;';
-    const col    = color ? `<w:color w:val="${color}"/>` : '';
-    const strike = checked ? '<w:strike/>' : '';
-    return `<w:p>
-  <w:pPr><w:spacing w:before="0" w:after="50"/><w:ind w:left="400"/></w:pPr>
-  <w:sdt>
-    <w:sdtPr>
-      <w14:checkbox xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml">
-        <w14:checked w14:val="${checked?'1':'0'}"/>
-        <w14:checkedState   w14:val="${sym}" w14:font="MS Gothic"/>
-        <w14:uncheckedState w14:val="2610"  w14:font="MS Gothic"/>
-      </w14:checkbox>
-    </w:sdtPr>
-    <w:sdtContent>
-      <w:r>
-        <w:rPr>
-          <w:rFonts w:ascii="MS Gothic" w:hAnsi="MS Gothic" w:cs="MS Gothic"/>
-          <w:sz w:val="20"/><w:szCs w:val="20"/>
-        </w:rPr>
-        <w:t>${symChr}</w:t>
-      </w:r>
-    </w:sdtContent>
-  </w:sdt>
-  <w:r>
-    <w:rPr>
-      <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>
-      <w:sz w:val="14"/><w:szCs w:val="14"/>${col}${strike}
-    </w:rPr>
-    <w:t xml:space="preserve"> ${esc(text)}</w:t>
-  </w:r>
-</w:p>`;
+  const run = (text, opts={}) =>
+    `<w:r>${rPr(opts)}<w:t xml:space="preserve">${esc(String(text||''))}</w:t></w:r>`;
+
+  const para = (runs, pOpts={}) => {
+    const sp  = `<w:spacing w:before="${pOpts.before||0}" w:after="${pOpts.after||40}"/>`;
+    const ind = pOpts.ind ? `<w:ind w:left="${pOpts.ind}"/>` : '';
+    return `<w:p><w:pPr>${sp}${ind}</w:pPr>${runs}</w:p>`;
   };
 
-  // Helper: section label
-  const sectionLabel = (text, color='1e56aa') =>
-    p(text, {bold:true, color, size:14, before:100, after:30});
-
-  // Helper: divider paragraph (horizontal rule)
-  const divider = () =>
-    `<w:p><w:pPr><w:spacing w:before="80" w:after="80"/>
-      <w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="1e56aa"/></w:pBdr>
-    </w:pPr></w:p>`;
-
-  // Helper: patient header paragraph (shaded)
-  const patientHeader = (pat, ev) => {
-    const days = pat.dt ? Math.floor((new Date()-new Date(pat.dt))/86400000) : '?';
-    const name = cleanPatientName(pat.name);
-    const allergy = (pat.allergy&&pat.allergy.trim()) ? `⚠ ${pat.allergy}` : 'Nega alergias';
-    const allergyColor = (pat.allergy&&pat.allergy.trim()) ? 'd97706' : '10b981';
-    const sc = {critical:'C00000',attention:'ED7D31',stable:'70AD47',alta:'2870D4'};
-    const barColor = sc[pat.status||'stable']||'70AD47';
-    return `<w:p>
-      <w:pPr>
-        <w:spacing w:before="160" w:after="40"/>
-        <w:shd w:val="clear" w:color="auto" w:fill="EBF3FB"/>
-        <w:pBdr>
-          <w:left w:val="single" w:sz="24" w:space="4" w:color="${barColor}"/>
-          <w:bottom w:val="single" w:sz="4" w:space="1" w:color="c7d5ea"/>
-        </w:pBdr>
-      </w:pPr>
-      <w:r><w:rPr><w:b/><w:bCs/><w:color w:val="1e56aa"/><w:sz w:val="28"/><w:szCs w:val="28"/><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr>
-        <w:t xml:space="preserve">LT ${esc(pat.leito)}  </w:t></w:r>
-      <w:r><w:rPr><w:b/><w:bCs/><w:color w:val="0f172a"/><w:sz w:val="24"/><w:szCs w:val="24"/><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr>
-        <w:t>${esc(name)}</w:t></w:r>
-      <w:r><w:rPr><w:color w:val="64748b"/><w:sz w:val="18"/><w:szCs w:val="18"/><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr>
-        <w:t xml:space="preserve">   ${esc(pat.age||'?')}a  |  D${days}  |  ${esc(pat.pront||'')}  |  </w:t></w:r>
-      <w:r><w:rPr><w:color w:val="${allergyColor}"/><w:sz w:val="18"/><w:szCs w:val="18"/><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr>
-        <w:t>${esc(allergy)}</w:t></w:r>
-    </w:p>`;
+  // ── Build cell content as paragraphs ──
+  const buildCell = (paragraphs, shading='') => {
+    const shd = shading ? `<w:shd w:val="clear" w:color="auto" w:fill="${shading}"/>` : '';
+    return `<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/>${shd}<w:tcMar><w:top w:w="60" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tcMar></w:tcPr>${paragraphs}</w:tc>`;
   };
 
-  // Build document content
-  let body = '';
+  // ── Build table header row ──
+  const hCells = ['Identificação','Lista de Problemas','Dispositivos │ ATB e Culturas','Exames e Pareceres','Programação'].map((h,i) =>
+    `<w:tc><w:tcPr><w:tcW w:w="${COL_W[i]}" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="1e3a6e"/><w:tcMar><w:top w:w="60" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tcMar></w:tcPr>${para(run(h,{b:true,col:'FFFFFF',sz:14}), {before:20,after:20})}</w:tc>`
+  ).join('');
+  const headerRow = `<w:tr><w:trPr><w:trHeight w:val="320"/></w:trPr>${hCells}</w:tr>`;
 
-  for (const pat of data) {
-    const ev = pat.evolutions?.length ? pat.evolutions[pat.evolutions.length-1] : null;
+  // ── Build each patient row ──
+  const rows = data.map(p => {
+    const ev   = p.evolutions?.length ? p.evolutions[p.evolutions.length-1] : null;
+    const days = p.dt ? Math.floor((new Date()-new Date(p.dt))/86400000) : '?';
 
-    body += patientHeader(pat, ev);
+    // Col 1: Identificação
+    const allergy = (p.allergy&&p.allergy.trim()) ? `⚠ ${p.allergy}` : 'Nega alergias';
+    const col1 =
+      para(run(`LT ${p.leito}`,{b:true,col:'1e56aa',sz:18}), {after:30}) +
+      para(run(cleanPatientName(p.name),{b:true,sz:15}), {after:20}) +
+      para(run(`${p.age||'?'}a`,{sz:12,col:'64748b'}), {after:10}) +
+      para(run(`D${days} internação`,{sz:12,col:'64748b'}), {after:10}) +
+      para(run(`Pt ${p.pront||'—'}`,{sz:12,col:'64748b'}), {after:10}) +
+      para(run(allergy,{sz:11,col:(p.allergy?.trim()?'b45309':'10b981')}), {after:0});
 
-    // Lista de Problemas
-    const probs = formatProblems((ev?.problems)||pat.problems||'').split('\n').filter(Boolean);
-    if (probs.length) {
-      body += sectionLabel('▶ LISTA DE PROBLEMAS:');
-      probs.forEach(l => {
-        const isH = l.startsWith('#');
-        const clean = l.replace(/^#\s*/,'').trim();
-        body += p((isH?'# ':' – ')+clean, {bold:isH, color:isH?'1e56aa':'374151', size:isH?15:14, indent:isH?0:200, after:30});
+    // Col 2: Lista de Problemas + Resumo
+    const probs = formatProblems((ev?.problems)||p.problems||'').split('\n').filter(Boolean);
+    const resumo = (ev?.resumo||p.diag||'').trim();
+    const col2 = probs.map(l => {
+      const isH = l.startsWith('#');
+      const clean = l.replace(/^#\s*/,'').trim();
+      return para(run((isH?'# ':' – ')+clean, {b:isH,col:isH?'1e56aa':'374151',sz:isH?13:12}),{after:25});
+    }).join('') +
+    (resumo ? para(run(''), {after:30}) +
+      para(run(resumo,{col:'64748b',sz:11}),{after:0}) : '');
+
+    // Col 3: Dispositivos + ATB
+    const dev = (ev?.devices||p.devices||'').trim();
+    const abx = (ev?.abx||p.abx||'').trim();
+    const col3 =
+      (dev ? para(run('Dispositivos:',{b:true,col:'1e56aa',sz:12}),{after:20}) +
+        dev.split('\n').filter(Boolean).map(l => para(run('- '+l.trim(),{sz:12}),{after:15})).join('') : '') +
+      (abx ? para(run('ATB e Culturas:',{b:true,col:'C00000',sz:12}),{before:60,after:20}) +
+        abx.split('\n').filter(Boolean).map(l => para(run('- '+l.trim(),{sz:12}),{after:15})).join('') :
+        para(run('Sem ATB',{col:'10b981',sz:12}),{after:0}));
+
+    // Col 4: Exames + Pareceres
+    const labs  = (ev?.labs||'').trim();
+    const image = (ev?.image||'').trim();
+    const parc  = (ev?.pareceres||'').trim();
+    const col4 =
+      (labs  ? para(run('Labs:',{b:true,col:'1e56aa',sz:12}),{after:15}) + labs.split('\n').filter(Boolean).slice(0,8).map(l => para(run(l.trim(),{sz:11}),{after:10})).join('') : '') +
+      (image ? para(run('Imagem:',{b:true,col:'1e56aa',sz:12}),{before:40,after:15}) + image.split('\n').filter(Boolean).slice(0,4).map(l => para(run(l.trim(),{sz:11}),{after:10})).join('') : '') +
+      (parc  ? para(run('Pareceres:',{b:true,col:'1e56aa',sz:12}),{before:40,after:15}) + parc.split('\n').filter(Boolean).slice(0,4).map(l => para(run(l.trim(),{sz:11}),{after:10})).join('') : '') +
+      (!labs&&!image&&!parc ? para(run('—',{col:'94a3b8',sz:12}),{after:0}) : '');
+
+    // Col 5: Programação (conduta + tarde fixa)
+    const conduta = (ev?.conduta||'').trim();
+    const tarde   = p.tardeFixa;
+    let col5 = '';
+    if (conduta) {
+      conduta.split('\n').filter(Boolean).forEach(line => {
+        const t = line.trim();
+        if (/^>>/.test(t)) {
+          col5 += para(run('>> '+t.replace(/^>>\s*/,'').replace(/:?\s*$/,'')+':', {b:true,col:'1e56aa',sz:12}),{before:40,after:10});
+        } else {
+          col5 += para(run('- '+t.replace(/^-\s*/,'').trim(),{sz:12}),{after:10});
+        }
       });
     }
-
-    // Resumo
-    const resumo = (ev?.resumo||'').trim()||(pat.diag||'').trim();
-    if (resumo) {
-      body += sectionLabel('▶ RESUMO DO CASO:');
-      resumo.split('\n').filter(Boolean).forEach(l => body += p(l.trim(), {color:'64748b', size:13, indent:200, after:30}));
+    if (tarde && (tarde.observacoes?.length||tarde.pendencias?.length)) {
+      col5 += para(run(`🌅 Tarde Fixa (${tarde.date||today}):`,{b:true,col:'b45309',sz:12}),{before:60,after:20});
+      (tarde.observacoes||[]).forEach(o => { col5 += para(run('➔ '+o,{sz:11,col:'374151'}),{after:10}); });
+      if (tarde.clexane?.flag) col5 += para(run('Clexane: '+tarde.clexane.valor,{sz:11,col:'b45309'}),{after:8});
+      if (tarde.atb?.flag)     col5 += para(run('ATB: '+tarde.atb.valor,{sz:11,col:'b45309'}),{after:8});
+      if (tarde.risco?.flag)   col5 += para(run('⚠ Risco: '+tarde.risco.valor,{sz:11,col:'C00000'}),{after:8});
+      const pends = (tarde.pendencias||[]).filter(i=>i.text&&!/^sem$/i.test(i.text));
+      pends.forEach(i => { col5 += para(run((i.done?'☑ ':'☐ ')+i.text,{sz:11,col:i.done?'94a3b8':'92400e'}),{after:10}); });
     }
+    if (!col5) col5 = para(run('—',{col:'94a3b8',sz:12}),{after:0});
 
-    // Dispositivos / ATB
-    const dev=(ev?.devices)||pat.devices||'', abx=(ev?.abx)||pat.abx||'';
-    if (dev||abx) {
-      if (dev) {
-        body += sectionLabel('▶ DISPOSITIVOS:');
-        dev.split('\n').filter(Boolean).forEach(l => body += p('- '+l.trim(), {color:'374151', size:13, indent:200, after:25}));
-      }
-      if (abx) {
-        body += sectionLabel('▶ ATB E CULTURAS:', 'dc2626');
-        abx.split(/;|\n/).filter(Boolean).forEach(l => body += p('- '+l.trim(), {color:'374151', size:13, indent:200, after:25}));
-      }
-    }
+    const fillColor = p.status==='critical'?'FFF2F2':p.status==='attention'?'FFFBF0':'F8FAFF';
+    return `<w:tr>
+      ${buildCell(col1, fillColor)}
+      ${buildCell(col2)}
+      ${buildCell(col3)}
+      ${buildCell(col4)}
+      ${buildCell(col5)}
+    </w:tr>`;
+  }).join('');
 
-    // Exames e Pareceres
-    [['▶ LABS:', ev?.labs||''],['▶ IMAGEM:', ev?.image||ev?.imagem||''],['▶ PARECERES:', ev?.pareceres||'']].forEach(([lbl,txt])=>{
-      if (!txt.trim()) return;
-      body += sectionLabel(lbl);
-      txt.split('\n').filter(Boolean).forEach(l => body += p(l, {color:'374151', size:13, indent:200, after:25}));
-    });
+  const table = `<w:tbl>
+    <w:tblPr>
+      <w:tblW w:w="0" w:type="auto"/>
+      <w:tblLayout w:type="fixed"/>
+      <w:tblBorders>
+        <w:top w:val="single" w:sz="4" w:color="c7d5ea"/>
+        <w:left w:val="single" w:sz="4" w:color="c7d5ea"/>
+        <w:bottom w:val="single" w:sz="4" w:color="c7d5ea"/>
+        <w:right w:val="single" w:sz="4" w:color="c7d5ea"/>
+        <w:insideH w:val="single" w:sz="4" w:color="c7d5ea"/>
+        <w:insideV w:val="single" w:sz="4" w:color="c7d5ea"/>
+      </w:tblBorders>
+      <w:tblCellMar>
+        <w:top w:w="60" w:type="dxa"/><w:left w:w="80" w:type="dxa"/>
+        <w:bottom w:w="60" w:type="dxa"/><w:right w:w="80" w:type="dxa"/>
+      </w:tblCellMar>
+    </w:tblPr>
+    <w:tblGrid>
+      ${COL_W.map(w=>`<w:gridCol w:w="${w}"/>`).join('')}
+    </w:tblGrid>
+    ${headerRow}
+    ${rows}
+  </w:tbl>`;
 
-    // Programação
-    const conduta = (ev?.conduta||'').trim();
-    const tarde = pat.tardeFixa;
-    if (conduta || tarde) {
-      body += sectionLabel('▶ PROGRAMAÇÃO:');
-      if (conduta) {
-        conduta.split('\n').filter(Boolean).forEach(line => {
-          const t = line.trim();
-          if (/^>>/.test(t)) {
-            body += p('>> '+t.replace(/^>>\s*/,'').replace(/:?\s*$/,'')+':', {bold:true, color:'1e56aa', size:14, indent:200, before:60, after:20});
-          } else {
-            body += p('- '+t.replace(/^-\s*/,'').trim(), {color:'374151', size:13, indent:400, after:25});
-          }
-        });
-      }
-      if (tarde && (tarde.observacoes?.length||tarde.pendencias?.length||tarde.labs)) {
-        body += p('', {after:40});
-        body += p(`🌅 TARDE FIXA (${tarde.date||today}):`, {bold:true, color:'b45309', size:14, indent:200, after:30});
-        (tarde.observacoes||[]).forEach(o => body += p('➔ '+o, {color:'374151', size:13, indent:400, after:25}));
-        if (tarde.clexane?.flag) body += p('Clexane: '+tarde.clexane.valor, {color:'b45309', size:13, indent:400, after:20});
-        if (tarde.atb?.flag)     body += p('ATB: '+tarde.atb.valor, {color:'b45309', size:13, indent:400, after:20});
-        if (tarde.risco?.flag)   body += p('⚠️ Risco: '+tarde.risco.valor, {color:'b45309', size:13, indent:400, after:20});
-        const pends = (tarde.pendencias||[]).filter(i=>i.text&&!/^sem$/i.test(i.text));
-        if (pends.length) {
-          body += p('Pendências:', {bold:true, color:'92400e', size:14, indent:200, before:40, after:20});
-          pends.forEach(i => { body += checkbox(i.text, i.done||false, i.done?'94a3b8':'92400e'); });
-        }
-        if (tarde.labs) body += p('🔬 '+tarde.labs, {color:'1d4ed8', size:12, indent:400, after:20});
-      }
-    }
-
-    body += divider();
-  }
-
-  // Document XML
   const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document
-  xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
-  xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"
-  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
 <w:body>
-  <w:p>
-    <w:pPr><w:spacing w:before="0" w:after="60"/></w:pPr>
-    <w:r><w:rPr><w:b/><w:bCs/><w:color w:val="1e3a6e"/><w:sz w:val="32"/><w:szCs w:val="32"/><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr>
-      <w:t>PASSAGEM — ENFERMARIA CLÍNICA MÉDICA ${esc(wardNames[passagemWard])}</w:t></w:r></w:p>
-  <w:p>
-    <w:pPr><w:spacing w:before="0" w:after="200"/></w:pPr>
-    <w:r><w:rPr><w:color w:val="64748b"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr>
-      <w:t>${esc(today)}</w:t></w:r></w:p>
-  ${body}
+  <w:p><w:pPr><w:spacing w:before="0" w:after="60"/></w:pPr>
+    <w:r><w:rPr><w:b/><w:bCs/><w:color w:val="1e3a6e"/><w:sz w:val="28"/><w:szCs w:val="28"/><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr>
+      <w:t>PASSAGEM — ENFERMARIA DE CLÍNICA MÉDICA ${esc(wardNames[ward])}</w:t></w:r>
+    <w:r><w:rPr><w:color w:val="64748b"/><w:sz w:val="18"/><w:szCs w:val="18"/><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr>
+      <w:t xml:space="preserve">   ${esc(today)}</w:t></w:r>
+  </w:p>
+  ${table}
   <w:sectPr>
-    <w:pgSz w:w="12240" w:h="15840"/>
-    <w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720"/>
+    <w:pgSz w:w="20160" w:h="14280" w:orient="landscape"/>
+    <w:pgMar w:top="480" w:right="480" w:bottom="480" w:left="480"/>
   </w:sectPr>
 </w:body>
 </w:document>`;
 
   const files = {
-    '[Content_Types].xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-  <Default Extension="xml" ContentType="application/xml"/>
-  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
-</Types>`,
-    '_rels/.rels': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
-</Relationships>`,
+    '[Content_Types].xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`,
+    '_rels/.rels': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`,
     'word/document.xml': docXml,
-    'word/_rels/document.xml.rels': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`,
+    'word/_rels/document.xml.rels': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`,
   };
-  triggerDownload(new Blob([buildZip(files)], {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}), filename+'.docx');
-  showToast('✅ Word exportado com checkboxes nativos', 'success');
+  triggerDownload(new Blob([buildZip(files)],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}), filename+'.docx');
+  showToast('✅ Word exportado — tabela 5 colunas (landscape A4)', 'success');
 }
-
 let passagemWard = 'cmm';
 
 function selectPassagemWard(ward, btn) {
@@ -8708,6 +8717,32 @@ document.addEventListener('DOMContentLoaded', () => {
       <button class="btn btn-ghost" onclick="clearSupaConfig()" style="color:var(--danger);">🗑️ Remover</button>
       <button class="btn btn-ghost" onclick="closeModal('modal-supa-config')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveSupaConfig()">✅ Conectar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ API KEY MODAL ══ -->
+<div class="modal-overlay" id="modal-apikey">
+  <div class="modal" style="max-width:460px;width:95%;">
+    <div class="modal-header">
+      <div class="modal-title">🤖 API Key — Claude</div>
+      <button class="modal-close" onclick="closeModal('modal-apikey')">×</button>
+    </div>
+    <div class="modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px;">
+      <div style="background:rgba(30,86,170,.1);border:1px solid var(--blue-700);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--blue-300);line-height:1.6;">
+        📋 Obtenha sua API Key em <strong>console.anthropic.com</strong><br>
+        A chave fica salva localmente e nunca sai do seu dispositivo.
+      </div>
+      <div>
+        <label class="form-label">Anthropic API Key</label>
+        <input class="form-input" id="api-key-input" type="password"
+          placeholder="sk-ant-api03-..."
+          style="font-family:monospace;font-size:12.5px;">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-apikey')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveApiKey()">✅ Salvar</button>
     </div>
   </div>
 </div>
