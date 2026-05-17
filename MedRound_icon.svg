@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#0614AD"/>
+      <stop offset="100%" stop-color="#020917"/>
+    </linearGradient>
+    <linearGradient id="cross" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#ffffff"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="512" height="512" rx="96" ry="96" fill="url(#bg)"/>
+
+  <!-- Subtle grid lines -->
+  <line x1="256" y1="60" x2="256" y2="452" stroke="#1e3a8a" stroke-width="1" stroke-dasharray="8,8" opacity="0.4"/>
+  <line x1="60"  y1="256" x2="452" y2="256" stroke="#1e3a8a" stroke-width="1" stroke-dasharray="8,8" opacity="0.4"/>
+
+  <!-- ECG line (heartbeat) — background pulse -->
+  <polyline
+    points="60,256 110,256 130,200 155,310 175,180 200,330 220,256 310,256 330,210 350,300 365,256 452,256"
+    fill="none" stroke="#1d4ed8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"/>
+
+  <!-- Medical cross — center -->
+  <rect x="218" y="140" width="76" height="232" rx="16" fill="url(#cross)" filter="url(#glow)"/>
+  <rect x="140" y="218" width="232" height="76" rx="16" fill="url(#cross)" filter="url(#glow)"/>
+
+  <!-- Center circle accent -->
+  <circle cx="256" cy="256" r="30" fill="#0614AD"/>
+  <circle cx="256" cy="256" r="18" fill="white" opacity="0.9"/>
+
+  <!-- Corner dots — hospital aesthetic -->
+  <circle cx="120" cy="120" r="8" fill="#3b82f6" opacity="0.6"/>
+  <circle cx="392" cy="120" r="8" fill="#3b82f6" opacity="0.6"/>
+  <circle cx="120" cy="392" r="8" fill="#3b82f6" opacity="0.6"/>
+  <circle cx="392" cy="392" r="8" fill="#3b82f6" opacity="0.6"/>
+</svg>
