@@ -2289,23 +2289,33 @@ async function _confirmImport() {
     // ── 1. Tarde Fixa ──
     _batchTardesData.forEach(r => {
       try {
-        const td = r.tardeData || {};
-        const leitoNum = parseInt(String(r.leito||''), 10);
+        // parseTardeFixa returns {leito, name, observacoes, pendencias, dieta, clexane, atb, risco, labs, date}
+        // These fields may be at root level OR inside tardeData
+        const td  = (r.tardeData && Object.keys(r.tardeData).length > 0) ? r.tardeData : r;
+        const leitoNum = parseInt(String(r.leito || td.leito || ''), 10);
+        if (!leitoNum) { console.warn('[TF] No leito for', r); return; }
+
+        let matched = false;
         for (const w of ['cmm','cmf1','cmf2']) {
           const p = (data[w]||[]).find(x => parseInt(String(x.leito||''),10) === leitoNum);
           if (!p) continue;
           p.tardeFixa = {
             date:        td.date || today,
             observacoes: td.observacoes || [],
-            pendencias:  (td.pendencias||[]).map(t => ({text: t.text||t, done: false})),
-            dieta:    { valor: td.dieta?.valor||'',   flag: td.dieta?.flag||false },
-            clexane:  { valor: td.clexane?.valor||'', flag: td.clexane?.flag||false },
-            atb:      { valor: td.atb?.valor||'',     flag: td.atb?.flag||false },
-            risco:    { valor: td.risco?.valor||'',   flag: td.risco?.flag||false },
+            pendencias:  (td.pendencias||[]).map(item =>
+              typeof item === 'string' ? {text: item, done: false} : {text: item.text||'', done: item.done||false}
+            ),
+            dieta:    { valor: td.dieta?.valor   || '', flag: td.dieta?.flag   || false },
+            clexane:  { valor: td.clexane?.valor || '', flag: td.clexane?.flag || false },
+            atb:      { valor: td.atb?.valor     || '', flag: td.atb?.flag     || false },
+            risco:    { valor: td.risco?.valor   || '', flag: td.risco?.flag   || false },
             labs:     td.labs || '',
           };
-          tfSaved++; break;
+          matched = true;
+          tfSaved++;
+          break;
         }
+        if (!matched) console.warn('[TF] No patient found for leito', leitoNum);
       } catch(e) { console.warn('[TF item]', e); }
     });
 
@@ -2422,10 +2432,11 @@ async function _confirmImport() {
     // ── 4. Save ──
     saveData(data);
 
-    // ── 5. Close modal & refresh UI ──
-    closeModal('modal-import');
+    // ── 5. Push to Supabase if connected ──
+    if (sb.client) sbPush(data).catch(e => console.warn('[sbPush post-import]', e));
 
-    // Reset modal internals
+    // ── 6. Close modal & reset ──
+    closeModal('modal-import');
     ['import-filelist','import-preview','import-save-btn'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
@@ -2434,27 +2445,62 @@ async function _confirmImport() {
     const fo = document.getElementById('import-folder-input');
     if (fi) fi.value = '';
     if (fo) fo.value = '';
+    const confirmBtnReset = document.getElementById('import-upload-btn');
+    if (confirmBtnReset) { confirmBtnReset.style.display = 'none'; confirmBtnReset.disabled = false; }
 
-    // Refresh views
+    // ── 7. Force full UI refresh ──
+    // Run migration to backfill conduta/problems from rawText
+    migrateCondutaFromRawText();
+    autoSyncAllLabs();
+
+    // Update counts and all visible views
     updateCounts();
-    renderPatients();
     renderDashboard();
-    renderPassagem();
-    if (state.currentView === 'altas') renderAltas();
+    renderPatients();
 
-    // ── 6. Toast summary ──
+    // Refresh passagem for the ward that was most imported
+    if (_batchImportData.length > 0) {
+      // Determine which ward the evolutions belong to
+      const freshData = getData();
+      const wardCounts = {cmm:0, cmf1:0, cmf2:0};
+      _batchImportData.forEach(r => {
+        const ex = r.extracted||{};
+        const lNum = parseInt(String(ex.leito||''),10)||0;
+        for (const w of ['cmm','cmf1','cmf2']) {
+          const found = (freshData[w]||[]).find(p => parseInt(String(p.leito||''),10)===lNum);
+          if (found) { wardCounts[w]++; break; }
+        }
+      });
+      const topWard = Object.keys(wardCounts).sort((a,b)=>wardCounts[b]-wardCounts[a])[0];
+      if (topWard && wardCounts[topWard] > 0) {
+        passagemWard = topWard;
+        // Update passagem ward tab UI
+        document.querySelectorAll('#passagem-ward-tabs button').forEach(b => b.className='btn btn-ghost btn-sm');
+        const tabEl = document.querySelector(`#passagem-ward-tabs button[onclick*="${topWard}"]`);
+        if (tabEl) tabEl.className = 'btn btn-primary btn-sm';
+      }
+    }
+    renderPassagem();
+    if (state.currentView === 'altas')     renderAltas();
+    if (state.currentView === 'condutas')  renderCondutasSelect();
+
+    // ── 8. Toast summary ──
+    const freshData2 = getData();
+    const totalPats = (freshData2.cmm||[]).length + (freshData2.cmf1||[]).length + (freshData2.cmf2||[]).length;
     const parts = [
       updated  && `${updated} evolução(ões) atualizada(s)`,
       created  && `${created} paciente(s) criado(s)`,
-      tfSaved  && `${tfSaved} tarde(s) fixa(s)`,
+      tfSaved  && `${tfSaved} tarde(s) fixa(s) aplicada(s)`,
     ].filter(Boolean);
-    showToast('✅ ' + (parts.length ? parts.join(' · ') : 'Importação concluída'), 'success');
+    showToast('✅ ' + (parts.length ? parts.join(' · ') : 'Importação concluída') + ` — ${totalPats} pacientes`, 'success');
 
   } catch(e) {
     console.error('[_confirmImport]', e);
     showToast('❌ Erro ao salvar: ' + (e.message||e), 'error');
-    if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = '✅ Tentar novamente'; }
+    const confirmBtnErr = document.getElementById('import-upload-btn');
+    if (confirmBtnErr) { confirmBtnErr.disabled = false; confirmBtnErr.textContent = '✅ Tentar novamente'; }
   } finally {
+    // Clear batch data after everything is done
     _batchImportData = [];
     _batchTardesData = [];
   }
@@ -2853,67 +2899,78 @@ function extractRawSection(text, keywords) {
 }
 
 function extractIdentityFromText(text, filename) {
-  const idLine  = text.match(/^#\s*ID[:\s]+(.+)$/m)?.[1]?.trim() || '';
-  const ihLine  = text.match(/^#\s*(?:IH|DIH)[:\s]+(.+)$/m)?.[1]?.trim() || '';
-  const mihLine = text.match(/^#\s*MIH[:\s]+(.+)$/m)?.[1]?.trim() || '';
+  // Support both "# ID:" (with hash) and "ID:" (without hash)
+  const idLine  = text.match(/^#?\s*ID[:\s]+(.+)$/m)?.[1]?.trim() || '';
+  const ihLine  = text.match(/^#?\s*(?:IH|DIH)[:\s]+(.+)$/m)?.[1]?.trim() || '';
+  const mihLine = text.match(/^#?\s*MIH[:\s]+(.+)$/m)?.[1]?.trim() || '';
 
   let name = '', age = '', pront = '';
 
-  // Standard: # ID: Name | age anos | Prontuário: XXXXXX
+  // Standard: ID: Name | age anos | Prontuário: XXXXXX
   if (idLine && !idLine.match(/^(Evolução|Clínica|Médica|Admissão)/i)) {
     name  = idLine.split('|')[0].trim()
                .replace(/,\s*\d{2,3}\s*anos.*/i, '')
-               .replace(/\s*\(\s*\d{1,2}[\s_/-]\d{1,2}\s*\)\s*$/, '')  // remove "(11 05)" dates
-               .replace(/\s+\d{6,}\s*$/, '')                              // remove trailing 6+ digit numbers
+               .replace(/\s*\(\s*\d{1,2}[\s_/-]\d{1,2}\s*\)\s*$/, '')
+               .replace(/\s+\d{6,}\s*$/, '')
                .trim();
     age   = idLine.match(/(\d{2,3})\s*anos/i)?.[1] || '';
-    pront = idLine.match(/[Pp]rontu[aá]rio[:\s]+(\d[\d\/]+)/)?.[1]?.replace(/\D/g,'') ||
-            idLine.match(/\bPt[:\s]+(\d[\d\/]+)/)?.[1]?.replace(/\D/g,'') ||
-            idLine.match(/\bP[:\s]+(\d[\d\/]{3,})/)?.[1]?.replace(/\D/g,'') || '';
+    pront = idLine.match(/[Pp]rontu[aá]rio[:\s]+([\d\/]+)/)?.[1]?.replace(/\D/g,'') ||
+            idLine.match(/\bPt[:\s]+([\d\/]+)/)?.[1]?.replace(/\D/g,'') ||
+            idLine.match(/\bP[:\s]+([\d\/]{3,})/)?.[1]?.replace(/\D/g,'') || '';
   }
 
-  // Clemildo format: "# FULL NAME | Prontuário: XXXXXX"
+  // Fallback: "# NAME | Prontuário: XXXX" format (Clemildo-style)
   if (!pront) {
     const m = text.match(/^#+\s+([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç\s]+)\s*\|\s*[Pp]rontu[aá]rio[:\s]*(\d+)/m);
     if (m) { if (!name) name = m[1].trim().replace(/\s+/g,' '); pront = m[2]; }
   }
 
-  // Valdemiro format: plain line "NAME | age anos  Prontuário: XXXXX | DN: ..."
-  // This line has NO # prefix — it's just a plain bold line right after the header
-  if (!name) {
-    const plainLines = text.split('\n').slice(0, 6);
+  // Fallback: plain lines in first 8 lines with | separator
+  if (!name || !pront) {
+    const plainLines = text.split('\n').slice(0, 8);
     for (const pl of plainLines) {
       const t = pl.trim();
-      // Must NOT start with #, must have | separator, must have a real name (all caps or title case)
-      // Include full Portuguese char set including Ç, Ã, Õ etc.
-      if (!t.startsWith('#') && t.includes('|') && /^[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇÀÈÌÒÙÜ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇÀÈÌÒÙÜa-záéíóúâêîôûãõçàèìòùü\s]{4,60}\s*\|/.test(t)) {
-        name  = t.split('|')[0].trim().replace(/\s+/g,' ');
+      // Match "ID: NAME | ..." or "NAME | ..."
+      const isIdLine = /^ID[:\s]/i.test(t);
+      const hasPipe  = t.includes('|');
+      if (!hasPipe) continue;
+
+      if (isIdLine) {
+        // "ID: REINALDO FERREIRA | 28 anos | Prontuário: 3028743"
+        const afterId = t.replace(/^ID[:\s]+/i, '').trim();
+        if (!name) name = afterId.split('|')[0].trim().replace(/\s+/g,' ');
         const agM = t.match(/\b(\d{2,3})\s*anos/i);
         if (agM && !age) age = agM[1];
-        const prM = t.match(/[Pp]rontu[aá]rio[:\s*]+([0-9\/]+)/);
-        if (prM && !pront) pront = prM[1].replace(/\//g,'');
+        const prM = t.match(/[Pp]rontu[aá]rio[:\s*]+([\d\/]+)/);
+        if (prM && !pront) pront = prM[1].replace(/\D/g,'');
+        break;
+      }
+
+      if (/^[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇÀÈÌÒÙÜ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇÀÈÌÒÙÜa-záéíóúâêîôûãõçàèìòùü\s]{4,60}\s*\|/.test(t)) {
+        if (!name) name = t.split('|')[0].trim().replace(/\s+/g,' ');
+        const agM = t.match(/\b(\d{2,3})\s*anos/i);
+        if (agM && !age) age = agM[1];
+        const prM = t.match(/[Pp]rontu[aá]rio[:\s*]+([\d\/]+)/);
+        if (prM && !pront) pront = prM[1].replace(/\D/g,'');
         break;
       }
     }
   }
 
-  // Filename fallback
+  // Filename fallback for name
   if (!name) {
     const fn = filename.match(/LT[_\s-]*\d+[A-Za-z]?[_\s-]+(.+?)(?:[_\s]\d{2}[_\s]\d{2}|\.docx|$)/i);
     if (fn) name = fn[1].replace(/[_-]+/g,' ').trim();
-    // Handle "Admissa_o_Vicente_09_05_" → "Vicente"
     if (!name) {
-      const fn2 = filename.replace(/Admissa_o_|_09_05_|_08_05_|\.docx/gi,'').replace(/[_-]+/g,' ').trim();
+      const fn2 = filename.replace(/Admissa_o_|_\d{2}_\d{2}_|\\.docx/gi,'').replace(/[_-]+/g,' ').trim();
       if (fn2 && fn2.length > 2) name = fn2;
     }
   }
 
-  // Age fallback
   if (!age) age = text.match(/\b(\d{2,3})\s*anos/i)?.[1] || '';
 
-  // Prontuário fallback — search anywhere in first 500 chars
   if (!pront) {
-    pront = text.match(/[Pp]rontu[aá]rio[:\s*#]*(\d{4,})/)?.[1] ||
+    pront = text.match(/[Pp]rontu[aá]rio[:\s*#]*([\d]{4,})/)?.[1] ||
             text.match(/\bPt[:\s]+(\d{4,})/)?.[1] || '';
   }
 
@@ -2921,7 +2978,7 @@ function extractIdentityFromText(text, filename) {
   const leito = filename.match(/LT[_\s-]*(\d+[A-Za-z]?)/i)?.[1] ||
                 text.match(/(?:[Ll]eito|LT)[:\s]+(\d+[A-Za-z]?)/)?.[1] || '';
 
-  // Parse IH date — take last date found in IH line
+  // Parse IH date
   const allDates = [...(ihLine).matchAll(/(\d{2})\/(\d{2})\/(\d{2,4})/g)];
   let dt = new Date().toISOString().split('T')[0];
   if (allDates.length) {
@@ -2933,7 +2990,6 @@ function extractIdentityFromText(text, filename) {
   name = (name || '').replace(/\s+/g,' ').trim();
   return { name, age, pront, leito, dt, ih: ihLine ? `IH: ${ihLine}` : '', mih: mihLine };
 }
-
 function extractCondutaSection(text) {
   if (!text) return '';
 
