@@ -1283,44 +1283,53 @@ input, textarea, select { font-family: inherit; }
 
       <div class="detail-header" id="detail-header"></div>
 
-      <div class="detail-tabs" id="detail-tabs">
+      <div class="detail-tabs" id="detail-tabs" style="flex-wrap:wrap;gap:2px;">
         <div class="detail-tab active" onclick="switchTab('evolucao')">📝 Evolução</div>
-        <div class="detail-tab" onclick="switchTab('exames')">🔬 Espelho Exames</div>
-        <div class="detail-tab" onclick="switchTab('upload')">📎 Documentos</div>
+        <div class="detail-tab" onclick="switchTab('identificacao')">🪪 Identificação</div>
+        <div class="detail-tab" onclick="switchTab('diagnosticos')">🩺 Problemas</div>
+        <div class="detail-tab" onclick="switchTab('historia')">📋 Hist. Clínica</div>
+        <div class="detail-tab" onclick="switchTab('condutas-tab')">💊 Condutas</div>
+        <div class="detail-tab" onclick="switchTab('exames')">🔬 Labs</div>
+        <div class="detail-tab" onclick="switchTab('imagem')">🖼️ Imagens</div>
+        <div class="detail-tab" onclick="switchTab('timeline')">📅 Timeline</div>
         <div class="detail-tab" onclick="switchTab('ai-suggest')">🤖 Sugestões IA</div>
         <div class="detail-tab" onclick="switchTab('sumario')">📄 Sumário Alta</div>
-        <div class="detail-tab" onclick="switchTab('timeline')">📅 Timeline</div>
+        <div class="detail-tab" onclick="switchTab('upload')">📎 Documentos</div>
       </div>
 
-      <div id="tab-evolucao" class="tab-content active">
-        
+      <!-- TAB: Identificação -->
+      <div id="tab-identificacao" class="tab-content active">
+        <div id="tab-identificacao-body" style="display:flex;flex-direction:column;gap:14px;"></div>
+      </div>
+
+      <!-- TAB: Evolução -->
+      <div id="tab-evolucao" class="tab-content" style="display:none;">
         <div id="evolutions-list"></div>
       </div>
 
-      <div id="tab-exames" class="tab-content">
-        <!-- AUDIO EXAMES -->
-        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:16px;">
-            <div class="rec-visualizer" id="lab-rec-visualizer">
-              <div class="rec-bar"></div><div class="rec-bar"></div><div class="rec-bar"></div>
-              <div class="rec-bar"></div><div class="rec-bar"></div><div class="rec-bar"></div>
-            </div>
-          </div>
-          <div class="transcription-box" id="lab-transcription-box" style="display:none;min-height:60px;margin-top:12px;font-size:13px;"></div>
-          <div id="lab-transcription-actions" style="display:none;margin-top:10px;gap:8px;flex-wrap:wrap;">
-            <button class="btn btn-primary btn-sm" onclick="processLabTranscription()">🤖 Extrair e atualizar Espelho de Exames</button>
-            <button class="btn btn-ghost btn-sm" onclick="clearLabTranscription()">Descartar</button>
-          </div>
-        </div>
-        <div class="lab-mirror">
-          <div class="lab-mirror-header">
-            <div class="lab-mirror-title">🔬 Espelho Evolutivo de Exames</div>
-            <div style="display:flex;gap:6px;">
-              <button class="btn btn-ghost btn-sm" onclick="addLabDate()">+ Data</button>
-              <button class="btn btn-ghost btn-sm" onclick="addLabRow()">+ Exame</button>
-            </div>
-          </div>
-          <div class="lab-table-wrap">
-            <table class="lab-table" id="lab-table">
+      <!-- TAB: Diagnósticos -->
+      <div id="tab-diagnosticos" class="tab-content" style="display:none;">
+        <div id="tab-diagnosticos-body"></div>
+      </div>
+
+      <!-- TAB: História Clínica -->
+      <div id="tab-historia" class="tab-content" style="display:none;">
+        <div id="tab-historia-body"></div>
+      </div>
+
+      <!-- TAB: Exames de Imagem -->
+      <div id="tab-imagem" class="tab-content" style="display:none;">
+        <div id="tab-imagem-body"></div>
+      </div>
+
+      <!-- TAB: Condutas do paciente -->
+      <div id="tab-condutas-tab" class="tab-content" style="display:none;">
+        <div id="tab-condutas-tab-body"></div>
+      </div>
+
+      <div id="tab-exames" class="tab-content" style="display:none;">
+        
+        <table class="lab-table" id="lab-table">
               <thead id="lab-thead"></thead>
               <tbody id="lab-tbody"></tbody>
             </table>
@@ -2013,6 +2022,9 @@ function openImportPatient() {
   document.getElementById('import-loading').style.display  = 'none';
   const fi = document.getElementById('import-file-input');   if (fi) fi.value = '';
   const fo = document.getElementById('import-folder-input'); if (fo) fo.value = '';
+  // Pre-select current ward
+  const sel = document.getElementById('import-ward-select');
+  if (sel) sel.value = state.currentWard || 'cmm';
   openModal('modal-import');
 }
 
@@ -2284,6 +2296,8 @@ async function _confirmImport() {
   try {
     const data  = getData();
     const today = new Date().toLocaleDateString('pt-BR');
+    // Use the ward selected in the modal (not state.currentWard which may be wrong)
+    const importWard = document.getElementById('import-ward-select')?.value || state.currentWard || 'cmm';
     let updated=0, created=0, tfSaved=0;
 
     // ── 1. Tarde Fixa ──
@@ -2320,6 +2334,15 @@ async function _confirmImport() {
     });
 
     // ── 2. Evoluções ──
+    // Build a lookup of all leitos → ward for smart ward detection
+    const leitoToWard = {};
+    for (const w of ['cmm','cmf1','cmf2']) {
+      (data[w]||[]).forEach(p => {
+        const pl = parseInt(String(p.leito||''), 10);
+        if (pl > 0) leitoToWard[pl] = w;
+      });
+    }
+
     _batchImportData.forEach((r, idx) => {
       try {
         const ex       = r.extracted || {};
@@ -2363,22 +2386,34 @@ async function _confirmImport() {
           const todayIdx = patient.evolutions.findIndex(ev => ev.date === today);
           if (todayIdx >= 0) patient.evolutions[todayIdx] = newEvol;
           else               patient.evolutions.push(newEvol);
-          // Update top-level fields from latest evolution
           if (ex.problems?.trim()) patient.problems = ex.problems;
           if (ex.abx?.trim())      patient.abx      = ex.abx;
           if (ex.devices?.trim())  patient.devices  = ex.devices;
           if (ex.diag?.trim())     patient.diag     = ex.diag;
           if (ex.mih?.trim())      patient.mih      = ex.mih;
           updated++;
-        } else if (name) {
-          // Create new patient
-          const tw = state.currentWard || 'cmm';
-          if (!data[tw]) data[tw] = [];
-          data[tw].push({
+          console.log(`[import] UPDATED LT${leitoNum} ${patient.name} (ward:${ward})`);
+        } else {
+          // ── SMART WARD DETECTION ──
+          // 1. Check if leito already exists in a specific ward (previous session)
+          // 2. Use the ward selected in the import modal
+          let targetWard = leitoToWard[leitoNum] || importWard;
+
+          // If name is empty — use filename as name
+          const finalName = name || cleanPatientName(
+            (r.filename || '').replace(/\.(docx?|pdf|txt)$/i,'')
+                               .replace(/LT[_\s-]*\d+[A-Za-z]?[_\s-]*/i,'')
+                               .replace(/[_\-]+/g,' ').replace(/\d{2}[_\-]\d{2}/g,'').trim()
+          );
+
+          if (!finalName) { console.warn('[import] No name for', r.filename); return; }
+
+          if (!data[targetWard]) data[targetWard] = [];
+          const newPt = {
             id:         'p' + Date.now() + idx + Math.floor(Math.random()*9999),
-            name,
+            name:       finalName,
             pront:      ex.pront    || '',
-            leito:      String(ex.leito || ''),
+            leito:      String(leitoNum || ex.leito || ''),
             age:        ex.age      || '',
             dt:         ex.dt       || new Date().toISOString().split('T')[0],
             status:     'stable',
@@ -2391,10 +2426,12 @@ async function _confirmImport() {
             mih:        ex.mih      || '',
             evolutions: [newEvol],
             files:      [],
-          });
+          };
+          data[targetWard].push(newPt);
           created++;
+          console.log(`[import] CREATED LT${leitoNum} "${finalName}" → ward:${targetWard}`);
         }
-      } catch(e) { console.warn('[Evol item]', e); }
+      } catch(e) { console.warn('[Evol item]', r?.filename, e); }
     });
 
     // ── 3. Auto-alta: leitos ausentes no import ──
@@ -2449,11 +2486,16 @@ async function _confirmImport() {
     if (confirmBtnReset) { confirmBtnReset.style.display = 'none'; confirmBtnReset.disabled = false; }
 
     // ── 7. Force full UI refresh ──
-    // Run migration to backfill conduta/problems from rawText
     migrateCondutaFromRawText();
     autoSyncAllLabs();
 
-    // Update counts and all visible views
+    // Switch to the ward where patients were imported
+    state.currentWard = importWard;
+    // Update sidebar ward tab
+    document.querySelectorAll('.ward-tab').forEach(t => t.classList.remove('active'));
+    const activeTab = document.getElementById('tab-' + importWard);
+    if (activeTab) activeTab.classList.add('active');
+
     updateCounts();
     renderDashboard();
     renderPatients();
@@ -2483,6 +2525,19 @@ async function _confirmImport() {
     renderPassagem();
     if (state.currentView === 'altas')     renderAltas();
     if (state.currentView === 'condutas')  renderCondutasSelect();
+
+    // ── Auto-alta check: ask about patients absent from import ──
+    if (_batchImportData.length >= 3 && !_batchTardesData.length) {
+      const freshForAlta = getData();
+      const importedLeitosForAlta = new Set(
+        _batchImportData.map(r => parseInt(String((r.extracted||{}).leito||''),10)).filter(n=>n>0)
+      );
+      const wardForAlta = Object.keys({cmm:0,cmf1:0,cmf2:0}).reduce((best,w) => {
+        const c = (freshForAlta[w]||[]).filter(p=>importedLeitosForAlta.has(parseInt(String(p.leito||''),10))).length;
+        return c > (freshForAlta[best]||[]).filter(p=>importedLeitosForAlta.has(parseInt(String(p.leito||''),10))).length ? w : best;
+      }, 'cmm');
+      autoAltaCheck(importedLeitosForAlta, wardForAlta);
+    }
 
     // ── 8. Toast summary ──
     const freshData2 = getData();
@@ -2916,7 +2971,8 @@ function extractIdentityFromText(text, filename) {
     age   = idLine.match(/(\d{2,3})\s*anos/i)?.[1] || '';
     pront = idLine.match(/[Pp]rontu[aá]rio[:\s]+([\d\/]+)/)?.[1]?.replace(/\D/g,'') ||
             idLine.match(/\bPt[:\s]+([\d\/]+)/)?.[1]?.replace(/\D/g,'') ||
-            idLine.match(/\bP[:\s]+([\d\/]{3,})/)?.[1]?.replace(/\D/g,'') || '';
+            idLine.match(/\bP[:\s]+([\d\/]{3,})/)?.[1]?.replace(/\D/g,'') ||
+            idLine.match(/\bPront[:\s]+([\d]+)/i)?.[1] || '';
   }
 
   // Fallback: "# NAME | Prontuário: XXXX" format (Clemildo-style)
@@ -2971,7 +3027,8 @@ function extractIdentityFromText(text, filename) {
 
   if (!pront) {
     pront = text.match(/[Pp]rontu[aá]rio[:\s*#]*([\d]{4,})/)?.[1] ||
-            text.match(/\bPt[:\s]+(\d{4,})/)?.[1] || '';
+            text.match(/\bPt[:\s]+(\d{4,})/)?.[1] ||
+            text.match(/\bP[:\s]+(\d{4,})/)?.[1] || '';
   }
 
   // Leito from filename (most reliable)
@@ -4109,148 +4166,213 @@ function selectAllCondutas(checked) {
 }
 
 // Gera resumo direto das condutas da última evolução + tarde fixa
+// ══════════════════════════════════════════════════════════
+//  EDIÇÃO INLINE UNIVERSAL
+// ══════════════════════════════════════════════════════════
+function editField(patientId, fieldPath, displayElementId) {
+  const displayEl = document.getElementById(displayElementId);
+  if (!displayEl) return;
+  const data = getData();
+  let patient = null, ward = null;
+  for (const w of ['cmm','cmf1','cmf2']) {
+    patient = (data[w]||[]).find(p => p.id === patientId);
+    if (patient) { ward = w; break; }
+  }
+  if (!patient) return;
+  function getVal(obj, path) {
+    return path.split('.').reduce((o,k) => {
+      if (k==='-1'&&Array.isArray(o)) return o[o.length-1];
+      return o?.[k];
+    }, obj) || '';
+  }
+  const cur = String(getVal(patient, fieldPath)||'');
+  const isMultiline = cur.includes('\n') || cur.length > 100;
+  const edId = 'ied-'+displayElementId;
+  displayEl.style.display = 'none';
+  const wrap = document.createElement('div');
+  wrap.id = 'iew-'+displayElementId;
+  wrap.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+  const tag = isMultiline ? 'textarea' : 'input';
+  wrap.innerHTML = `<${tag} id="${edId}" style="width:100%;padding:10px;background:var(--bg-hover);border:1px solid var(--blue-500);border-radius:8px;color:var(--text-primary);font-size:13px;font-family:inherit;line-height:1.65;resize:vertical;min-height:${isMultiline?'120px':'38px'};box-sizing:border-box;"></${tag}>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary btn-sm" onclick="saveField('${patientId}','${ward}','${fieldPath}','${displayElementId}')">💾 Salvar</button>
+      <button class="btn btn-ghost btn-sm" onclick="cancelEditField('${displayElementId}')">Cancelar</button>
+    </div>`;
+  displayEl.parentNode.insertBefore(wrap, displayEl.nextSibling);
+  const ed = document.getElementById(edId);
+  if (ed) { ed.value = cur; ed.focus(); }
+}
+
+function saveField(patientId, ward, fieldPath, displayElementId) {
+  const ed = document.getElementById('ied-'+displayElementId);
+  if (!ed) return;
+  const newVal = ed.value;
+  const data = getData();
+  let patient = null;
+  for (const w of ['cmm','cmf1','cmf2']) {
+    patient = (data[w]||[]).find(p => p.id === patientId);
+    if (patient) break;
+  }
+  if (!patient) return;
+  const parts = fieldPath.split('.');
+  let obj = patient;
+  for (let i=0; i<parts.length-1; i++) {
+    const k=parts[i];
+    if (k==='-1'&&Array.isArray(obj)) obj=obj[obj.length-1];
+    else obj=obj[k];
+    if (!obj) return;
+  }
+  const lk = parts[parts.length-1];
+  if (lk==='-1'&&Array.isArray(obj)) obj[obj.length-1]=newVal;
+  else obj[lk]=newVal;
+  if (fieldPath.includes('evolutions')&&patient.evolutions?.length) {
+    const lev = patient.evolutions[patient.evolutions.length-1];
+    if (fieldPath.includes('problems')) patient.problems=lev.problems;
+    if (fieldPath.includes('abx'))      patient.abx=lev.abx;
+    if (fieldPath.includes('devices'))  patient.devices=lev.devices;
+  }
+  saveData(data);
+  const wrap = document.getElementById('iew-'+displayElementId);
+  if (wrap) wrap.remove();
+  const dispEl = document.getElementById(displayElementId);
+  if (dispEl) { dispEl.style.display=''; dispEl.textContent=newVal; }
+  if (fieldPath.includes('conduta')) setTimeout(()=>renderPassagem(),100);
+  showToast('✅ Campo salvo','success');
+}
+
+function cancelEditField(displayElementId) {
+  const wrap = document.getElementById('iew-'+displayElementId);
+  if (wrap) wrap.remove();
+  const dispEl = document.getElementById(displayElementId);
+  if (dispEl) dispEl.style.display='';
+}
+
+// ══════════════════════════════════════════════════════════
+//  RESUMO DE CONDUTAS — Sem IA
+// ══════════════════════════════════════════════════════════
 function gerarCondutasDireto() {
   const data = [...getData()[state.currentWard]].sort(sortByBed);
-  const selected = data.filter(p => { const el = document.getElementById('cond-'+p.id); return el && el.checked; });
-  if (!selected.length) { showToast('⚠️ Selecione ao menos um paciente', 'error'); return; }
+  const selected = data.filter(p => { const el=document.getElementById('cond-'+p.id); return el&&el.checked; });
+  if (!selected.length) { showToast('⚠️ Selecione ao menos um paciente','error'); return; }
   const container = document.getElementById('condutas-result');
   const today = new Date().toLocaleDateString('pt-BR');
-  const wardFullNames = { cmm: 'MASCULINA', cmf1: 'FEMININA 1', cmf2: 'FEMININA 2' };
+  const wardNames = {cmm:'MASCULINA',cmf1:'FEMININA 1',cmf2:'FEMININA 2'};
 
-  const items = selected.map(p => {
-    const lastEvol = p.evolutions && p.evolutions.length ? p.evolutions[p.evolutions.length-1] : null;
-    const conduta = lastEvol && lastEvol.conduta ? lastEvol.conduta.trim() : '';
-    const tarde = p.tardeFixa || null;
-    const evolDate = lastEvol ? ` <span style="font-size:10px;color:var(--text-muted);">(${lastEvol.date})</span>` : '';
+  let html = `<div style="margin-bottom:16px;"><div style="font-family:Syne,sans-serif;font-size:15px;font-weight:700;">RESUMO DE CONDUTAS</div>
+    <div style="font-size:12px;color:var(--text-muted);">CLÍNICA MÉDICA ${wardNames[state.currentWard]} — ${today} · ${selected.length} paciente(s)</div></div>`;
 
-    // Render conduta lines
-    let condutaHTML = '';
-    if (conduta) {
-      const lines = conduta.split('\n').map(l => l.trim()).filter(Boolean);
-      let first = true;
-      lines.forEach(line => {
-        if (/^>>/.test(line)) {
-          const t = line.replace(/^>>\s*/,'').replace(/:?\s*$/,'').trim();
-          condutaHTML += `<div style="font-size:11px;font-weight:700;color:var(--blue-400);text-transform:uppercase;letter-spacing:.6px;margin-top:${first?'0':'8px'};margin-bottom:3px;border-left:2px solid var(--blue-500);padding-left:6px;">&gt;&gt; ${escapeHtml(t)}:</div>`;
-          first = false;
-        } else {
-          const clean = line.replace(/^[-\*•]\s*/,'').trim();
-          if (clean) condutaHTML += `<div style="font-size:12.5px;color:var(--text-secondary);line-height:1.7;padding-left:${first?'0':'6px'};">- ${escapeHtml(clean)}</div>`;
-        }
-      });
-    } else {
-      condutaHTML = '<div style="font-size:12px;color:var(--text-muted);font-style:italic;">Sem conduta registrada na última evolução.</div>';
+  selected.forEach(p => {
+    const lastEvol = p.evolutions?.length ? p.evolutions[p.evolutions.length-1] : null;
+    let conduta = lastEvol?.conduta || '';
+    // Fallback: extract from rawText
+    if (!conduta && lastEvol?.rawText) {
+      const cut = lastEvol.rawText.search(/(?:ESSA PARTE AQUI NÃO IRÁ|ESPELHO DE EXAMES|_{10,}|-{30,})/i);
+      const wt = cut>0 ? lastEvol.rawText.substring(0,cut) : lastEvol.rawText;
+      const mC = /^#\s*(?:conduta|plano|condutas|programação)\s*:?\s*$/im.exec(wt);
+      if (mC) {
+        const after=wt.substring(mC.index+mC[0].length);
+        const nH=/^#\s*[A-ZÁÉÍÓÚ]/im.exec(after);
+        conduta=(nH?after.substring(0,nH.index):after).split('\n').map(l=>l.trim()).filter(Boolean).join('\n');
+      }
     }
+    const tarde = p.tardeFixa;
 
-    // Render tarde fixa section
-    let tardeHTML = '';
-    if (tarde && (tarde.observacoes?.length || tarde.pendencias?.length || tarde.labs)) {
-      tardeHTML = `<div style="margin-top:10px;padding-top:8px;border-top:1.5px solid var(--warning);">`;
-      tardeHTML += `<div style="font-size:10px;font-weight:800;color:var(--warning);letter-spacing:.8px;margin-bottom:5px;">🌅 TARDE FIXA (${tarde.date||today}):</div>`;
-
-      if (tarde.observacoes?.length) {
-        tarde.observacoes.forEach(obs => {
-          tardeHTML += `<div style="font-size:12px;color:var(--text-secondary);line-height:1.6;margin-bottom:2px;">➔ ${escapeHtml(obs)}</div>`;
-        });
-      }
-
-      if (tarde.pendencias?.length) {
-        tardeHTML += `<div style="font-size:10px;font-weight:700;color:var(--text-muted);margin:5px 0 3px;text-transform:uppercase;letter-spacing:.5px;">Pendências:</div>`;
-        tarde.pendencias.forEach(item => {
-          tardeHTML += `<div style="font-size:12px;color:var(--text-secondary);line-height:1.6;margin-bottom:2px;"><span style="color:var(--warning);margin-right:4px;">⬜</span>${escapeHtml(item.text)}</div>`;
-        });
-      }
-
-      const flags = [];
-      if (tarde.dieta?.flag)   flags.push(`Dieta zero: ${tarde.dieta.valor}`);
-      if (tarde.clexane?.flag) flags.push(`Clexane: ${tarde.clexane.valor}`);
-      if (tarde.atb?.flag)     flags.push(`ATB: ${tarde.atb.valor}`);
-      if (tarde.risco?.flag)   flags.push(`⚠️ Risco: ${tarde.risco.valor}`);
-      if (flags.length) {
-        flags.forEach(f => {
-          tardeHTML += `<div style="font-size:11px;color:var(--warning);line-height:1.5;">• ${escapeHtml(f)}</div>`;
-        });
-      }
-
-      if (tarde.labs) {
-        tardeHTML += `<div style="font-size:11px;color:var(--blue-300);margin-top:4px;font-family:monospace;">🔬 ${escapeHtml(tarde.labs)}</div>`;
-      }
-      tardeHTML += `</div>`;
-    }
-
-    return `<div class="condutas-item">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-        <div class="condutas-bed">Leito ${p.leito}</div>${evolDate}
-      </div>
-      <div class="condutas-name">${p.name}</div>
-      <div class="condutas-list">${condutaHTML}${tardeHTML}</div>
+    html += `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:14px;">
+      <div style="font-family:Syne,sans-serif;font-weight:800;font-size:13px;color:var(--blue-400);margin-bottom:2px;">LT ${escapeHtml(String(p.leito))} — ${escapeHtml(cleanPatientName(p.name))}</div>
+      ${lastEvol?`<div style="font-size:10.5px;color:var(--text-muted);margin-bottom:10px;">Evolução: ${escapeHtml(lastEvol.date||'—')}</div>`:''}
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--blue-400);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border);">Conduta</div>
+      ${conduta ? conduta.split('\n').filter(l=>l.trim()).map(line=>{
+        const t=line.trim();
+        if(/^>>/.test(t)) return `<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--blue-300);border-left:3px solid var(--blue-500);padding:4px 0 4px 10px;margin:10px 0 4px;background:rgba(30,86,170,.07);border-radius:0 6px 6px 0;">${escapeHtml(t.replace(/^>>\s*/,'').replace(/:?\s*$/,''))}</div>`;
+        return `<div style="font-size:13px;color:var(--text-secondary);padding:2px 0 2px 12px;line-height:1.7;">- ${escapeHtml(t.replace(/^[-•]\s*/,''))}</div>`;
+      }).join('') : '<div style="font-size:12px;color:var(--text-muted);">Sem conduta registrada.</div>'}
+      ${tarde?`<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--warning);margin-bottom:6px;">🌅 Tarde Fixa (${escapeHtml(tarde.date||'')})</div>
+        ${(tarde.observacoes||[]).map(o=>`<div style="font-size:13px;color:var(--text-secondary);padding:2px 0;">➔ ${escapeHtml(o)}</div>`).join('')}
+        ${(tarde.pendencias||[]).filter(i=>i.text).map(i=>`<div style="font-size:12.5px;padding:3px 0;display:flex;gap:8px;"><span style="color:${i.done?'var(--success)':'var(--warning)'};">${i.done?'☑':'☐'}</span><span style="color:var(--text-secondary);">${escapeHtml(i.text)}</span></div>`).join('')}
+        <div style="font-size:11.5px;color:var(--text-muted);margin-top:6px;">Dieta: <strong>${escapeHtml(tarde.dieta?.valor||'—')}</strong> · Clexane: <strong>${escapeHtml(tarde.clexane?.valor||'—')}</strong> · ATB: <strong>${escapeHtml(tarde.atb?.valor||'—')}</strong>${tarde.risco?.flag?` <span style="color:#ef4444;font-weight:700;">⚠️ ${escapeHtml(tarde.risco.valor)}</span>`:''}</div>
+      </div>`:''}
     </div>`;
-  }).join('');
-
-  container.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
-      <div>
-        <div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--text-primary);">RESUMO DE CONDUTAS</div>
-        <div style="font-size:12px;color:var(--text-muted);">ENFERMARIA CLÍNICA MÉDICA ${wardFullNames[state.currentWard]} — ${today}</div>
-      </div>
-      <button class="btn btn-ghost btn-sm" onclick="exportCondutasDoc()">📥 Exportar</button>
-    </div>
-    ${items}`;
-  showToast('✅ Resumo gerado com condutas + tarde fixa', 'success');
+  });
+  container.innerHTML = html;
+  container.style.display = 'block';
+  showToast('✅ Resumo gerado — texto fiel ao original','success');
 }
 
+// ══════════════════════════════════════════════════════════
+//  RESUMO DE CONDUTAS — Com IA (Gemini Edge Function)
+// ══════════════════════════════════════════════════════════
 async function generateCondutas() {
-  const key = getApiKey();
-  if (!key) { openApiKeyModal(); return; }
   const data = [...getData()[state.currentWard]].sort(sortByBed);
-  const selected = data.filter(p => { const el = document.getElementById('cond-'+p.id); return el && el.checked; });
-  if (!selected.length) { showToast('⚠️ Selecione ao menos um paciente', 'error'); return; }
+  const selected = data.filter(p => { const el=document.getElementById('cond-'+p.id); return el&&el.checked; });
+  if (!selected.length) { showToast('⚠️ Selecione ao menos um paciente','error'); return; }
   const container = document.getElementById('condutas-result');
-  container.innerHTML = '<div class="ai-loading"><div class="ai-spinner"></div> Gerando resumo de condutas com IA...</div>';
-  const wardFullNames = { cmm: 'MASCULINA', cmf1: 'FEMININA 1', cmf2: 'FEMININA 2' };
+  container.innerHTML = '<div style="display:flex;align-items:center;gap:12px;padding:20px;"><div style="width:20px;height:20px;border:2px solid var(--blue-500);border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0;"></div><span style="color:var(--text-muted);font-size:13px;">Analisando com Gemini...</span></div>';
+  container.style.display = 'block';
+
   const today = new Date().toLocaleDateString('pt-BR');
-  const context = selected.map(p => {
-    const lastEvol = p.evolutions && p.evolutions.length ? p.evolutions[p.evolutions.length-1] : null;
-    return `LEITO ${p.leito} — ${p.name}\nDiagnósticos: ${p.diag}\n${lastEvol ? `Última evolução (${lastEvol.date}):\nConduta:\n${lastEvol.conduta||'não registrada'}\nImpressão: ${lastEvol.impressao||''}` : 'Sem evolução registrada'}`;
-  }).join('\n\n---\n\n');
-  try {
-    const res = await callClaude(`Você é um médico assistente preparando o resumo de condutas para o round da enfermaria Clínica Médica ${wardFullNames[state.currentWard]}. Organize e otimize as condutas de cada paciente de forma objetiva e prática.
+  const wardNames = {cmm:'MASCULINA',cmf1:'FEMININA 1',cmf2:'FEMININA 2'};
+  let html = `<div style="margin-bottom:16px;"><div style="font-family:Syne,sans-serif;font-size:15px;font-weight:700;">RESUMO DE CONDUTAS — IA</div>
+    <div style="font-size:12px;color:var(--text-muted);">CLÍNICA MÉDICA ${wardNames[state.currentWard]} — ${today} · ${selected.length} paciente(s)</div></div>`;
 
-${context}
+  for (const p of selected) {
+    const lastEvol = p.evolutions?.length ? p.evolutions[p.evolutions.length-1] : null;
+    const conduta  = lastEvol?.conduta||'';
+    const tarde    = p.tardeFixa;
+    const problems = (lastEvol?.problems||p.problems||'').split('\n').filter(l=>l.trim().startsWith('#')).map(l=>l.replace(/^#\s*/,'')).join('\n');
 
-Para cada paciente, crie um resumo exatamente no formato:
-[LEITO XX — NOME DO PACIENTE]
-• Conduta 1
-• Conduta 2
-...
+    // Base block (fiel)
+    let block = `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:14px;">
+      <div style="font-family:Syne,sans-serif;font-weight:800;font-size:13px;color:var(--blue-400);margin-bottom:2px;">LT ${escapeHtml(String(p.leito))} — ${escapeHtml(cleanPatientName(p.name))}</div>
+      ${lastEvol?`<div style="font-size:10.5px;color:var(--text-muted);margin-bottom:10px;">Evolução: ${escapeHtml(lastEvol.date||'—')}</div>`:''}
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--blue-400);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border);">Conduta</div>
+      ${conduta ? conduta.split('\n').filter(l=>l.trim()).map(line=>{
+        const t=line.trim();
+        if(/^>>/.test(t)) return `<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--blue-300);border-left:3px solid var(--blue-500);padding:4px 0 4px 10px;margin:10px 0 4px;background:rgba(30,86,170,.07);border-radius:0 6px 6px 0;">${escapeHtml(t.replace(/^>>\s*/,'').replace(/:?\s*$/,''))}</div>`;
+        return `<div style="font-size:13px;color:var(--text-secondary);padding:2px 0 2px 12px;line-height:1.7;">- ${escapeHtml(t.replace(/^[-•]\s*/,''))}</div>`;
+      }).join('') : '<div style="font-size:12px;color:var(--text-muted);">Sem conduta registrada.</div>'}
+      ${tarde?`<div style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--border);font-size:11.5px;color:var(--text-muted);">🌅 Tarde Fixa — ${escapeHtml(tarde.date||'')} (ver abas do paciente)</div>`:''}`;
 
-Seja objetivo e clínico. Ordene os pacientes pela ordem dos leitos. Inclua apenas condutas relevantes. O documento deve ser prático para uso no round médico.`);
-    const today2 = new Date().toLocaleDateString('pt-BR');
-    const items = selected.map(p => {
-      const lines = res.split('\n');
-      const startI = lines.findIndex(l => l.includes(p.leito) || l.includes(p.name.split(' ')[0]));
-      const endI = lines.findIndex((l,idx) => idx > startI && (l.startsWith('[LEITO') || l.startsWith('[Leito')));
-      const condutas = startI >= 0
-        ? lines.slice(startI+1, endI > 0 ? endI : undefined).filter(l=>l.trim()).join('\n')
-        : (p.evolutions&&p.evolutions.length ? p.evolutions[p.evolutions.length-1].conduta||'Sem conduta registrada' : 'Sem conduta registrada');
-      return `<div class="condutas-item">
-        <div class="condutas-bed">Leito ${p.leito}</div>
-        <div class="condutas-name">${p.name}</div>
-        <div class="condutas-list">${escapeHtml(formatConduta(condutas))}</div>
-      </div>`;
-    }).join('');
-    container.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
-        <div>
-          <div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--text-primary);">RESUMO DE CONDUTAS — IA</div>
-          <div style="font-size:12px;color:var(--text-muted);">ENFERMARIA CLÍNICA MÉDICA ${wardFullNames[state.currentWard]} — ${today2}</div>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="exportCondutasDoc()">📥 Exportar</button>
-      </div>
-      ${items}`;
-    showToast('✅ Resumo de condutas gerado com IA', 'success');
-  } catch(e) { container.innerHTML = `<div style="color:var(--danger);padding:20px;">❌ Erro: ${escapeHtml(e.message)}</div>`; }
+    // IA comment
+    let aiComment = '<div style="font-size:12px;color:var(--text-muted);font-style:italic;">Análise IA não disponível</div>';
+    const fnUrl = typeof sb !== 'undefined' && sb?.fnAiAssist;
+    let token = null;
+    if (fnUrl && typeof sb !== 'undefined' && sb?.client) {
+      try { const s=await sb.client.auth.getSession(); token=s?.data?.session?.access_token; } catch(e){}
+    }
+
+    if (fnUrl && token) {
+      try {
+        const res = await fetch(fnUrl, {
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+          body:JSON.stringify({patient:{name:p.name,age:p.age,diag:p.diag||p.mih,problems,abx:p.abx,devices:p.devices,lastEvolution:lastEvol?{resumo:lastEvol.resumo,impressao:lastEvol.impressao,labs:lastEvol.labs,conduta}:null},callType:'suggestions'}),
+        });
+        if (res.ok) {
+          const result = await res.json();
+          const sugs = (result.suggestions||[]).slice(0,3);
+          if (sugs.length) aiComment = sugs.map(s=>`<div style="padding:5px 0;border-bottom:1px solid var(--border);"><div style="font-size:12.5px;color:var(--text-primary);">${escapeHtml(s.text)}</div><div style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">📚 ${escapeHtml(s.fonte)} · Nível ${s.evidencia}</div></div>`).join('');
+        }
+      } catch(e) { console.warn('[generateCondutas IA]',e); }
+    } else if (getApiKey()) {
+      try {
+        const txt = await callClaude('Paciente '+p.name+', '+p.age+'a. Problemas: '+problems+'. Conduta: '+conduta+'. Em 3 sugestões clínicas curtas (guidelines), comente a conduta. Formato JSON: [{"texto":"...","fonte":"...","nivel":"A/B/C"}]');
+        const arr = JSON.parse(txt.match(/\[.*?\]/s)?.[0]||'[]');
+        if (arr.length) aiComment = arr.slice(0,3).map(s=>`<div style="padding:5px 0;border-bottom:1px solid var(--border);font-size:12.5px;color:var(--text-primary);">${escapeHtml(s.texto||s.text||'')} <span style="font-size:10.5px;color:var(--text-muted);">${escapeHtml(s.fonte||'')}</span></div>`).join('');
+      } catch(e) {}
+    }
+
+    block += `<div style="margin-top:14px;padding:12px;background:rgba(30,86,170,.07);border-radius:8px;border-left:3px solid var(--blue-500);">
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--blue-400);margin-bottom:8px;">🤖 Análise Clínica — Gemini</div>
+      ${aiComment}
+    </div></div>`;
+    html += block;
+  }
+
+  container.innerHTML = html;
+  showToast('✅ Resumo com IA gerado','success');
 }
+
 
 function exportCondutasDoc_OLD_REMOVED() {}
 function openCondutas() { showView('condutas'); }
@@ -8032,13 +8154,15 @@ function selectWard(ward) {
 
 // Alternar abas no prontuário do paciente
 function switchTab(tab) {
-  // Tab header
+  const allTabs = ['tab-identificacao','tab-evolucao','tab-diagnosticos','tab-historia',
+                   'tab-exames','tab-imagem','tab-condutas-tab',
+                   'tab-upload','tab-ai-suggest','tab-sumario','tab-timeline'];
+  // Tab headers
   document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('[onclick^="switchTab"]').forEach(t => {
     if (t.getAttribute('onclick') === "switchTab('" + tab + "')") t.classList.add('active');
   });
   // Tab content
-  const allTabs = ['tab-evolucao','tab-exames','tab-upload','tab-ai-suggest','tab-sumario','tab-timeline'];
   allTabs.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = (id === 'tab-' + tab) ? 'block' : 'none';
@@ -8055,11 +8179,17 @@ function switchTab(tab) {
   }
   if (!patient) return;
 
-  if (tab === 'exames')     renderLabTable(patient);
-  if (tab === 'sumario')    renderSumarioTab(patient);
-  if (tab === 'timeline')   renderTimeline(patient);
-  if (tab === 'ai-suggest') generateAISuggestions(patient);
-  if (tab === 'upload')     renderFilesList(patient);
+  if (tab === 'identificacao')  renderTabIdentificacao(patient);
+  if (tab === 'evolucao')       renderEvolutionsList(patient);
+  if (tab === 'diagnosticos')   renderTabDiagnosticos(patient);
+  if (tab === 'historia')       renderTabHistoria(patient);
+  if (tab === 'exames')         renderLabTable(patient);
+  if (tab === 'imagem')         renderTabImagem(patient);
+  if (tab === 'condutas-tab')   renderTabCondutas(patient);
+  if (tab === 'sumario')        renderSumarioTab(patient);
+  if (tab === 'timeline')       renderTimeline(patient);
+  if (tab === 'ai-suggest')     generateAISuggestions(patient);
+  if (tab === 'upload')         renderFilesList(patient);
 }
 
 // Upload tab
@@ -8101,14 +8231,197 @@ function renderPatientDetail(patient) {
 
   // Render evolutions list
   renderEvolutionsList(patient);
-  // Reset to first tab
+  // Open evolucao tab first (original behavior)
   switchTab('evolucao');
+}
+
+// ══════════════════════════════════════════════════════════
+//  PRONTUÁRIO — ABAS DO PACIENTE
+// ══════════════════════════════════════════════════════════
+function renderTabIdentificacao(patient) {
+  const el = document.getElementById('tab-identificacao-body');
+  if (!el || !patient) return;
+  const days = patient.dt ? Math.floor((new Date()-new Date(patient.dt))/86400000) : '?';
+  const lastEvol = patient.evolutions?.length ? patient.evolutions[patient.evolutions.length-1] : null;
+  const E = s => escapeHtml(String(s||'—'));
+  const row = (label, value, color='') =>
+    `<div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="width:160px;flex-shrink:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">${label}</div>
+      <div style="font-size:13px;color:${color||'var(--text-primary)'};">${value}</div>
+    </div>`;
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex-wrap:wrap;">
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:20px;">
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--blue-400);margin-bottom:14px;">Dados do Paciente</div>
+        ${row('Nome',E(cleanPatientName(patient.name)))}
+        ${row('Leito','LT '+E(patient.leito))}
+        ${row('Idade',E(patient.age)+' anos')}
+        ${row('Prontuário',E(patient.pront))}
+        ${row('Internação',E(patient.dt)+' · D'+days)}
+        ${row('MIH',E(patient.mih||patient.diag),'var(--text-secondary)')}
+        ${row('Alergias',patient.allergy||'Nega alergias',patient.allergy?'#ef4444':'')}
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:20px;">
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--blue-400);margin-bottom:14px;">Situação Atual</div>
+        ${row('Status',patient.status==='critical'?'🔴 Crítico':patient.status==='attention'?'🟡 Atenção':'🟢 Estável')}
+        ${row('ATB',patient.abx||'Sem ATB',patient.abx?'#ef4444':'')}
+        ${row('Dispositivos',E(patient.devices))}
+        ${row('Última evolução',lastEvol?lastEvol.date:'Nenhuma')}
+        ${row('Total evoluções',String(patient.evolutions?.length||0))}
+        ${row('Tarde Fixa',patient.tardeFixa?patient.tardeFixa.date+' ✅':'Não registrada')}
+      </div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-ghost btn-sm" onclick="openNewEvolution()">+ Nova Evolução</button>
+      <button class="btn btn-ghost btn-sm" onclick="openManualEvolution()">✏️ Manual</button>
+      <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="confirmDeletePatient()">🗑️ Remover</button>
+    </div>`;
+}
+
+function renderTabDiagnosticos(patient) {
+  const el = document.getElementById('tab-diagnosticos-body');
+  if (!el) return;
+  const lastEvol = patient.evolutions?.length ? patient.evolutions[patient.evolutions.length-1] : null;
+  const problems = (lastEvol?.problems||patient.problems||'').split('\n').filter(l=>l.trim().startsWith('#'));
+  el.innerHTML = `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--blue-400);margin-bottom:12px;">MIH / Diagnóstico de Entrada</div>
+      <div style="font-size:14px;font-weight:600;">${escapeHtml(patient.mih||patient.diag||'Não registrado')}</div>
+    </div>
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:20px;">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--blue-400);margin-bottom:14px;">Lista de Problemas (${problems.length})</div>
+      ${problems.map((l,i) => {
+        const clean = l.replace(/^#\s*/,'').trim();
+        return `<div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+          <div style="width:26px;height:26px;background:var(--blue-700);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0;">${i+1}</div>
+          <div style="font-size:13.5px;font-weight:500;padding-top:3px;">${escapeHtml(clean)}</div>
+        </div>`;
+      }).join('')||'<div style="color:var(--text-muted);">Nenhum problema registrado.</div>'}
+    </div>`;
+}
+
+function renderTabHistoria(patient) {
+  const el = document.getElementById('tab-historia-body');
+  if (!el) return;
+  const lastEvol = patient.evolutions?.length ? patient.evolutions[patient.evolutions.length-1] : null;
+  const resumo = lastEvol?.resumo || '';
+  const evolHistory = [...(patient.evolutions||[])].reverse().slice(0,10);
+  el.innerHTML = `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--blue-400);margin-bottom:12px;">Resumo do Caso</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.75;white-space:pre-wrap;">${escapeHtml(resumo||'Sem resumo registrado.')}</div>
+    </div>
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:20px;">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--blue-400);margin-bottom:14px;">Histórico por Data</div>
+      ${evolHistory.map(ev =>
+        `<div style="border-left:2px solid var(--blue-500);padding:10px 14px;margin-bottom:12px;background:var(--bg-hover);border-radius:0 8px 8px 0;">
+          <div style="font-size:11px;font-weight:700;color:var(--blue-400);margin-bottom:4px;">${escapeHtml(ev.date||'—')}</div>
+          <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.65;white-space:pre-wrap;">${escapeHtml((ev['24h']||ev.resumo||'Sem relato').substring(0,400))}</div>
+        </div>`
+      ).join('')||'<div style="color:var(--text-muted);">Sem histórico.</div>'}
+    </div>`;
+}
+
+function renderTabImagem(patient) {
+  const el = document.getElementById('tab-imagem-body');
+  if (!el) return;
+  const allImages = [];
+  const seen = new Set();
+  (patient.evolutions||[]).forEach(ev => {
+    if (!ev.image?.trim()) return;
+    ev.image.split('\n').filter(l=>l.trim()).forEach(line => {
+      const key = line.trim().toLowerCase().substring(0,60);
+      if (!seen.has(key)) { seen.add(key); allImages.push({date:ev.date, text:line.trim()}); }
+    });
+  });
+  el.innerHTML = allImages.length ?
+    `<div style="display:flex;flex-direction:column;gap:12px;">
+      ${allImages.map(img => {
+        const dateMatch = img.text.match(/\((\d{2}\/\d{2}(?:\/\d{2,4})?)\)/);
+        const examDate = dateMatch ? dateMatch[1] : img.date;
+        const parts = img.text.replace(/^[-•]\s*/,'').split(':');
+        const name = parts[0].trim();
+        const laudo = parts.slice(1).join(':').trim();
+        return `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="font-size:11px;font-weight:700;color:var(--blue-400);margin-bottom:4px;"><strong>${escapeHtml(examDate)}</strong></div>
+          <div style="font-size:13.5px;font-weight:600;margin-bottom:6px;">${escapeHtml(name)}</div>
+          ${laudo?`<div style="font-size:12.5px;color:var(--text-secondary);line-height:1.65;">${escapeHtml(laudo)}</div>`:''}
+        </div>`;
+      }).join('')}
+    </div>` :
+    '<div style="color:var(--text-muted);padding:30px;text-align:center;">Nenhum exame de imagem registrado.</div>';
+}
+
+function renderTabCondutas(patient) {
+  const el = document.getElementById('tab-condutas-tab-body');
+  if (!el) return;
+  const lastEvol = patient.evolutions?.length ? patient.evolutions[patient.evolutions.length-1] : null;
+  const conduta = lastEvol?.conduta || '';
+  const tarde   = patient.tardeFixa;
+  el.innerHTML = `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--blue-400);margin-bottom:12px;">Conduta ${lastEvol?'— '+lastEvol.date:''}</div>
+      ${conduta ? conduta.split('\n').filter(l=>l.trim()).map(line => {
+        const t=line.trim();
+        if(/^>>/.test(t)) return `<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--blue-300);border-left:3px solid var(--blue-500);padding:4px 0 4px 10px;margin:12px 0 6px;background:rgba(30,86,170,.07);border-radius:0 6px 6px 0;">${escapeHtml(t.replace(/^>>\s*/,'').replace(/:?\s*$/,''))}</div>`;
+        return `<div style="font-size:13px;color:var(--text-secondary);padding:3px 0 3px 14px;line-height:1.7;">- ${escapeHtml(t.replace(/^[-•]\s*/,''))}</div>`;
+      }).join('') : '<div style="color:var(--text-muted);">Sem conduta registrada.</div>'}
+    </div>
+    ${tarde?`
+    <div style="background:var(--bg-card);border:1px solid var(--warning);border-radius:10px;padding:20px;">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--warning);margin-bottom:12px;">🌅 Tarde Fixa — ${escapeHtml(tarde.date||'')}</div>
+      ${(tarde.observacoes||[]).map(o=>`<div style="font-size:13px;color:var(--text-secondary);padding:2px 0;">➔ ${escapeHtml(o)}</div>`).join('')}
+      ${(tarde.pendencias||[]).map(p=>`<div style="font-size:12.5px;padding:4px 0;display:flex;gap:8px;"><span style="color:${p.done?'var(--success)':'var(--warning)'};">${p.done?'☑':'☐'}</span><span style="color:var(--text-secondary);">${escapeHtml(p.text||'')}</span></div>`).join('')}
+      <div style="margin-top:8px;font-size:12px;color:var(--text-muted);">Dieta: ${escapeHtml(tarde.dieta?.valor||'—')} · Clexane: ${escapeHtml(tarde.clexane?.valor||'—')} · ATB: ${escapeHtml(tarde.atb?.valor||'—')}${tarde.risco?.flag?` <span style="color:#ef4444;font-weight:700;">⚠️ ${escapeHtml(tarde.risco.valor)}</span>`:''}</div>
+    </div>`:``}`;
+}
+
+// ── Auto-Alta: perguntar sobre pacientes ausentes no import ──
+function autoAltaCheck(importedLeitos, ward) {
+  const data = getData();
+  const absent = (data[ward]||[]).filter(p => {
+    if (p.status==='alta') return false;
+    const pl = parseInt(String(p.leito||''),10)||0;
+    return pl>0 && !importedLeitos.has(pl);
+  });
+  if (!absent.length) return;
+  let idx=0;
+  function askNext() {
+    if (idx>=absent.length) return;
+    const p=absent[idx]; idx++;
+    const modal=document.createElement('div');
+    modal.style.cssText='position:fixed;inset:0;background:rgba(2,9,23,.8);display:flex;align-items:center;justify-content:center;z-index:9998;';
+    const pid=p.id; const nextIdx=idx;
+    modal.innerHTML=`
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:28px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.5);">
+        <div style="font-size:14px;font-weight:700;margin-bottom:8px;">🏠 Possível Alta</div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;">
+          <strong>LT ${escapeHtml(String(p.leito))} — ${escapeHtml(cleanPatientName(p.name))}</strong><br>
+          Não apareceu na importação mais recente.<br>Deseja dar <strong>Alta</strong>?
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-primary" style="flex:1;" id="alta-btn-${pid}">🏠 Dar Alta</button>
+          <button class="btn btn-ghost" style="flex:1;" id="manter-btn-${pid}">Manter internado</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('alta-btn-'+pid).onclick=()=>{modal.remove();giveAltaConfirm(pid);setTimeout(askNext,200);};
+    document.getElementById('manter-btn-'+pid).onclick=()=>{modal.remove();setTimeout(askNext,200);};
+  }
+  setTimeout(askNext,1000);
+}
+
+function giveAltaConfirm(patientId) {
+  const data=getData();
+  const today=new Date().toLocaleDateString('pt-BR');
+  for(const w of['cmm','cmf1','cmf2']){
+    const p=(data[w]||[]).find(x=>x.id===patientId);
+    if(p){p.status='alta';p.altaDate=today;saveData(data);updateCounts();renderPatients();showToast('🏠 '+cleanPatientName(p.name)+' — alta registrada','success');return;}
+  }
 }
 
 // Render evolutions list
 function renderEvolutionsList(patient) {
-  const list = document.getElementById('evolutions-list');
-  if (!list || !patient) return;
 
   const evols = [...(patient.evolutions || [])].reverse(); // newest first
   if (!evols.length) {
@@ -8665,8 +8978,15 @@ document.addEventListener('DOMContentLoaded', () => {
         </label>
       </div>
 
-      <!-- File list selected -->
-      <div id="import-filelist" style="display:none;background:var(--bg-hover);border-radius:8px;padding:10px 14px;">
+      <!-- Ward selector -->
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-hover);border-radius:8px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);flex-shrink:0;">Importar para:</div>
+        <select id="import-ward-select" style="flex:1;padding:6px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;">
+          <option value="cmm">CMM — Clínica Médica Masculina</option>
+          <option value="cmf1">CMF1 — Clínica Médica Feminina 1</option>
+          <option value="cmf2">CMF2 — Clínica Médica Feminina 2</option>
+        </select>
+      </div>
         <div style="font-size:11px;font-weight:700;color:var(--blue-400);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Arquivos selecionados:</div>
         <div id="import-filelist-names" style="font-size:12px;color:var(--text-secondary);line-height:1.8;"></div>
       </div>
