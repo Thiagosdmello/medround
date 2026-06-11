@@ -1262,6 +1262,7 @@ input, textarea, select { font-family: inherit; }
           <option value="">Todos leitos</option>
         </select>
         <button class="btn btn-ghost btn-sm" onclick="openCondutas()">📋 Resumo Condutas</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleDeleteMode()" id="delete-mode-btn" style="color:var(--danger);border-color:var(--danger);">🗑️ Excluir</button>
         <div style="position:relative;display:inline-block;" id="sort-dropdown-wrap">
           <button class="btn btn-ghost btn-sm" onclick="toggleSortDropdown()" id="sort-btn">⇅ Filtrar</button>
           <div id="sort-dropdown" style="display:none;position:absolute;right:0;top:110%;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:200;min-width:180px;overflow:hidden;">
@@ -1799,34 +1800,48 @@ async function sbInit() {
 async function sbPull() {
   if (!sb.client) return;
   sbSetStatus('syncing');
-  const { data, error } = await sb.client.from('medrounddata').select('data').eq('id','main').single();
-  // PGRST116 = no rows (table empty) — push local
+  const { data, error } = await sb.client.from('medrounddata').select('data,updated_at').eq('id','main').single();
+
+  // PGRST116 = no rows — push local data to remote
   if (error && error.code === 'PGRST116') {
     const local = getData();
     if ((local.cmm||[]).length+(local.cmf1||[]).length+(local.cmf2||[]).length > 0) {
-      await sb.client.from('medrounddata').upsert({id:'main',data:local,updated_at:new Date().toISOString()},{onConflict:'id'});
+      await sb.client.from('medrounddata').upsert(
+        {id:'main', data:local, updated_at:new Date().toISOString()},
+        {onConflict:'id'}
+      );
     }
     sbSetStatus('online'); return;
   }
   if (error) { sbSetStatus('error'); throw error; }
+
   if (data && data.data) {
     const remote = data.data;
-    const rTotal = (remote.cmm||[]).length+(remote.cmf1||[]).length+(remote.cmf2||[]).length;
+    const rTotal = (remote.cmm||[]).length + (remote.cmf1||[]).length + (remote.cmf2||[]).length;
     const local  = getData();
-    const lTotal = (local.cmm||[]).length+(local.cmf1||[]).length+(local.cmf2||[]).length;
-    if (rTotal > 0) {
-      // Remote wins
+    const lTotal = (local.cmm||[]).length + (local.cmf1||[]).length + (local.cmf2||[]).length;
+
+    // ── Merge strategy: use whichever has MORE patients ──
+    // If local has more (just imported), keep local and push to remote
+    // If remote has more (another device saved), use remote
+    if (lTotal >= rTotal && lTotal > 0) {
+      // Local is equal or ahead — push local to remote to sync
+      await sb.client.from('medrounddata').upsert(
+        {id:'main', data:local, updated_at:new Date().toISOString()},
+        {onConflict:'id'}
+      );
+      console.log('[sbPull] local wins:', lTotal, 'vs remote:', rTotal);
+    } else if (rTotal > lTotal) {
+      // Remote has more patients — use remote
       localStorage.setItem('medroundData', JSON.stringify(remote));
       localStorage.setItem('medroundData_backup', JSON.stringify(remote));
-    } else if (lTotal > 0) {
-      // Push local to remote
-      await sb.client.from('medrounddata').upsert({id:'main',data:local,updated_at:new Date().toISOString()},{onConflict:'id'});
+      console.log('[sbPull] remote wins:', rTotal, 'vs local:', lTotal);
+      autoSyncAllLabs();
+      updateCounts();
+      if (state.currentView==='dashboard') renderDashboard();
+      if (state.currentView==='patients')  renderPatients();
+      if (state.currentView==='passagem')  renderPassagem();
     }
-    autoSyncAllLabs();
-    updateCounts();
-    if (state.currentView==='dashboard') renderDashboard();
-    if (state.currentView==='patients')  renderPatients();
-    if (state.currentView==='passagem')  renderPassagem();
   }
   sbSetStatus('online');
 }
@@ -1858,17 +1873,24 @@ function sbSubscribe() {
     .on('postgres_changes', { event:'*', schema:'public', table:'medrounddata', filter:'id=eq.main' }, payload => {
       const newData = payload.new?.data;
       if (!newData) return;
-      localStorage.setItem('medroundData', JSON.stringify(newData));
-      localStorage.setItem('medroundData_backup', JSON.stringify(newData));
-      autoSyncAllLabs();
-      updateCounts();
-      const v = state.currentView;
-      if (v==='dashboard') renderDashboard();
-      if (v==='patients')  renderPatients();
-      if (v==='passagem')  renderPassagem();
-      if (v==='condutas')  renderCondutasSelect();
-      if (v==='tardefixa') showTardeFixaView();
-      showToast('🔄 Atualizado por outro usuário', '');
+      // Only apply remote update if it has MORE data than local
+      // (prevents overwriting a local import with stale remote)
+      const local  = getData();
+      const lTotal = (local.cmm||[]).length + (local.cmf1||[]).length + (local.cmf2||[]).length;
+      const rTotal = (newData.cmm||[]).length + (newData.cmf1||[]).length + (newData.cmf2||[]).length;
+      if (rTotal >= lTotal) {
+        localStorage.setItem('medroundData', JSON.stringify(newData));
+        localStorage.setItem('medroundData_backup', JSON.stringify(newData));
+        autoSyncAllLabs();
+        updateCounts();
+        const v = state.currentView;
+        if (v==='dashboard') renderDashboard();
+        if (v==='patients')  renderPatients();
+        if (v==='passagem')  renderPassagem();
+        if (v==='condutas')  renderCondutasSelect();
+        if (v==='tardefixa') showTardeFixaView();
+        showToast('🔄 Atualizado por outro dispositivo', '');
+      }
     })
     .subscribe(status => {
       if (status==='SUBSCRIBED')    sbSetStatus('online');
@@ -4687,8 +4709,78 @@ function renderDashboard() {
   }
 }
 
-// ── Sort state ──
-let patientSortMode = 'leito';  // 'leito' | 'gravidade'
+// ── Delete mode ──────────────────────────────────────────────────────
+let _deleteModeActive = false;
+
+function toggleDeleteMode() {
+  _deleteModeActive = !_deleteModeActive;
+  const btn = document.getElementById('delete-mode-btn');
+  if (btn) {
+    btn.textContent = _deleteModeActive ? '✅ Confirmar Exclusão' : '🗑️ Excluir';
+    btn.style.background = _deleteModeActive ? '#dc2626' : '';
+    btn.style.color = _deleteModeActive ? '#fff' : 'var(--danger)';
+    btn.onclick = _deleteModeActive ? confirmDeleteSelected : toggleDeleteMode;
+  }
+  renderPatients(); // re-render with checkboxes
+}
+
+function confirmDeleteSelected() {
+  const checked = [...document.querySelectorAll('.delete-cb:checked')];
+  if (!checked.length) {
+    showToast('⚠️ Nenhum paciente selecionado', 'error');
+    return;
+  }
+  const ids = checked.map(c => c.dataset.id);
+  const names = checked.map(c => c.dataset.name).join(', ');
+
+  // Show confirmation modal
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(2,9,23,.88);display:flex;align-items:center;justify-content:center;z-index:9990;';
+  overlay.innerHTML = `
+    <div style="background:var(--bg-card);border:1px solid #dc2626;border-radius:14px;padding:28px 32px;max-width:420px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,.5);">
+      <div style="font-size:22px;text-align:center;margin-bottom:12px;">🗑️</div>
+      <div style="font-size:15px;font-weight:700;text-align:center;margin-bottom:10px;color:#ef4444;">Excluir ${ids.length} paciente(s)?</div>
+      <div style="font-size:13px;color:var(--text-secondary);text-align:center;margin-bottom:20px;line-height:1.6;">
+        <strong>${escapeHtml(names)}</strong><br>
+        <span style="color:#ef4444;">Esta ação não pode ser desfeita.</span>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button id="del-cancel-btn" class="btn btn-ghost" style="flex:1;padding:12px;">Cancelar</button>
+        <button id="del-confirm-btn" class="btn btn-primary" style="flex:1;padding:12px;background:#dc2626;">🗑️ Excluir</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('del-cancel-btn').onclick = () => overlay.remove();
+  document.getElementById('del-confirm-btn').onclick = () => {
+    overlay.remove();
+    deletePatients(ids);
+  };
+}
+
+function deletePatients(ids) {
+  const data = getData();
+  let removed = 0;
+  for (const w of ['cmm','cmf1','cmf2']) {
+    const before = (data[w]||[]).length;
+    data[w] = (data[w]||[]).filter(p => !ids.includes(p.id));
+    removed += before - data[w].length;
+  }
+  saveData(data);
+  // Exit delete mode
+  _deleteModeActive = false;
+  const btn = document.getElementById('delete-mode-btn');
+  if (btn) {
+    btn.textContent = '🗑️ Excluir';
+    btn.style.background = '';
+    btn.style.color = 'var(--danger)';
+    btn.onclick = toggleDeleteMode;
+  }
+  updateCounts();
+  renderPatients();
+  showToast(`🗑️ ${removed} paciente(s) excluído(s)`, 'success');
+}
+
+  // 'leito' | 'gravidade'
 let patientCustomOrder = {};     // ward → [id, id, ...]
 
 function toggleSortDropdown() {
@@ -4842,8 +4934,15 @@ function renderPatients() {
     const hasATB = p.abx && p.abx.trim() && !/^sem\s*atb|^sem$/i.test(p.abx);
     const hasTFRisk = p.tardeFixa?.risco?.flag;
 
-    return '<div class="patient-card" data-id="'+p.id+'" draggable="true" onclick="openPatient(\''+p.id+'\')">'+
-      '<div class="drag-handle" onclick="event.stopPropagation()" title="Arrastar para reorganizar">⠿</div>'+
+    // Delete mode: show checkbox instead of drag handle
+    const leftEl = _deleteModeActive
+      ? '<input type="checkbox" class="delete-cb" data-id="'+p.id+'" data-name="'+escapeHtml(cleanPatientName(p.name))+'" onclick="event.stopPropagation()" style="position:absolute;left:0;top:0;bottom:0;width:36px;margin:0;cursor:pointer;accent-color:#dc2626;transform:scale(1.3);">'
+      : '<div class="drag-handle" onclick="event.stopPropagation()" title="Arrastar para reorganizar">⠿</div>';
+
+    const cardClick = _deleteModeActive ? '' : 'onclick="openPatient(\''+p.id+'\')"';
+
+    return '<div class="patient-card" data-id="'+p.id+'" draggable="'+(!_deleteModeActive)+'" '+cardClick+' style="'+ (_deleteModeActive ? 'cursor:default;' : '') +'">'+
+      leftEl+
       '<div style="display:flex;justify-content:space-between;margin-bottom:8px;">'+
         '<div>'+
           '<div style="font-family:Syne,sans-serif;font-weight:800;font-size:12px;color:var(--blue-400);">LT '+escapeHtml(String(p.leito))+'</div>'+
