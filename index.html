@@ -1722,8 +1722,8 @@ const sb = {
   channel: null,
   // ══════════════════════════════════════════════
   //  COLE SUAS CREDENCIAIS DO SUPABASE AQUI:
-  url: 'https://sxtihlavbggfpplhlbsm.supabase.co',        // ex: https://abcdefgh.supabase.co
-  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4dGlobGF2YmdnZnBwbGhsYnNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5ODQwMDMsImV4cCI6MjA5NDU2MDAwM30.Rjwx6xbk27oM3_j-7FPRU57cmikbXi-x71NXcplI5RU',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  url: 'COLE_AQUI_A_PROJECT_URL',        // ex: https://abcdefgh.supabase.co
+  key: 'COLE_AQUI_A_ANON_KEY',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   // ══════════════════════════════════════════════
   isSyncing: false
 };
@@ -2436,39 +2436,49 @@ async function _confirmImport() {
     const fo = document.getElementById('import-folder-input'); if (fo) fo.value = '';
     if (confirmBtn) { confirmBtn.style.display = 'none'; confirmBtn.disabled = false; }
 
-    // ── 6. Switch ward & refresh ──
+    // ── 6. Collect imported leitos BEFORE finally clears _batchImportData ──
+    const importedLeitos = new Set(
+      _batchImportData
+        .map(r => parseInt(String((r.extracted||{}).leito||''), 10))
+        .filter(n => n > 0)
+    );
+    const hadEnoughForAltaCheck = _batchImportData.length >= 2;
+
+    // ── 7. Switch ward & navigate to patients view ──
     state.currentWard = importWard;
+    // Update sidebar ward tabs
     document.querySelectorAll('.ward-tab').forEach(t => t.classList.remove('active'));
     const wt = document.getElementById('tab-' + importWard);
     if (wt) wt.classList.add('active');
+    // Navigate to patients view and render everything
     migrateCondutaFromRawText();
     autoSyncAllLabs();
     updateCounts();
+    // showView navigates to patients AND renders patients grid
+    showView('patients');
+    // Also refresh passagem and dashboard in background
     renderDashboard();
-    renderPatients();
     renderPassagem();
 
-    // ── 7. Auto-alta: ask about absent patients ──
-    if (_batchImportData.length >= 2) {
-      const importedLeitos = new Set(
-        _batchImportData.map(r => parseInt(String((r.extracted||{}).leito||''),10)).filter(n=>n>0)
-      );
-      setTimeout(() => autoAltaCheck(importedLeitos, importWard), 700);
-    }
-
     // ── 8. Toast ──
-    const total = (data[importWard]||[]).filter(p=>p.status!=='alta').length;
+    const freshData = getData();
+    const total = (freshData[importWard]||[]).filter(p=>p.status!=='alta').length;
     const parts = [
       updated  && `${updated} evolução(ões) atualizada(s)`,
       created  && `${created} paciente(s) criado(s)`,
       tfSaved  && `${tfSaved} tarde(s) fixa(s)`,
     ].filter(Boolean);
-    showToast('✅ ' + (parts.length ? parts.join(' · ') : 'Importado') + ` — ${total} internados em ${importWard.toUpperCase()}`, 'success');
+    showToast(`✅ ${parts.length ? parts.join(' · ') : 'Importado'} — ${total} internados em ${importWard.toUpperCase()}`, 'success');
+
+    // ── 9. Auto-alta: ask about absent patients (after toast) ──
+    if (hadEnoughForAltaCheck && importedLeitos.size > 0) {
+      setTimeout(() => autoAltaCheck(importedLeitos, importWard), 800);
+    }
 
   } catch(e) {
     console.error('[_confirmImport]', e);
     showToast('❌ Erro: ' + (e.message || String(e)), 'error');
-    if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = '✅ Tentar novamente'; }
+    if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = '✅ Confirmar Importação'; }
   } finally {
     _batchImportData = [];
     _batchTardesData = [];
