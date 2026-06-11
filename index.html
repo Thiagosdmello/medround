@@ -1262,6 +1262,7 @@ input, textarea, select { font-family: inherit; }
           <option value="">Todos leitos</option>
         </select>
         <button class="btn btn-ghost btn-sm" onclick="openCondutas()">📋 Resumo Condutas</button>
+        <button class="btn btn-ghost btn-sm" onclick="verificarAltasManual()" title="Verificar quais pacientes devem receber alta">🏠 Verificar Altas</button>
         <button class="btn btn-ghost btn-sm" onclick="toggleDeleteMode()" id="delete-mode-btn" style="color:var(--danger);border-color:var(--danger);">🗑️ Excluir</button>
         <div style="position:relative;display:inline-block;" id="sort-dropdown-wrap">
           <button class="btn btn-ghost btn-sm" onclick="toggleSortDropdown()" id="sort-btn">⇅ Filtrar</button>
@@ -1723,8 +1724,8 @@ const sb = {
   channel: null,
   // ══════════════════════════════════════════════
   //  COLE SUAS CREDENCIAIS DO SUPABASE AQUI:
-  url: 'https://sxtihlavbggfpplhlbsm.supabase.co',        // ex: https://abcdefgh.supabase.co
-  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4dGlobGF2YmdnZnBwbGhsYnNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5ODQwMDMsImV4cCI6MjA5NDU2MDAwM30.Rjwx6xbk27oM3_j-7FPRU57cmikbXi-x71NXcplI5RU',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  url: 'COLE_AQUI_A_PROJECT_URL',        // ex: https://abcdefgh.supabase.co
+  key: 'COLE_AQUI_A_ANON_KEY',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   // ══════════════════════════════════════════════
   isSyncing: false
 };
@@ -1747,33 +1748,18 @@ function sbSetStatus(status) {
   const btn = document.getElementById('cloud-btn');
   const icons = { local:'☁️', syncing:'⏳', online:'✅', error:'❌' };
   if (btn) btn.textContent = icons[status] || '☁️';
-  const dot   = document.getElementById('sync-dot');
-  const label = document.getElementById('sync-label');
-  const colors = { local:'var(--text-muted)', syncing:'var(--warning)', online:'var(--success)', error:'var(--danger)' };
-  if (dot)   dot.style.background = colors[status] || colors.local;
-  if (label) label.textContent    = {local:'☁️ Local',syncing:'⏳ Sincronizando',online:'✅ Online',error:'❌ Erro'}[status]||'';
 }
 
 async function sbEnsureTable() {
   const { error } = await sb.client.from('medrounddata').select('id').limit(1);
   if (!error) return;
   if (error.code === '42P01' || (error.message||'').includes('schema cache') || (error.message||'').includes('does not exist')) {
-    throw new Error(
-      'Tabela não existe. Execute no Supabase → SQL Editor:\n\n' +
-      "create table medrounddata (\n" +
-      "  id text primary key default 'main',\n" +
-      "  data jsonb not null default '{}'::jsonb,\n" +
-      "  updated_at timestamptz default now()\n" +
-      ");\n" +
-      "alter table medrounddata enable row level security;\n" +
-      "create policy \"allow_all\" on medrounddata for all using (true) with check (true);\n" +
-      "alter publication supabase_realtime add table medrounddata;\n" +
-      "insert into medrounddata (id,data) values ('main','{\"cmm\":[],\"cmf1\":[],\"cmf2\":[]}') on conflict do nothing;"
-    );
+    throw new Error('Tabela não existe. Execute o supabase_setup.sql no Supabase SQL Editor.');
   }
   throw error;
 }
 
+// ── sbInit: connects but NEVER overwrites local data automatically ──
 async function sbInit() {
   const url = sb.url || '';
   const key = sb.key || '';
@@ -1782,65 +1768,73 @@ async function sbInit() {
     sb.client = supabase.createClient(url, key, { realtime: { params: { eventsPerSecond: 10 } } });
     sbSetStatus('syncing');
     await sbEnsureTable();
-    await sbPull();
+    // On init: push local data to remote (DO NOT pull/overwrite local)
+    const local = getData();
+    const lTotal = (local.cmm||[]).length + (local.cmf1||[]).length + (local.cmf2||[]).length;
+    if (lTotal > 0) {
+      // We have local data — push it to remote to keep remote in sync
+      await sbPush(local);
+    } else {
+      // No local data — pull from remote (first time on a new device)
+      await sbPullIntoEmpty();
+    }
     sbSubscribe();
     sbSetStatus('online');
-    const btn = document.getElementById('cloud-btn');
-    if (btn) btn.textContent = '✅';
-    showToast('✅ Supabase conectado — colaboração em tempo real ativa', 'success');
+    document.getElementById('cloud-btn')?.textContent === '✅';
+    showToast('☁️ Supabase conectado', '');
   } catch(e) {
     sbSetStatus('error');
     console.warn('[sbInit]', e.message);
-    // Show the SQL if table missing
-    if (e.message && e.message.includes('Tabela não existe')) {
-      alert('⚠️ Tabela não encontrada no Supabase.\n\nAbra o Supabase → SQL Editor → New Query\ne execute o arquivo supabase_setup.sql');
-    }  }
+    if (e.message?.includes('Tabela não existe')) {
+      console.warn('Run supabase_setup.sql in Supabase SQL Editor');
+    }
+  }
 }
 
-async function sbPull() {
+// Pull ONLY when local is empty (first device setup)
+async function sbPullIntoEmpty() {
   if (!sb.client) return;
-  sbSetStatus('syncing');
-  const { data, error } = await sb.client.from('medrounddata').select('data,updated_at').eq('id','main').single();
-
-  // PGRST116 = no rows — push local data to remote
-  if (error && error.code === 'PGRST116') {
-    const local = getData();
-    if ((local.cmm||[]).length+(local.cmf1||[]).length+(local.cmf2||[]).length > 0) {
-      await sb.client.from('medrounddata').upsert(
-        {id:'main', data:local, updated_at:new Date().toISOString()},
-        {onConflict:'id'}
-      );
+  const { data, error } = await sb.client
+    .from('medrounddata').select('data').eq('id','main').single();
+  if (error && error.code === 'PGRST116') return; // remote also empty
+  if (error) throw error;
+  if (data?.data) {
+    const remote = data.data;
+    const rTotal = (remote.cmm||[]).length+(remote.cmf1||[]).length+(remote.cmf2||[]).length;
+    if (rTotal > 0) {
+      localStorage.setItem('medroundData', JSON.stringify(remote));
+      localStorage.setItem('medroundData_backup', JSON.stringify(remote));
+      autoSyncAllLabs(); updateCounts(); renderDashboard(); renderPatients();
+      showToast(`✅ ${rTotal} pacientes carregados da nuvem`, 'success');
     }
+  }
+}
+
+// Manual sync: explicit pull from Supabase (user-initiated only)
+async function sbPull() {
+  if (!sb.client) { showToast('☁️ Supabase não conectado', ''); return; }
+  sbSetStatus('syncing');
+  const { data, error } = await sb.client
+    .from('medrounddata').select('data').eq('id','main').single();
+  if (error && error.code === 'PGRST116') {
+    // Remote empty — push local
+    await sbPush(getData());
     sbSetStatus('online'); return;
   }
   if (error) { sbSetStatus('error'); throw error; }
-
-  if (data && data.data) {
+  if (data?.data) {
     const remote = data.data;
-    const rTotal = (remote.cmm||[]).length + (remote.cmf1||[]).length + (remote.cmf2||[]).length;
-    const local  = getData();
-    const lTotal = (local.cmm||[]).length + (local.cmf1||[]).length + (local.cmf2||[]).length;
-
-    // ── Merge strategy: use whichever has MORE patients ──
-    // If local has more (just imported), keep local and push to remote
-    // If remote has more (another device saved), use remote
-    if (lTotal >= rTotal && lTotal > 0) {
-      // Local is equal or ahead — push local to remote to sync
-      await sb.client.from('medrounddata').upsert(
-        {id:'main', data:local, updated_at:new Date().toISOString()},
-        {onConflict:'id'}
-      );
-      console.log('[sbPull] local wins:', lTotal, 'vs remote:', rTotal);
-    } else if (rTotal > lTotal) {
-      // Remote has more patients — use remote
-      localStorage.setItem('medroundData', JSON.stringify(remote));
-      localStorage.setItem('medroundData_backup', JSON.stringify(remote));
-      console.log('[sbPull] remote wins:', rTotal, 'vs local:', lTotal);
-      autoSyncAllLabs();
-      updateCounts();
-      if (state.currentView==='dashboard') renderDashboard();
-      if (state.currentView==='patients')  renderPatients();
-      if (state.currentView==='passagem')  renderPassagem();
+    const rTotal = (remote.cmm||[]).length+(remote.cmf1||[]).length+(remote.cmf2||[]).length;
+    if (rTotal > 0) {
+      if (confirm(`Baixar ${rTotal} pacientes da nuvem? Isso substituirá os dados locais.`)) {
+        localStorage.setItem('medroundData', JSON.stringify(remote));
+        localStorage.setItem('medroundData_backup', JSON.stringify(remote));
+        autoSyncAllLabs(); updateCounts();
+        showView('patients');
+        showToast(`✅ ${rTotal} pacientes carregados da nuvem`, 'success');
+      }
+    } else {
+      showToast('☁️ Nuvem está vazia', '');
     }
   }
   sbSetStatus('online');
@@ -1849,7 +1843,6 @@ async function sbPull() {
 async function sbPush(d) {
   if (!sb.client || sb.isSyncing) return;
   sb.isSyncing = true;
-  sbSetStatus('syncing');
   try {
     const { error } = await sb.client.from('medrounddata').upsert(
       { id:'main', data:d, updated_at:new Date().toISOString() },
@@ -1870,26 +1863,26 @@ function sbSubscribe() {
   if (sb.channel) { sb.channel.unsubscribe(); sb.channel = null; }
   sb.channel = sb.client
     .channel('medrounddata-realtime', { config: { broadcast: { self: false } } })
-    .on('postgres_changes', { event:'*', schema:'public', table:'medrounddata', filter:'id=eq.main' }, payload => {
+    .on('postgres_changes', {
+      event:'*', schema:'public', table:'medrounddata', filter:'id=eq.main'
+    }, payload => {
+      // ONLY apply remote changes when triggered by ANOTHER device
+      // Do NOT auto-overwrite — show notification and let user decide
       const newData = payload.new?.data;
       if (!newData) return;
-      // Only apply remote update if it has MORE data than local
-      // (prevents overwriting a local import with stale remote)
       const local  = getData();
-      const lTotal = (local.cmm||[]).length + (local.cmf1||[]).length + (local.cmf2||[]).length;
-      const rTotal = (newData.cmm||[]).length + (newData.cmf1||[]).length + (newData.cmf2||[]).length;
-      if (rTotal >= lTotal) {
+      const lTotal = (local.cmm||[]).length+(local.cmf1||[]).length+(local.cmf2||[]).length;
+      const rTotal = (newData.cmm||[]).length+(newData.cmf1||[]).length+(newData.cmf2||[]).length;
+      // Only auto-apply if remote has strictly MORE data (another device added patients)
+      if (rTotal > lTotal) {
         localStorage.setItem('medroundData', JSON.stringify(newData));
         localStorage.setItem('medroundData_backup', JSON.stringify(newData));
-        autoSyncAllLabs();
-        updateCounts();
+        autoSyncAllLabs(); updateCounts();
         const v = state.currentView;
-        if (v==='dashboard') renderDashboard();
         if (v==='patients')  renderPatients();
+        if (v==='dashboard') renderDashboard();
         if (v==='passagem')  renderPassagem();
-        if (v==='condutas')  renderCondutasSelect();
-        if (v==='tardefixa') showTardeFixaView();
-        showToast('🔄 Atualizado por outro dispositivo', '');
+        showToast(`🔄 ${rTotal} pacientes sincronizados de outro dispositivo`, 'success');
       }
     })
     .subscribe(status => {
@@ -2382,15 +2375,18 @@ async function _confirmImport() {
         }
         name = (name || '').replace(/\s+/g,' ').trim().toUpperCase();
 
-        // Find existing patient
+        // Find existing patient — match by pront OR leito (string comparison for 02.1 support)
         let patient = null, ward = null;
+        const leitoStr = String(ex.leito || '').trim();
         outer: for (const w of ['cmm','cmf1','cmf2']) {
           for (const p of (data[w]||[])) {
             const pp = String(p.pront||'').replace(/\D/g,'');
-            const pl = parseInt(String(p.leito||''),10) || -1;
-            if ((pront.length>=4 && pp.length>=4 && pp===pront) || (leitoNum>0 && pl===leitoNum)) {
-              patient = p; ward = w; break outer;
-            }
+            const pl = String(p.leito||'').trim();
+            const prontMatch = pront.length>=4 && pp.length>=4 && pp===pront;
+            const leitoMatch = leitoStr && pl && (pl===leitoStr ||
+              // also compare as numbers for backward compat (02 == 2)
+              (parseFloat(pl)>0 && parseFloat(pl)===parseFloat(leitoStr)));
+            if (prontMatch || leitoMatch) { patient=p; ward=w; break outer; }
           }
         }
 
@@ -2492,10 +2488,9 @@ async function _confirmImport() {
     ].filter(Boolean);
     showToast(`✅ ${parts.length ? parts.join(' · ') : 'Importado'} — ${total} internados em ${importWard.toUpperCase()}`, 'success');
 
-    // ── 9. Auto-alta: ask about absent patients (after toast) ──
-    if (hadEnoughForAltaCheck && importedLeitos.size > 0) {
-      setTimeout(() => autoAltaCheck(importedLeitos, importWard), 800);
-    }
+    // ── 9. Alta check: only if user explicitly requests it ──
+    // (autoAltaCheck removed from automatic firing to prevent accidental data loss)
+    // User can run it manually via the patients view
 
   } catch(e) {
     console.error('[_confirmImport]', e);
@@ -2977,9 +2972,10 @@ function extractIdentityFromText(text, filename) {
             text.match(/\bP[:\s]+(\d{4,})/)?.[1] || '';
   }
 
-  // Leito from filename (most reliable)
-  const leito = filename.match(/LT[_\s-]*(\d+[A-Za-z]?)/i)?.[1] ||
-                text.match(/(?:[Ll]eito|LT)[:\s]+(\d+[A-Za-z]?)/)?.[1] || '';
+  // Leito from filename — supports formats: LT 02, LT 02.1, LT CM 12
+  const leitoRaw = filename.match(/LT[_\s-]*(?:CM\s*)?(\d+(?:[.,]\d+)?[A-Za-z]?)/i)?.[1] ||
+                   text.match(/(?:[Ll]eito|LT)[:\s]+(\d+(?:[.,]\d+)?[A-Za-z]?)/)?.[1] || '';
+  const leito = leitoRaw.replace(',', '.');
 
   // Parse IH date
   const allDates = [...(ihLine).matchAll(/(\d{2})\/(\d{2})\/(\d{2,4})/g)];
@@ -8399,54 +8395,56 @@ function renderTabCondutas(patient) {
     </div>`:``}`;
 }
 
-// ── Auto-Alta: perguntar sobre pacientes ausentes no import ──
-function autoAltaCheck(importedLeitos, ward) {
+// ── Manual alta check — user-triggered only ──────────────────────────
+function verificarAltasManual() {
   const data = getData();
-  // Pacientes ativos nessa ward que NÃO estão nos arquivos importados
-  const absent = (data[ward]||[]).filter(p => {
-    if (p.status === 'alta') return false;
-    const pl = parseInt(String(p.leito||''),10) || 0;
-    return pl > 0 && !importedLeitos.has(pl);
-  });
-  if (!absent.length) return;
+  const ward = state.currentWard;
+  const active = (data[ward]||[]).filter(p => p.status !== 'alta');
+  if (!active.length) { showToast('Nenhum paciente ativo nesta enfermaria', ''); return; }
 
-  let idx = 0;
-  function askNext() {
-    if (idx >= absent.length) return;
-    const p = absent[idx++];
-    const pid = p.id;
+  // Show modal listing all active patients with checkbox to mark for alta
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(2,9,23,.88);display:flex;align-items:center;justify-content:center;z-index:9990;overflow-y:auto;padding:20px;';
+  const rows = active.sort((a,b)=>(parseFloat(a.leito)||0)-(parseFloat(b.leito)||0)).map(p =>
+    `<label style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;">
+      <input type="checkbox" data-id="${p.id}" style="width:18px;height:18px;accent-color:#16a34a;cursor:pointer;">
+      <span style="font-size:13px;"><strong>LT ${escapeHtml(String(p.leito))}</strong> — ${escapeHtml(cleanPatientName(p.name))}</span>
+    </label>`
+  ).join('');
 
-    // Create overlay
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(2,9,23,.85);display:flex;align-items:center;justify-content:center;z-index:9990;backdrop-filter:blur(4px);';
-    overlay.innerHTML = `
-      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:28px 32px;max-width:400px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,.5);">
-        <div style="font-size:22px;margin-bottom:12px;text-align:center;">🏠</div>
-        <div style="font-size:15px;font-weight:700;text-align:center;margin-bottom:8px;">Possível Alta</div>
-        <div style="font-size:13px;color:var(--text-secondary);text-align:center;margin-bottom:20px;line-height:1.6;">
-          <strong>LT ${escapeHtml(String(p.leito))} — ${escapeHtml(cleanPatientName(p.name))}</strong><br>
-          <span style="color:var(--text-muted);">Não apareceu nos arquivos de hoje.</span><br>
-          Deseja dar alta para este paciente?
-        </div>
-        <div style="display:flex;gap:10px;">
-          <button id="manter-${pid}" class="btn btn-ghost" style="flex:1;padding:12px;">Manter internado</button>
-          <button id="alta-${pid}" class="btn btn-primary" style="flex:1;padding:12px;background:#16a34a;">🏠 Confirmar Alta</button>
-        </div>
-      </div>`;
-    document.body.appendChild(overlay);
+  overlay.innerHTML = `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:28px;max-width:480px;width:100%;max-height:80vh;display:flex;flex-direction:column;">
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px;">🏠 Verificar Altas — ${ward.toUpperCase()}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">Marque os pacientes que receberam alta:</div>
+      <div style="overflow-y:auto;flex:1;">${rows}</div>
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button id="alta-cancel" class="btn btn-ghost" style="flex:1;">Cancelar</button>
+        <button id="alta-confirm" class="btn btn-primary" style="flex:1;background:#16a34a;">🏠 Confirmar Altas</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
 
-    document.getElementById('alta-' + pid).onclick = () => {
-      overlay.remove();
-      giveAltaConfirm(pid);
-      setTimeout(askNext, 300);
-    };
-    document.getElementById('manter-' + pid).onclick = () => {
-      overlay.remove();
-      setTimeout(askNext, 300);
-    };
-  }
-  askNext();
+  document.getElementById('alta-cancel').onclick = () => overlay.remove();
+  document.getElementById('alta-confirm').onclick = () => {
+    const checked = [...overlay.querySelectorAll('input[type=checkbox]:checked')];
+    if (!checked.length) { overlay.remove(); return; }
+    const today = new Date().toLocaleDateString('pt-BR');
+    const freshData = getData();
+    let count = 0;
+    for (const cb of checked) {
+      for (const w of ['cmm','cmf1','cmf2']) {
+        const p = (freshData[w]||[]).find(x => x.id === cb.dataset.id);
+        if (p) { p.status = 'alta'; p.altaDate = today; count++; break; }
+      }
+    }
+    saveData(freshData);
+    overlay.remove();
+    updateCounts();
+    renderPatients();
+    showToast(`🏠 ${count} paciente(s) com alta registrada`, 'success');
+  };
 }
+
 
 function giveAltaConfirm(patientId) {
   const data=getData();
