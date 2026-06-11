@@ -1556,6 +1556,11 @@ let state = {
   editingPatientId: null
 };
 
+// ── Patient sort/filter globals ──────────────────────────────────────
+let patientSortMode    = 'leito';   // 'leito' | 'gravidade' | 'custom'
+let patientCustomOrder = {};        // ward → [id, ...]
+let _deleteModeActive  = false;
+
 const WARD_LABELS = { cmm: 'CMM', cmf1: 'CMF1', cmf2: 'CMF2' };
 const WARD_FULL = { cmm: 'Clínica Médica Masculina', cmf1: 'Clínica Médica Feminina 1', cmf2: 'Clínica Médica Feminina 2' };
 
@@ -4715,7 +4720,6 @@ function renderDashboard() {
 }
 
 // ── Delete mode ──────────────────────────────────────────────────────
-let _deleteModeActive = false;
 
 function toggleDeleteMode() {
   _deleteModeActive = !_deleteModeActive;
@@ -4786,7 +4790,6 @@ function deletePatients(ids) {
 }
 
   // 'leito' | 'gravidade'
-let patientCustomOrder = {};     // ward → [id, id, ...]
 
 function toggleSortDropdown() {
   const dd = document.getElementById('sort-dropdown');
@@ -4880,6 +4883,7 @@ function renderPatients() {
   const sfilt  = document.getElementById('filter-status')?.value  || '';
 
   const all = [...(data[ward]||[])];
+  console.log('[renderPatients] ward:', ward, 'total in storage:', all.length, 'statuses:', all.map(p=>p.status||'stable'));
 
   const filtered = all.filter(p => {
     if (sfilt === 'alta'   && p.status !== 'alta') return false;
@@ -4930,40 +4934,44 @@ function renderPatients() {
 
   // ── Build HTML ──
   const buildCard = (p) => {
-    const days  = p.dt ? Math.floor((new Date()-new Date(p.dt))/86400000) : '?';
-    const last  = p.evolutions?.length ? p.evolutions[p.evolutions.length-1] : null;
-    const color = colors[p.status||'stable'] || 'var(--success)';
-    const score = calcGravityScore(p);
-    const probs = (p.problems||'').split('\n').filter(l=>l.trim().startsWith('#')).slice(0,3)
-      .map(l=>'<div style="font-size:11px;color:var(--text-secondary);">'+escapeHtml(l.replace(/^#\s*/,''))+'</div>').join('');
-    const hasATB = p.abx && p.abx.trim() && !/^sem\s*atb|^sem$/i.test(p.abx);
-    const hasTFRisk = p.tardeFixa?.risco?.flag;
+    try {
+      const days  = p.dt ? Math.floor((new Date()-new Date(p.dt))/86400000) : '?';
+      const last  = p.evolutions?.length ? p.evolutions[p.evolutions.length-1] : null;
+      const color = colors[p.status||'stable'] || 'var(--success)';
+      const score = calcGravityScore(p);
+      const name  = cleanPatientName(p.name || '—');
+      const probs = (p.problems||'').split('\n').filter(l=>l.trim().startsWith('#')).slice(0,3)
+        .map(l=>'<div style="font-size:11px;color:var(--text-secondary);">'+escapeHtml(l.replace(/^#\s*/,''))+'</div>').join('');
+      const hasATB = p.abx && p.abx.trim() && !/^sem\s*atb|^sem$/i.test(p.abx);
+      const hasTFRisk = p.tardeFixa?.risco?.flag;
 
-    // Delete mode: show checkbox instead of drag handle
-    const leftEl = _deleteModeActive
-      ? '<input type="checkbox" class="delete-cb" data-id="'+p.id+'" data-name="'+escapeHtml(cleanPatientName(p.name))+'" onclick="event.stopPropagation()" style="position:absolute;left:0;top:0;bottom:0;width:36px;margin:0;cursor:pointer;accent-color:#dc2626;transform:scale(1.3);">'
-      : '<div class="drag-handle" onclick="event.stopPropagation()" title="Arrastar para reorganizar">⠿</div>';
+      const leftEl = _deleteModeActive
+        ? '<input type="checkbox" class="delete-cb" data-id="'+p.id+'" data-name="'+escapeHtml(name)+'" onclick="event.stopPropagation()" style="position:absolute;left:0;top:0;bottom:0;width:36px;margin:0;cursor:pointer;accent-color:#dc2626;transform:scale(1.3);">'
+        : '<div class="drag-handle" onclick="event.stopPropagation()" title="Arrastar">⠿</div>';
 
-    const cardClick = _deleteModeActive ? '' : 'onclick="openPatient(\''+p.id+'\')"';
+      const cardClick = _deleteModeActive ? '' : 'onclick="openPatient(\''+p.id+'\')"';
 
-    return '<div class="patient-card" data-id="'+p.id+'" draggable="'+(!_deleteModeActive)+'" '+cardClick+' style="'+ (_deleteModeActive ? 'cursor:default;' : '') +'">'+
-      leftEl+
-      '<div style="display:flex;justify-content:space-between;margin-bottom:8px;">'+
-        '<div>'+
-          '<div style="font-family:Syne,sans-serif;font-weight:800;font-size:12px;color:var(--blue-400);">LT '+escapeHtml(String(p.leito))+'</div>'+
-          '<div style="font-weight:700;font-size:14px;">'+escapeHtml(cleanPatientName(p.name))+'</div>'+
-          '<div style="font-size:11px;color:var(--text-muted);">'+(p.age||'?')+'a · D'+days+' · Pt '+escapeHtml(p.pront||'—')+'</div>'+
+      return '<div class="patient-card" data-id="'+p.id+'" '+cardClick+'>'+
+        leftEl+
+        '<div style="display:flex;justify-content:space-between;margin-bottom:8px;">'+
+          '<div style="min-width:0;">'+
+            '<div style="font-family:Syne,sans-serif;font-weight:800;font-size:12px;color:var(--blue-400);">LT '+escapeHtml(String(p.leito||'?'))+'</div>'+
+            '<div style="font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escapeHtml(name)+'</div>'+
+            '<div style="font-size:11px;color:var(--text-muted);">'+(p.age||'?')+'a · D'+days+' · Pt '+escapeHtml(p.pront||'—')+'</div>'+
+          '</div>'+
+          '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">'+
+            '<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:'+color+'22;color:'+color+';font-weight:700;">'+(p.status==='alta'?'Alta':(p.status||'Estável'))+'</span>'+
+            (hasTFRisk ? '<span style="font-size:9.5px;color:var(--warning);font-weight:700;">⚠️ Risco</span>' : '')+
+            (hasATB    ? '<span style="font-size:9.5px;color:#ef4444;font-weight:700;">💊 ATB</span>' : '')+
+          '</div>'+
         '</div>'+
-        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">'+
-          '<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:'+color+'22;color:'+color+';font-weight:700;">'+(p.status==='alta'?'Alta':(p.status||'Estável'))+'</span>'+
-          (hasTFRisk ? '<span style="font-size:9.5px;color:var(--warning);font-weight:700;">⚠️ Risco</span>' : '')+
-          (hasATB    ? '<span style="font-size:9.5px;color:#ef4444;font-weight:700;">💊 ATB</span>'        : '')+
-        '</div>'+
-      '</div>'+
-      probs+
-      (patientSortMode==='gravidade' ? '<div style="margin-top:6px;height:3px;border-radius:2px;background:var(--bg-hover);overflow:hidden;"><div style="height:100%;width:'+Math.round(score)+'%;background:'+(score>=60?'#ef4444':score>=30?'var(--warning)':'var(--success)')+';border-radius:2px;transition:width .3s;"></div></div>' : '')+
-      (last ? '<div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Evolução: '+last.date+'</div>' : '')+
-    '</div>';
+        probs+
+        (last ? '<div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Evolução: '+last.date+'</div>' : '')+
+      '</div>';
+    } catch(err) {
+      console.error('[buildCard]', p?.id, err);
+      return '<div class="patient-card"><div style="color:var(--danger);font-size:12px;">Erro ao renderizar LT '+escapeHtml(String(p?.leito||'?'))+'</div></div>';
+    }
   };
 
   let html = '';
