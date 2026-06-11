@@ -2289,273 +2289,187 @@ async function _showImportPreview(results, errors) {
 
 // ── Confirmação e salvamento ──
 async function _confirmImport() {
-  // ── UI: disable button ──
   const confirmBtn = document.getElementById('import-upload-btn');
   if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = '⏳ Salvando...'; }
 
+  if (!_batchImportData.length && !_batchTardesData.length) {
+    showToast('❌ Nenhum dado para importar. Selecione os arquivos novamente.', 'error');
+    if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = '✅ Confirmar Importação'; }
+    return;
+  }
+
   try {
-    const data  = getData();
-    const today = new Date().toLocaleDateString('pt-BR');
-    // Use the ward selected in the modal (not state.currentWard which may be wrong)
+    const data     = getData();
+    const today    = new Date().toLocaleDateString('pt-BR');
     const importWard = document.getElementById('import-ward-select')?.value || state.currentWard || 'cmm';
-    let updated=0, created=0, tfSaved=0;
+    if (!data.cmm)  data.cmm  = [];
+    if (!data.cmf1) data.cmf1 = [];
+    if (!data.cmf2) data.cmf2 = [];
+    let updated = 0, created = 0, tfSaved = 0;
 
     // ── 1. Tarde Fixa ──
-    _batchTardesData.forEach(r => {
+    for (const r of _batchTardesData) {
       try {
-        // parseTardeFixa returns {leito, name, observacoes, pendencias, dieta, clexane, atb, risco, labs, date}
-        // These fields may be at root level OR inside tardeData
-        const td  = (r.tardeData && Object.keys(r.tardeData).length > 0) ? r.tardeData : r;
-        const leitoNum = parseInt(String(r.leito || td.leito || ''), 10);
-        if (!leitoNum) { console.warn('[TF] No leito for', r); return; }
-
-        let matched = false;
+        const td = (r.tardeData && Object.keys(r.tardeData).length > 0) ? r.tardeData : r;
+        const ln = parseInt(String(r.leito || td.leito || ''), 10);
+        if (!ln) continue;
         for (const w of ['cmm','cmf1','cmf2']) {
-          const p = (data[w]||[]).find(x => parseInt(String(x.leito||''),10) === leitoNum);
+          const p = (data[w]||[]).find(x => parseInt(String(x.leito||''),10) === ln);
           if (!p) continue;
           p.tardeFixa = {
-            date:        td.date || today,
+            date: td.date || today,
             observacoes: td.observacoes || [],
-            pendencias:  (td.pendencias||[]).map(item =>
-              typeof item === 'string' ? {text: item, done: false} : {text: item.text||'', done: item.done||false}
-            ),
-            dieta:    { valor: td.dieta?.valor   || '', flag: td.dieta?.flag   || false },
-            clexane:  { valor: td.clexane?.valor || '', flag: td.clexane?.flag || false },
-            atb:      { valor: td.atb?.valor     || '', flag: td.atb?.flag     || false },
-            risco:    { valor: td.risco?.valor   || '', flag: td.risco?.flag   || false },
-            labs:     td.labs || '',
+            pendencias: (td.pendencias||[]).map(i => typeof i==='string' ? {text:i,done:false} : {text:i.text||'',done:i.done||false}),
+            dieta:   { valor: td.dieta?.valor   || '', flag: td.dieta?.flag   || false },
+            clexane: { valor: td.clexane?.valor || '', flag: td.clexane?.flag || false },
+            atb:     { valor: td.atb?.valor     || '', flag: td.atb?.flag     || false },
+            risco:   { valor: td.risco?.valor   || '', flag: td.risco?.flag   || false },
+            labs: td.labs || '',
           };
-          matched = true;
-          tfSaved++;
-          break;
+          tfSaved++; break;
         }
-        if (!matched) console.warn('[TF] No patient found for leito', leitoNum);
-      } catch(e) { console.warn('[TF item]', e); }
-    });
-
-    // ── 2. Evoluções ──
-    // Build a lookup of all leitos → ward for smart ward detection
-    const leitoToWard = {};
-    for (const w of ['cmm','cmf1','cmf2']) {
-      (data[w]||[]).forEach(p => {
-        const pl = parseInt(String(p.leito||''), 10);
-        if (pl > 0) leitoToWard[pl] = w;
-      });
+      } catch(e) { console.warn('[TF]', e); }
     }
 
-    _batchImportData.forEach((r, idx) => {
+    // ── 2. Build leito→ward map ──
+    const leitoWardMap = {};
+    for (const w of ['cmm','cmf1','cmf2']) {
+      for (const p of (data[w]||[])) {
+        const ln = parseInt(String(p.leito||''),10);
+        if (ln > 0) leitoWardMap[ln] = w;
+      }
+    }
+
+    // ── 3. Evoluções ──
+    for (let idx = 0; idx < _batchImportData.length; idx++) {
+      const r = _batchImportData[idx];
       try {
         const ex       = r.extracted || {};
-        const name     = cleanPatientName(ex.name || '');
-        const pront    = String(ex.pront||'').replace(/\D/g,'');
-        const leitoNum = parseInt(String(ex.leito||''), 10) || 0;
+        const leitoNum = parseInt(String(ex.leito || ''), 10) || 0;
+        const pront    = String(ex.pront || '').replace(/\D/g,'');
 
-        // Match existing patient by pront or leito
+        // Name: extracted OR from filename
+        let name = (ex.name || '').trim();
+        if (!name && r.filename) {
+          const nm = r.filename
+            .replace(/\.(docx?|pdf|txt)$/i,'')
+            .replace(/^LT[_\s-]*\d+[A-Za-z]?[_\s\u2013\u2014-]+/i,'')
+            .replace(/[\s_]?\(?\d{2}[_\/]\d{2}\)?$/,'')
+            .replace(/[_-]+/g,' ').trim();
+          if (nm.length > 1) name = nm;
+        }
+        name = (name || '').replace(/\s+/g,' ').trim().toUpperCase();
+
+        // Find existing patient
         let patient = null, ward = null;
         outer: for (const w of ['cmm','cmf1','cmf2']) {
           for (const p of (data[w]||[])) {
             const pp = String(p.pront||'').replace(/\D/g,'');
-            const pl = parseInt(String(p.leito||''), 10) || -1;
-            if ((pront.length>=4 && pp===pront) || (leitoNum>0 && pl===leitoNum)) {
+            const pl = parseInt(String(p.leito||''),10) || -1;
+            if ((pront.length>=4 && pp.length>=4 && pp===pront) || (leitoNum>0 && pl===leitoNum)) {
               patient = p; ward = w; break outer;
             }
           }
         }
 
         const newEvol = {
-          id:        'ev' + Date.now() + idx + Math.floor(Math.random()*9999),
+          id:        'ev' + Date.now() + '_' + idx,
           date:      today,
           doctor:    'Dr. Thiago',
-          ward:      ward || state.currentWard || 'cmm',
-          problems:  ex.problems  || '',
+          ward:      ward || importWard,
+          rawText:   ex.rawText || r.rawText || '',
           resumo:    ex.resumo    || '',
+          '24h':     ex['24h']    || '',
+          problems:  ex.problems  || '',
           abx:       ex.abx       || '',
           devices:   ex.devices   || '',
-          '24h':     ex['24h']    || '',
           labs:      ex.labs      || '',
           image:     ex.image     || '',
           pareceres: ex.pareceres || '',
           impressao: ex.impressao || '',
           conduta:   ex.conduta   || '',
-          rawText:   ex.rawText   || r.rawText || '',
         };
 
         if (patient) {
-          // Update existing patient
           if (!patient.evolutions) patient.evolutions = [];
-          const todayIdx = patient.evolutions.findIndex(ev => ev.date === today);
-          if (todayIdx >= 0) patient.evolutions[todayIdx] = newEvol;
-          else               patient.evolutions.push(newEvol);
+          const ti = patient.evolutions.findIndex(ev => ev.date === today);
+          if (ti >= 0) patient.evolutions[ti] = newEvol;
+          else         patient.evolutions.push(newEvol);
           if (ex.problems?.trim()) patient.problems = ex.problems;
           if (ex.abx?.trim())      patient.abx      = ex.abx;
           if (ex.devices?.trim())  patient.devices  = ex.devices;
           if (ex.diag?.trim())     patient.diag     = ex.diag;
           if (ex.mih?.trim())      patient.mih      = ex.mih;
+          if (name && !patient.name?.trim()) patient.name = name;
           updated++;
-          console.log(`[import] UPDATED LT${leitoNum} ${patient.name} (ward:${ward})`);
-        } else {
-          // ── SMART WARD DETECTION ──
-          // 1. Check if leito already exists in a specific ward (previous session)
-          // 2. Use the ward selected in the import modal
-          let targetWard = leitoToWard[leitoNum] || importWard;
-
-          // If name is empty — use filename as name
-          const finalName = name || cleanPatientName(
-            (r.filename || '').replace(/\.(docx?|pdf|txt)$/i,'')
-                               .replace(/LT[_\s-]*\d+[A-Za-z]?[_\s-]*/i,'')
-                               .replace(/[_\-]+/g,' ').replace(/\d{2}[_\-]\d{2}/g,'').trim()
-          );
-
-          if (!finalName) { console.warn('[import] No name for', r.filename); return; }
-
-          if (!data[targetWard]) data[targetWard] = [];
+        } else if (name) {
+          const tw = leitoWardMap[leitoNum] || importWard;
           const newPt = {
-            id:         'p' + Date.now() + idx + Math.floor(Math.random()*9999),
-            name:       finalName,
-            pront:      ex.pront    || '',
-            leito:      String(leitoNum || ex.leito || ''),
-            age:        ex.age      || '',
-            dt:         ex.dt       || new Date().toISOString().split('T')[0],
-            status:     'stable',
-            diag:       ex.diag     || '',
-            problems:   ex.problems || '',
-            abx:        ex.abx      || '',
-            devices:    ex.devices  || '',
-            allergy:    ex.allergy  || '',
-            ih:         ex.ih       || '',
-            mih:        ex.mih      || '',
-            evolutions: [newEvol],
-            files:      [],
+            id: 'p' + Date.now() + '_' + idx,
+            name, pront: pront || '',
+            leito: String(leitoNum || ex.leito || ''),
+            age: ex.age || '', dt: ex.dt || new Date().toISOString().split('T')[0],
+            status: 'stable',
+            diag: ex.diag || ex.mih || '', mih: ex.mih || '',
+            problems: ex.problems || '', abx: ex.abx || '',
+            devices: ex.devices || '', allergy: ex.allergy || '',
+            ih: ex.ih || '', evolutions: [newEvol], files: [],
           };
-          data[targetWard].push(newPt);
+          data[tw].push(newPt);
+          leitoWardMap[leitoNum] = tw;
           created++;
-          console.log(`[import] CREATED LT${leitoNum} "${finalName}" → ward:${targetWard}`);
+        } else {
+          console.warn('[import] no name for', r.filename, 'leito:', leitoNum);
         }
-      } catch(e) { console.warn('[Evol item]', r?.filename, e); }
-    });
-
-    // ── 3. Auto-alta: leitos ausentes no import ──
-    try {
-      if (_batchImportData.length >= 3 && !_batchTardesData.length) {
-        const importedLeitos = new Set(
-          _batchImportData.map(r => parseInt(String((r.extracted||{}).leito||''),10)).filter(n=>n>0)
-        );
-        const wardCounts = {};
-        _batchImportData.forEach(r => {
-          const ex = r.extracted||{};
-          const leitoNum = parseInt(String(ex.leito||''),10)||0;
-          const pront    = String(ex.pront||'').replace(/\D/g,'');
-          for (const w of ['cmm','cmf1','cmf2']) {
-            const found = (data[w]||[]).find(p => {
-              const pp = String(p.pront||'').replace(/\D/g,'');
-              const pl = parseInt(String(p.leito||''),10)||-1;
-              return (pront.length>=4&&pp===pront)||(leitoNum>0&&pl===leitoNum);
-            });
-            if (found) { wardCounts[w]=(wardCounts[w]||0)+1; break; }
-          }
-        });
-        const affectedWard = Object.keys(wardCounts).sort((a,b)=>wardCounts[b]-wardCounts[a])[0]
-          || state.currentWard || 'cmm';
-        let discharged = 0;
-        (data[affectedWard]||[]).forEach(p => {
-          if (p.status==='alta') return;
-          const pl = parseInt(String(p.leito||''),10)||0;
-          if (pl>0 && !importedLeitos.has(pl)) { p.status='alta'; p.altaDate=today; discharged++; }
-        });
-        if (discharged) showToast(`🏠 ${discharged} paciente(s) com alta automática`, 'success');
-      }
-    } catch(e) { console.warn('[auto-alta]', e); }
+      } catch(e) { console.error('[import item]', idx, r?.filename, e); }
+    }
 
     // ── 4. Save ──
     saveData(data);
 
-    // ── 5. Push to Supabase if connected ──
-    if (sb.client) sbPush(data).catch(e => console.warn('[sbPush post-import]', e));
-
-    // ── 6. Close modal & reset ──
+    // ── 5. Close modal & reset ──
     closeModal('modal-import');
     ['import-filelist','import-preview','import-save-btn'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
+      const el = document.getElementById(id); if (el) el.style.display = 'none';
     });
-    const fi = document.getElementById('import-file-input');
-    const fo = document.getElementById('import-folder-input');
-    if (fi) fi.value = '';
-    if (fo) fo.value = '';
-    const confirmBtnReset = document.getElementById('import-upload-btn');
-    if (confirmBtnReset) { confirmBtnReset.style.display = 'none'; confirmBtnReset.disabled = false; }
+    const fi = document.getElementById('import-file-input');   if (fi) fi.value = '';
+    const fo = document.getElementById('import-folder-input'); if (fo) fo.value = '';
+    if (confirmBtn) { confirmBtn.style.display = 'none'; confirmBtn.disabled = false; }
 
-    // ── 7. Force full UI refresh ──
+    // ── 6. Switch ward & refresh ──
+    state.currentWard = importWard;
+    document.querySelectorAll('.ward-tab').forEach(t => t.classList.remove('active'));
+    const wt = document.getElementById('tab-' + importWard);
+    if (wt) wt.classList.add('active');
     migrateCondutaFromRawText();
     autoSyncAllLabs();
-
-    // Switch to the ward where patients were imported
-    state.currentWard = importWard;
-    // Update sidebar ward tab
-    document.querySelectorAll('.ward-tab').forEach(t => t.classList.remove('active'));
-    const activeTab = document.getElementById('tab-' + importWard);
-    if (activeTab) activeTab.classList.add('active');
-
     updateCounts();
     renderDashboard();
     renderPatients();
-
-    // Refresh passagem for the ward that was most imported
-    if (_batchImportData.length > 0) {
-      // Determine which ward the evolutions belong to
-      const freshData = getData();
-      const wardCounts = {cmm:0, cmf1:0, cmf2:0};
-      _batchImportData.forEach(r => {
-        const ex = r.extracted||{};
-        const lNum = parseInt(String(ex.leito||''),10)||0;
-        for (const w of ['cmm','cmf1','cmf2']) {
-          const found = (freshData[w]||[]).find(p => parseInt(String(p.leito||''),10)===lNum);
-          if (found) { wardCounts[w]++; break; }
-        }
-      });
-      const topWard = Object.keys(wardCounts).sort((a,b)=>wardCounts[b]-wardCounts[a])[0];
-      if (topWard && wardCounts[topWard] > 0) {
-        passagemWard = topWard;
-        // Update passagem ward tab UI
-        document.querySelectorAll('#passagem-ward-tabs button').forEach(b => b.className='btn btn-ghost btn-sm');
-        const tabEl = document.querySelector(`#passagem-ward-tabs button[onclick*="${topWard}"]`);
-        if (tabEl) tabEl.className = 'btn btn-primary btn-sm';
-      }
-    }
     renderPassagem();
-    if (state.currentView === 'altas')     renderAltas();
-    if (state.currentView === 'condutas')  renderCondutasSelect();
 
-    // ── Auto-alta check: ask about patients absent from import ──
-    if (_batchImportData.length >= 3 && !_batchTardesData.length) {
-      const freshForAlta = getData();
-      const importedLeitosForAlta = new Set(
+    // ── 7. Auto-alta: ask about absent patients ──
+    if (_batchImportData.length >= 2) {
+      const importedLeitos = new Set(
         _batchImportData.map(r => parseInt(String((r.extracted||{}).leito||''),10)).filter(n=>n>0)
       );
-      const wardForAlta = Object.keys({cmm:0,cmf1:0,cmf2:0}).reduce((best,w) => {
-        const c = (freshForAlta[w]||[]).filter(p=>importedLeitosForAlta.has(parseInt(String(p.leito||''),10))).length;
-        return c > (freshForAlta[best]||[]).filter(p=>importedLeitosForAlta.has(parseInt(String(p.leito||''),10))).length ? w : best;
-      }, 'cmm');
-      autoAltaCheck(importedLeitosForAlta, wardForAlta);
+      setTimeout(() => autoAltaCheck(importedLeitos, importWard), 700);
     }
 
-    // ── 8. Toast summary ──
-    const freshData2 = getData();
-    const totalPats = (freshData2.cmm||[]).length + (freshData2.cmf1||[]).length + (freshData2.cmf2||[]).length;
+    // ── 8. Toast ──
+    const total = (data[importWard]||[]).filter(p=>p.status!=='alta').length;
     const parts = [
       updated  && `${updated} evolução(ões) atualizada(s)`,
       created  && `${created} paciente(s) criado(s)`,
-      tfSaved  && `${tfSaved} tarde(s) fixa(s) aplicada(s)`,
+      tfSaved  && `${tfSaved} tarde(s) fixa(s)`,
     ].filter(Boolean);
-    showToast('✅ ' + (parts.length ? parts.join(' · ') : 'Importação concluída') + ` — ${totalPats} pacientes`, 'success');
+    showToast('✅ ' + (parts.length ? parts.join(' · ') : 'Importado') + ` — ${total} internados em ${importWard.toUpperCase()}`, 'success');
 
   } catch(e) {
     console.error('[_confirmImport]', e);
-    showToast('❌ Erro ao salvar: ' + (e.message||e), 'error');
-    const confirmBtnErr = document.getElementById('import-upload-btn');
-    if (confirmBtnErr) { confirmBtnErr.disabled = false; confirmBtnErr.textContent = '✅ Tentar novamente'; }
+    showToast('❌ Erro: ' + (e.message || String(e)), 'error');
+    if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = '✅ Tentar novamente'; }
   } finally {
-    // Clear batch data after everything is done
     _batchImportData = [];
     _batchTardesData = [];
   }
@@ -8379,36 +8293,50 @@ function renderTabCondutas(patient) {
 // ── Auto-Alta: perguntar sobre pacientes ausentes no import ──
 function autoAltaCheck(importedLeitos, ward) {
   const data = getData();
+  // Pacientes ativos nessa ward que NÃO estão nos arquivos importados
   const absent = (data[ward]||[]).filter(p => {
-    if (p.status==='alta') return false;
-    const pl = parseInt(String(p.leito||''),10)||0;
-    return pl>0 && !importedLeitos.has(pl);
+    if (p.status === 'alta') return false;
+    const pl = parseInt(String(p.leito||''),10) || 0;
+    return pl > 0 && !importedLeitos.has(pl);
   });
   if (!absent.length) return;
-  let idx=0;
+
+  let idx = 0;
   function askNext() {
-    if (idx>=absent.length) return;
-    const p=absent[idx]; idx++;
-    const modal=document.createElement('div');
-    modal.style.cssText='position:fixed;inset:0;background:rgba(2,9,23,.8);display:flex;align-items:center;justify-content:center;z-index:9998;';
-    const pid=p.id; const nextIdx=idx;
-    modal.innerHTML=`
-      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:28px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.5);">
-        <div style="font-size:14px;font-weight:700;margin-bottom:8px;">🏠 Possível Alta</div>
-        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;">
+    if (idx >= absent.length) return;
+    const p = absent[idx++];
+    const pid = p.id;
+
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(2,9,23,.85);display:flex;align-items:center;justify-content:center;z-index:9990;backdrop-filter:blur(4px);';
+    overlay.innerHTML = `
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:28px 32px;max-width:400px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,.5);">
+        <div style="font-size:22px;margin-bottom:12px;text-align:center;">🏠</div>
+        <div style="font-size:15px;font-weight:700;text-align:center;margin-bottom:8px;">Possível Alta</div>
+        <div style="font-size:13px;color:var(--text-secondary);text-align:center;margin-bottom:20px;line-height:1.6;">
           <strong>LT ${escapeHtml(String(p.leito))} — ${escapeHtml(cleanPatientName(p.name))}</strong><br>
-          Não apareceu na importação mais recente.<br>Deseja dar <strong>Alta</strong>?
+          <span style="color:var(--text-muted);">Não apareceu nos arquivos de hoje.</span><br>
+          Deseja dar alta para este paciente?
         </div>
         <div style="display:flex;gap:10px;">
-          <button class="btn btn-primary" style="flex:1;" id="alta-btn-${pid}">🏠 Dar Alta</button>
-          <button class="btn btn-ghost" style="flex:1;" id="manter-btn-${pid}">Manter internado</button>
+          <button id="manter-${pid}" class="btn btn-ghost" style="flex:1;padding:12px;">Manter internado</button>
+          <button id="alta-${pid}" class="btn btn-primary" style="flex:1;padding:12px;background:#16a34a;">🏠 Confirmar Alta</button>
         </div>
       </div>`;
-    document.body.appendChild(modal);
-    document.getElementById('alta-btn-'+pid).onclick=()=>{modal.remove();giveAltaConfirm(pid);setTimeout(askNext,200);};
-    document.getElementById('manter-btn-'+pid).onclick=()=>{modal.remove();setTimeout(askNext,200);};
+    document.body.appendChild(overlay);
+
+    document.getElementById('alta-' + pid).onclick = () => {
+      overlay.remove();
+      giveAltaConfirm(pid);
+      setTimeout(askNext, 300);
+    };
+    document.getElementById('manter-' + pid).onclick = () => {
+      overlay.remove();
+      setTimeout(askNext, 300);
+    };
   }
-  setTimeout(askNext,1000);
+  askNext();
 }
 
 function giveAltaConfirm(patientId) {
