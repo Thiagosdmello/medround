@@ -2313,6 +2313,13 @@ async function _confirmImport() {
     return;
   }
 
+  // DEBUG: show what we have
+  console.log('[import] batch:', _batchImportData.length, 'files');
+  _batchImportData.forEach((r,i) => {
+    const ex = r.extracted || {};
+    console.log(`[import] [${i}] file:${r.filename} leito:${ex.leito} name:${ex.name} pront:${ex.pront}`);
+  });
+
   try {
     const data     = getData();
     const today    = new Date().toLocaleDateString('pt-BR');
@@ -2444,6 +2451,8 @@ async function _confirmImport() {
 
     // ── 4. Save ──
     saveData(data);
+    console.log('[import] SAVED. updated:', updated, 'created:', created, 'ward:', importWard);
+    console.log('[import] Ward data after save:', (data[importWard]||[]).map(p=>`LT${p.leito} ${p.name}`));
 
     // ── 5. Close modal & reset ──
     closeModal('modal-import');
@@ -9022,6 +9031,9 @@ document.addEventListener('DOMContentLoaded', () => {
           <option value="cmf2">CMF2 — Clínica Médica Feminina 2</option>
         </select>
       </div>
+
+      <!-- File list selected -->
+      <div id="import-filelist" style="display:none;background:var(--bg-hover);border-radius:8px;padding:10px 14px;">
         <div style="font-size:11px;font-weight:700;color:var(--blue-400);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Arquivos selecionados:</div>
         <div id="import-filelist-names" style="font-size:12px;color:var(--text-secondary);line-height:1.8;"></div>
       </div>
