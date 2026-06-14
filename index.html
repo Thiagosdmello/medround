@@ -1767,8 +1767,8 @@ const sb = {
   channel: null,
   // ══════════════════════════════════════════════
   //  COLE SUAS CREDENCIAIS DO SUPABASE AQUI:
-  url: 'https://sxtihlavbggfpplhlbsm.supabase.co',        // ex: https://abcdefgh.supabase.co
-  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4dGlobGF2YmdnZnBwbGhsYnNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5ODQwMDMsImV4cCI6MjA5NDU2MDAwM30.Rjwx6xbk27oM3_j-7FPRU57cmikbXi-x71NXcplI5RU',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  url: 'COLE_AQUI_A_PROJECT_URL',        // ex: https://abcdefgh.supabase.co
+  key: 'COLE_AQUI_A_ANON_KEY',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   // ══════════════════════════════════════════════
   isSyncing: false
 };
@@ -2645,27 +2645,100 @@ function formatConduta(raw) {
   }).filter(Boolean).join('\n');
 }
 
+
+// ══════════════════════════════════════════════════════════════════
+//  AI-POWERED EXTRACTION
+// ══════════════════════════════════════════════════════════════════
+async function extractWithAI(text, filename) {
+  const id = extractIdentityFromText(text, filename);
+  const cutRx = /(?:ESSA PARTE AQUI NÃO IRÁ|NÃO VAI PRO SISTEMA|ESPELHO DE EXAMES|_{10,}|-{30,})/i;
+  const cutIdx = text.search(cutRx);
+  const cleanText = cutIdx > 100 ? text.substring(0, cutIdx).trim() : text.trim();
+  const textForAI = cleanText.length > 3500 ? cleanText.substring(0, 3500) + '\n[... truncado]' : cleanText;
+
+  const prompt = `Você é um médico clínico especialista em evoluções hospitalares brasileiras.
+
+Analise esta evolução clínica e extraia as informações no formato JSON.
+ARQUIVO: ${filename}
+
+EVOLUÇÃO:
+${textForAI}
+
+Retorne APENAS este JSON (sem markdown, sem texto extra):
+{
+  "name": "NOME COMPLETO EM MAIÚSCULAS",
+  "age": "idade em anos",
+  "pront": "prontuário (somente dígitos)",
+  "leito": "número do leito",
+  "dt": "data internação YYYY-MM-DD",
+  "mih": "motivo de internação completo",
+  "allergy": "alergias",
+  "problems": "problemas ativos, um por linha começando com #",
+  "resumo": "resumo clínico do caso",
+  "24h": "relato das últimas 24h — subjetivo e exame físico",
+  "devices": "dispositivos em uso",
+  "abx": "antibióticos com doses",
+  "labs": "exames laboratoriais com datas e valores",
+  "image": "exames de imagem com datas e laudos",
+  "pareceres": "pareceres de especialidades",
+  "impressao": "impressão clínica",
+  "conduta": "plano de conduta (>> TEMA:\\n- item)"
+}`;
+
+  const raw = await callClaude(prompt, 1500);
+  const clean = raw.replace(/\`\`\`json\s*/gi,'').replace(/\`\`\`\s*/g,'').trim();
+  let parsed;
+  try {
+    parsed = JSON.parse(clean);
+  } catch(e) {
+    const jsonMatch = clean.match(/\{[\s\S]+\}/);
+    if (!jsonMatch) throw new Error('IA não retornou JSON válido: ' + clean.substring(0,100));
+    parsed = JSON.parse(jsonMatch[0]);
+  }
+
+  return {
+    name:      cleanPatientName(parsed.name || id.name || ''),
+    age:       parsed.age       || id.age   || '',
+    pront:     (parsed.pront || id.pront || '').replace(/\D/g,''),
+    leito:     parsed.leito    || id.leito  || '',
+    dt:        parsed.dt       || id.dt     || new Date().toISOString().split('T')[0],
+    status:    'stable',
+    mih:       parsed.mih      || id.mih    || '',
+    allergy:   parsed.allergy  || '',
+    problems:  parsed.problems || '',
+    diag:      (parsed.problems || '').split('\n')
+                 .filter(l => l.trim().startsWith('#'))
+                 .map(l => l.replace(/^#\s*/,'').trim())
+                 .filter(Boolean).slice(0,3).join('; '),
+    resumo:    parsed.resumo    || '',
+    '24h':     parsed['24h']    || '',
+    devices:   parsed.devices   || '',
+    abx:       parsed.abx       || '',
+    labs:      parsed.labs      || '',
+    image:     parsed.image     || '',
+    pareceres: parsed.pareceres || '',
+    impressao: parsed.impressao || '',
+    conduta:   parsed.conduta   || '',
+    ih:        id.ih || '',
+    rawText:   text,
+  };
+}
+
 async function extractPatientDataFromText(text, filename) {
   // Cut at system markers
   const cutRx = /(?:ESSA PARTE AQUI NÃO IRÁ PARA O SISTEMA|NÃO VAI PRO SISTEMA|ESPELHO DE EXAMES|_{10,}|-{30,})/i;
   const cutIdx = text.search(cutRx);
   const clean = cutIdx > 0 ? text.substring(0, cutIdx).trim() : text;
 
-  // Identity
   const id = extractIdentityFromText(clean, filename);
-
-  // Split into sections by # headings — canonical names already applied
   const sections = splitDocumentIntoSections(clean);
 
-  // Get content by canonical field name
   const byCanon = (canon) => {
     const matched = sections.filter(s => s.headingText === canon);
     return matched.map(s => s.lines.join('\n').trim()).filter(Boolean).join('\n\n');
   };
 
-  // Problems
   const rawProblems  = getProblemItems(sections);
-  // Core clinical sections
   const rawResumo    = byCanon('resumo');
   const rawDevices   = byCanon('devices');
   const rawATB       = byCanon('atb');
@@ -2680,17 +2753,15 @@ async function extractPatientDataFromText(text, filename) {
   const rawImpressao = byCanon('impressao');
   const rawPlano     = byCanon('conduta');
 
-  // Combine 24h: if file has separate Ontem/Hoje/Subjetivo/ExFisico — merge them
   const parts24h = [
-    rawOntem ? `# Ontem:\n${rawOntem}` : '',
-    rawHoje  ? `# Hoje:\n${rawHoje}` : '',
+    rawOntem    ? `# Ontem:\n${rawOntem}` : '',
+    rawHoje     ? `# Hoje:\n${rawHoje}`   : '',
     raw24h_base || '',
-    rawSubj  ? `# Subjetivo:\n${rawSubj}` : '',
+    rawSubj     ? `# Subjetivo:\n${rawSubj}` : '',
     rawExFisico ? `# Exame Físico:\n${rawExFisico}` : '',
   ].filter(Boolean);
   const raw24h = parts24h.join('\n\n');
 
-  // Diagnósticos from problem items (first 4 non-empty items)
   const diagList = (rawProblems||'').split('\n').map(l=>l.trim())
     .filter(l => l && !l.match(/^-?\s*$/))
     .map(l => l.replace(/^[-#\*]\s*/,'').trim())
@@ -2716,12 +2787,9 @@ async function extractPatientDataFromText(text, filename) {
     pareceres: rawPareceres,
     impressao: rawImpressao,
     conduta:   formatConduta(cleanConduta(rawPlano)),
-    rawText:   text,                                           // texto integral do documento
+    rawText:   text,
   };
 }
-
-// Extract section from raw document text — works with any heading format
-// Uses the full structured text with bold markers preserved
 function splitDocumentIntoSections(text) {
   const cutRx = /(?:ESSA PARTE AQUI NÃO IRÁ PARA O SISTEMA|NÃO VAI PRO SISTEMA|ESPELHO DE EXAMES|_{10,}|-{30,})/i;
   const cutIdx = text.search(cutRx);
@@ -4640,29 +4708,51 @@ Escreva apenas o resumo, sem títulos ou marcadores.`);
 // ══════════════════════════════════════════════
 //  CLAUDE API
 // ══════════════════════════════════════════════
-async function callClaude(prompt) {
+async function callClaude(prompt, maxTokens = 2048) {
   const key = getApiKey();
-  if (!key) throw new Error('Configure a API Key primeiro');
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-5-20251022',
-      max_tokens: 2048,
-      messages: [{ role: 'user', content: prompt }]
-    })
-  });
-  if (!res.ok) {
-    const e = await res.json().catch(() => ({}));
-    throw new Error(e.error?.message || `HTTP ${res.status}`);
+  if (!key) throw new Error('Configure a API Key nas Configurações primeiro');
+
+  // Try models in order: saved → newest → fallback
+  const savedModel = localStorage.getItem('medroundModel');
+  const models = [...new Set([
+    savedModel,
+    'claude-sonnet-4-6',
+    'claude-haiku-4-5-20251001',
+    'claude-haiku-3-5-20241022',
+  ].filter(Boolean))];
+
+  for (const model of models) {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: maxTokens,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      console.log('[callClaude] using model:', model);
+      return data.content[0].text;
+    }
+
+    const err = await res.json().catch(() => ({}));
+    const msg = err.error?.message || '';
+    // If model not found, try next; otherwise throw
+    if (res.status === 404 || msg.includes('model') || msg.includes('not found')) {
+      console.warn('[callClaude] model not available:', model, '— trying next');
+      continue;
+    }
+    throw new Error(msg || `HTTP ${res.status}`);
   }
-  const data = await res.json();
-  return data.content[0].text;
+  throw new Error('Nenhum modelo Claude disponível. Verifique sua API Key e plano.');
 }
 
 // ══════════════════════════════════════════════
@@ -9648,8 +9738,8 @@ async function importHandleFiles(fileList) {
   if (!files.length) { showToast('⚠️ Nenhum arquivo compatível (.docx, .pdf, .txt)', 'error'); return; }
 
   // Show file list
-  const listEl = document.getElementById('import-filelist');
-  const namesEl = document.getElementById('import-filelist-names');
+  const listEl   = document.getElementById('import-filelist');
+  const namesEl  = document.getElementById('import-filelist-names');
   const uploadBtn = document.getElementById('import-upload-btn');
   const previewEl = document.getElementById('import-preview');
   const saveBtnEl = document.getElementById('import-save-btn');
@@ -9664,27 +9754,42 @@ async function importHandleFiles(fileList) {
   if (saveBtnEl) saveBtnEl.style.display = 'none';
   if (uploadBtn) uploadBtn.style.display = 'none';
 
-  // Show loading
   const loadEl  = document.getElementById('import-loading');
   const loadTxt = document.getElementById('import-loading-text');
   if (loadEl) loadEl.style.display = 'flex';
-  if (loadTxt) loadTxt.textContent = `Lendo 0/${files.length} arquivos...`;
 
-  // Process files
+  const useAI = !!getApiKey();
+  if (loadTxt) loadTxt.textContent = useAI
+    ? `🤖 Extraindo com IA: 0/${files.length}...`
+    : `Lendo 0/${files.length} arquivos...`;
+
   const isTF = f => /tarde|fixa/i.test(f.name);
   const results = [], errors = [];
   let done = 0;
 
   for (const f of files) {
-    if (loadTxt) loadTxt.textContent = `Lendo ${++done}/${files.length}: ${f.name}`;
+    if (loadTxt) loadTxt.textContent = useAI
+      ? `🤖 IA processando ${++done}/${files.length}: ${f.name}`
+      : `Lendo ${++done}/${files.length}: ${f.name}`;
     try {
       const text = await readFileAsText(f);
-      if (!text || !text.trim()) { errors.push({file: f.name, reason: 'Arquivo vazio ou ilegível'}); continue; }
+      if (!text?.trim()) { errors.push({file: f.name, reason: 'Arquivo vazio ou ilegível'}); continue; }
       if (isTF(f)) {
         const r = await parseTardeFixa(text, f.name);
         results.push(...r.map(x => ({...x, isTardeFixa: true})));
       } else {
-        const ext = await extractPatientDataFromText(text, f.name);
+        // Try AI extraction first, fall back to regex
+        let ext;
+        if (useAI) {
+          try {
+            ext = await extractWithAI(text, f.name);
+          } catch(aiErr) {
+            console.warn('[import] AI failed for', f.name, '— falling back to regex:', aiErr.message);
+            ext = await extractPatientDataFromText(text, f.name);
+          }
+        } else {
+          ext = await extractPatientDataFromText(text, f.name);
+        }
         results.push({filename: f.name, extracted: ext, isTardeFixa: false, rawText: text});
       }
     } catch(e) {
@@ -9695,7 +9800,6 @@ async function importHandleFiles(fileList) {
 
   if (loadEl) loadEl.style.display = 'none';
 
-  // Store globally for _confirmImport
   _batchImportData = results.filter(r => !r.isTardeFixa);
   _batchTardesData = results.filter(r => r.isTardeFixa);
 
@@ -9706,16 +9810,22 @@ async function importHandleFiles(fileList) {
       previewEl.innerHTML = '<div style="color:var(--danger);padding:10px;">Nenhum paciente identificado nos arquivos.</div>';
     } else {
       let html = '';
+      if (useAI && _batchImportData.length) {
+        html += `<div style="font-size:11px;color:var(--success);margin-bottom:8px;padding:6px 10px;background:rgba(16,185,129,.08);border-radius:6px;">🤖 Extração com IA — campos enriquecidos automaticamente</div>`;
+      }
       if (_batchImportData.length) {
         html += `<div style="font-size:11px;font-weight:700;color:var(--blue-400);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">📋 Evoluções (${_batchImportData.length})</div>`;
         _batchImportData.forEach(r => {
           const ex = r.extracted || {};
           const name = cleanPatientName(ex.name || r.filename || '—');
-          html += `<div style="font-size:12.5px;padding:4px 0;border-bottom:1px solid var(--border);">LT ${ex.leito||'?'} · <strong>${escapeHtml(name)}</strong> <span style="color:var(--text-muted);font-size:11px;">${escapeHtml(ex.diag||'')}</span></div>`;
+          html += `<div style="font-size:12.5px;padding:5px 0;border-bottom:1px solid var(--border);">
+            LT ${escapeHtml(String(ex.leito||'?'))} · <strong>${escapeHtml(name)}</strong>
+            <span style="color:var(--text-muted);font-size:11px;"> ${escapeHtml((ex.mih||ex.diag||'').substring(0,60))}</span>
+          </div>`;
         });
       }
       if (_batchTardesData.length) {
-        html += `<div style="font-size:11px;font-weight:700;color:var(--warning);text-transform:uppercase;letter-spacing:.6px;margin:10px 0 6px;">🌅 Tarde Fixa (${_batchTardesData.length} pacientes)</div>`;
+        html += `<div style="font-size:11px;font-weight:700;color:var(--warning);text-transform:uppercase;letter-spacing:.6px;margin:10px 0 6px;">🌅 Tarde Fixa (${_batchTardesData.length})</div>`;
         _batchTardesData.forEach(r => {
           html += `<div style="font-size:12px;padding:3px 0;">LT ${r.leito||'?'} · ${escapeHtml(cleanPatientName(r.name||'—'))}</div>`;
         });
@@ -9724,18 +9834,17 @@ async function importHandleFiles(fileList) {
         html += `<div style="font-size:11px;font-weight:700;color:var(--danger);margin:10px 0 4px;">⚠️ Erros (${errors.length})</div>`;
         errors.forEach(e => { html += `<div style="font-size:11px;color:var(--danger);">• ${escapeHtml(e.file)}: ${escapeHtml(e.reason)}</div>`; });
       }
-      previewEl.innerHTML = `<div style="background:var(--bg-hover);border-radius:8px;padding:12px;max-height:220px;overflow-y:auto;">${html}</div>`;
+      previewEl.innerHTML = `<div style="background:var(--bg-hover);border-radius:8px;padding:12px;max-height:260px;overflow-y:auto;">${html}</div>`;
     }
     previewEl.style.display = 'block';
   }
 
-  // Show confirm button
   if (uploadBtn && (_batchImportData.length || _batchTardesData.length)) {
     uploadBtn.style.display = 'inline-flex';
+    uploadBtn.disabled = false;
     uploadBtn.textContent = `✅ Confirmar (${_batchImportData.length + _batchTardesData.length} pacientes)`;
   }
 }
-
 function handleFileUpload(event)   { importHandleFiles(event.target?.files || event.files || []); }
 function handleImportFiles(event)   { importHandleFiles(event.target?.files || event.files || []); }
 function handleFolderUpload(event)  { importHandleFiles(event.target?.files || []); }
@@ -9823,21 +9932,61 @@ async function testClaudeKey() {
   const key = getApiKey();
   if (!key) { showToast('⚠️ Configure a API Key primeiro', 'error'); return; }
   const res = document.getElementById('claude-test-result');
-  if (res) { res.style.display='block'; res.textContent='⏳ Testando...'; res.style.background='var(--bg-hover)'; res.style.color='var(--text-muted)'; }
+  if (res) {
+    res.style.display = 'block';
+    res.textContent = '⏳ Testando conexão...';
+    res.style.background = 'var(--bg-hover)';
+    res.style.color = 'var(--text-muted)';
+  }
+  const models = [
+    'claude-sonnet-4-6',
+    'claude-haiku-4-5-20251001',
+    'claude-haiku-3-5-20241022',
+  ];
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body: JSON.stringify({model:'claude-sonnet-4-5-20251022',max_tokens:10,messages:[{role:'user',content:'ok'}]}),
-    });
-    if (r.ok) {
-      if (res) { res.textContent='✅ Conexão OK! Claude disponível.'; res.style.background='rgba(16,185,129,.1)'; res.style.color='var(--success)'; }
-    } else {
-      const e = await r.json().catch(()=>({}));
-      if (res) { res.textContent='❌ Erro: '+(e.error?.message||r.status); res.style.background='rgba(239,68,68,.1)'; res.style.color='var(--danger)'; }
+    for (const model of models) {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({ model, max_tokens: 10, messages: [{ role: 'user', content: 'ok' }] }),
+      });
+      if (r.ok) {
+        if (res) {
+          res.textContent = `✅ Conexão OK! Usando: ${model}`;
+          res.style.background = 'rgba(16,185,129,.1)';
+          res.style.color = 'var(--success)';
+        }
+        // Save working model to localStorage
+        localStorage.setItem('medroundModel', model);
+        renderConfigView();
+        return;
+      }
+      const e = await r.json().catch(() => ({}));
+      const msg = e.error?.message || '';
+      if (r.status === 404 || msg.includes('model') || msg.includes('not found')) continue;
+      if (res) {
+        res.textContent = `❌ Erro: ${msg || r.status}`;
+        res.style.background = 'rgba(239,68,68,.1)';
+        res.style.color = 'var(--danger)';
+      }
+      return;
     }
-  } catch(e) {
-    if (res) { res.textContent='❌ Erro de rede: '+e.message; res.style.background='rgba(239,68,68,.1)'; res.style.color='var(--danger)'; }
+    if (res) {
+      res.textContent = '❌ Nenhum modelo disponível para esta API Key. Verifique seu plano em console.anthropic.com';
+      res.style.background = 'rgba(239,68,68,.1)';
+      res.style.color = 'var(--danger)';
+    }
+  } catch (e) {
+    if (res) {
+      res.textContent = '❌ Erro de rede: ' + e.message;
+      res.style.background = 'rgba(239,68,68,.1)';
+      res.style.color = 'var(--danger)';
+    }
   }
 }
 
