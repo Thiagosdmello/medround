@@ -2,51 +2,42 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MedRound — Sistema Hospitalar Inteligente</title>
+<meta name="theme-color" content="#020917">
+<meta name="mobile-web-app-capable" content="yes">
+<title>MedRound — Sistema Hospitalar IA</title>
+<link rel="manifest" href="/manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --blue-950: #020917;
-  --blue-900: #061428;
-  --blue-850: #0a1f3f;
-  --blue-800: #0f2d58;
-  --blue-700: #174080;
-  --blue-600: #1e56aa;
-  --blue-500: #2870d4;
-  --blue-400: #4d8de0;
-  --blue-300: #7aaeea;
-  --blue-200: #aeccf3;
-  --blue-100: #d6e8fb;
-  --blue-50: #edf5fd;
-  --gray-900: #0f1117;
-  --gray-800: #1a1e27;
-  --gray-700: #252935;
-  --gray-600: #343a4a;
-  --gray-500: #4d5568;
-  --gray-400: #6b7280;
-  --gray-300: #9ca3af;
-  --gray-200: #d1d5db;
-  --gray-100: #e5e7eb;
-  --gray-50: #f3f4f6;
-  --white: #ffffff;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --danger-light: #fef2f2;
-  --success-light: #f0fdf4;
-  --warning-light: #fffbeb;
-  --sidebar-w: 260px;
-  --header-h: 64px;
-  --radius: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  /* ── Color palette ── */
+  --blue-950: #020917; --blue-900: #061428; --blue-850: #0a1f3f; --blue-800: #0f2d58;
+  --blue-700: #174080; --blue-600: #1e56aa; --blue-500: #2870d4; --blue-400: #4d8de0;
+  --blue-300: #7aaeea; --blue-200: #aeccf3; --blue-100: #d6e8fb; --blue-50: #edf5fd;
+  --gray-900: #0f1117; --gray-800: #1a1e27; --gray-700: #252935; --gray-600: #343a4a;
+  --gray-500: #4d5568; --gray-400: #6b7280; --gray-300: #9ca3af; --gray-200: #d1d5db;
+  --gray-100: #e5e7eb; --gray-50: #f3f4f6; --white: #ffffff;
+  --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
+  --danger-light: #fef2f2; --success-light: #f0fdf4; --warning-light: #fffbeb;
+
+  /* ── Layout ── */
+  --sidebar-w: 260px; --header-h: 64px;
+  --radius: 10px; --radius-lg: 14px; --radius-xl: 20px;
   --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
   --shadow-lg: 0 8px 32px rgba(0,0,0,.12);
   --transition: .2s ease;
+
+  /* ── Semantic (dark by default) ── */
+  --bg-primary:    #020917;
+  --bg-secondary:  #061428;
+  --bg-card:       #0a1f3f;
+  --bg-hover:      #0f2d58;
+  --input-bg:      #0f2d58;
+  --text-primary:  #f1f5fb;
+  --text-secondary:#c4d4ea;
+  --text-muted:    #6b7280;
+  --border:        #174080;
+  --border-strong: #1e56aa;
 }
 [data-theme="dark"] {
   --bg-primary: var(--blue-950);
@@ -73,14 +64,14 @@
   --input-bg: var(--gray-50);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 14px; }
+html { font-size: 14px; height: 100%; }
 body {
   font-family: 'DM Sans', sans-serif;
   background: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
   transition: background var(--transition), color var(--transition);
 }
 h1,h2,h3,h4,h5 { font-family: 'Syne', sans-serif; }
@@ -211,10 +202,10 @@ input, textarea, select { font-family: inherit; }
 /* ── MAIN ── */
 #main {
   margin-left: var(--sidebar-w);
-  flex: 1;
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  overflow: hidden;
 }
 #header {
   height: var(--header-h);
@@ -286,7 +277,7 @@ input, textarea, select { font-family: inherit; }
 .tf-risk-tag.active.l{background:#10b981;color:white;}
 .tf-edited{font-size:10px;color:var(--text-muted);text-align:right;margin-top:-4px;}
 .btn-sm { padding: 5px 10px; font-size: 12px; }
-#content { flex: 1; padding: 16px 24px 24px; overflow-y: auto; box-sizing: border-box; min-height: 0; }
+#content { flex: 1; padding: 16px 24px 40px; overflow-y: auto; overflow-x: hidden; }
 @media (max-width: 900px) { #main { margin-left: 0; } }
 
 /* ── DASHBOARD ── */
@@ -955,10 +946,24 @@ input, textarea, select { font-family: inherit; }
 
 /* ── RESPONSIVE ── */
 @media(max-width:900px) {
-  #sidebar { transform: translateX(-100%); }
+  #sidebar {
+    transform: translateX(-100%);
+    z-index: 200;
+    box-shadow: 4px 0 24px rgba(0,0,0,.4);
+  }
   #sidebar.open { transform: translateX(0); }
   #main { margin-left: 0; }
   .hamburger { display: flex !important; }
+  #content { padding: 12px 14px 40px; }
+  .patients-grid { grid-template-columns: 1fr; }
+  .dashboard-grid { grid-template-columns: 1fr 1fr; }
+  .detail-tabs { gap: 3px; }
+  .detail-tab { font-size: 11px; padding: 7px 10px; }
+}
+@media(max-width:480px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .header-actions .btn-ghost { display: none; }
+  .header-actions .btn-primary { padding: 8px 12px; font-size: 12px; }
 }
 .hamburger {
   display: none;
@@ -969,6 +974,15 @@ input, textarea, select { font-family: inherit; }
   align-items: center; justify-content: center;
   font-size: 18px; cursor: pointer; color: var(--text-primary);
 }
+/* Sidebar overlay backdrop (mobile) */
+#sidebar-backdrop {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.6);
+  z-index: 199;
+  backdrop-filter: blur(2px);
+}
+#sidebar-backdrop.open { display: block; }
 .overlay {
   position: fixed; inset: 0;
   background: rgba(0,0,0,.5);
@@ -1046,36 +1060,9 @@ input, textarea, select { font-family: inherit; }
 .import-field { display:grid;grid-template-columns:110px 1fr;gap:8px;font-size:12px;line-height:1.5; }
 .import-label { font-weight:700;color:var(--text-muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;padding-top:1px; }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous"></script>
-<script>
-  // Configure pdf.js to run without a separate worker (simpler, works in  context)
-  if (typeof pdfjsLib !== 'undefined') {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  } else {
-    // Defer until after load
-    window.addEventListener('load', () => {
-      if (typeof pdfjsLib !== 'undefined') {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-      }
-    });
-  }
-</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js" crossorigin="anonymous"></script>
-  <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#0614AD">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="MedRound">
-  <link rel="apple-touch-icon" href="/icon-192.png">
-  <link rel="icon" type="image/svg+xml" href="/icon.svg">
 </head>
-<body data-theme="dark">
-
-<!-- SIDEBAR OVERLAY -->
-<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
-
-<!-- SIDEBAR -->
+<body>
+<div id="sidebar-backdrop" onclick="closeSidebar()"></div>
 <aside id="sidebar">
   <div class="sidebar-logo">
     <div class="logo-icon">MR</div>
@@ -1084,92 +1071,46 @@ input, textarea, select { font-family: inherit; }
       <div class="logo-sub">Sistema Hospitalar IA</div>
     </div>
   </div>
-
-  <!-- Ward Tabs -->
   <div class="ward-tabs">
     <div class="ward-tab active" onclick="selectWard('cmm')" id="tab-cmm">
-      <div class="ward-tab-left">
-        <div class="ward-dot dot-cmm"></div>
-        <span>CMM</span>
-      </div>
-      <span class="ward-count" id="cnt-cmm">0 pac.</span>
+      <div class="ward-tab-left"><div class="ward-dot dot-cmm"></div>CMM</div>
+      <span id="cnt-cmm" class="ward-count">0 pac.</span>
     </div>
     <div class="ward-tab" onclick="selectWard('cmf1')" id="tab-cmf1">
-      <div class="ward-tab-left">
-        <div class="ward-dot dot-cmf1"></div>
-        <span>CMF1</span>
-      </div>
-      <span class="ward-count" id="cnt-cmf1">0 pac.</span>
+      <div class="ward-tab-left"><div class="ward-dot dot-cmf1"></div>CMF1</div>
+      <span id="cnt-cmf1" class="ward-count">0 pac.</span>
     </div>
     <div class="ward-tab" onclick="selectWard('cmf2')" id="tab-cmf2">
-      <div class="ward-tab-left">
-        <div class="ward-dot dot-cmf2"></div>
-        <span>CMF2</span>
-      </div>
-      <span class="ward-count" id="cnt-cmf2">0 pac.</span>
+      <div class="ward-tab-left"><div class="ward-dot dot-cmf2"></div>CMF2</div>
+      <span id="cnt-cmf2" class="ward-count">0 pac.</span>
     </div>
   </div>
-
   <nav class="sidebar-nav">
     <div class="nav-section-label">Principal</div>
-    <div class="nav-item active" onclick="showView('dashboard')" id="nav-dashboard">
-      <span class="nav-icon">🏠</span> Dashboard
-    </div>
-    <div class="nav-item" onclick="showView('patients')" id="nav-patients">
-      <span class="nav-icon">🛏️</span> Pacientes
-      <span class="nav-badge" id="badge-patients">0</span>
-    </div>
-
+    <div class="nav-item active" onclick="showView('dashboard')" id="nav-dashboard"><span class="nav-icon">🏠</span> Dashboard</div>
+    <div class="nav-item" onclick="showView('patients')" id="nav-patients"><span class="nav-icon">🛏️</span> Pacientes<span class="badge" id="badge-patients"></span></div>
     <div class="nav-section-label">Documentos</div>
-    <div class="nav-item" onclick="showView('passagem')" id="nav-passagem">
-      <span class="nav-icon">📋</span> Passagem
+    <div class="nav-item" onclick="showView('passagem')" id="nav-passagem"><span class="nav-icon">📋</span> Passagem</div>
+    <div class="nav-item" onclick="showView('condutas')" id="nav-condutas"><span class="nav-icon">📄</span> Resumo Condutas</div>
+    <div class="nav-item" onclick="showView('sumarios')" id="nav-sumarios"><span class="nav-icon">📑</span> Sumários de Alta</div>
+    <div class="nav-item" onclick="showTardeFixaView()" id="nav-tardefixa"><span class="nav-icon">🌅</span> Tarde Fixa</div>
+    <div class="nav-section-label">Gestão</div>
+    <div class="nav-item" onclick="showView('altas')" id="nav-altas"><span class="nav-icon">🏠</span> Altas</div>
+    <div class="nav-section-label">Sistema</div>
+    <div class="nav-item" onclick="showView('config')" id="nav-config">
+      <span class="nav-icon">⚙️</span> Configurações
+      <span id="api-key-status" style="margin-left:auto;font-size:10px;color:var(--text-muted);"></span>
     </div>
-    <div class="nav-item" onclick="showView('condutas')" id="nav-condutas">
-      <span class="nav-icon">📄</span> Resumo Condutas
-    </div>
-    <div class="nav-item" onclick="showView('sumarios')" id="nav-sumarios">
-      <span class="nav-icon">📑</span> Sumários de Alta
-    </div>
-    <div class="nav-item" onclick="showView('tardefixa')" id="nav-tardefixa" style="border-left:3px solid var(--warning);padding-left:11px;">
-      <span class="nav-icon">🌅</span> <span style="font-weight:600;">Tarde Fixa</span>
-      <span class="nav-badge" id="badge-tardefixa" style="background:var(--warning);color:#000;display:none;"></span>
-    </div>
-    <div class="nav-item" onclick="showView('altas')" id="nav-altas" style="color:var(--text-muted);">
-      <span class="nav-icon">🏠</span> Altas
-      <span class="nav-badge" id="badge-altas" style="background:var(--text-muted);color:white;display:none;"></span>
-    </div>
-
-    <div class="nav-section-label">IA</div>
-
-    <div class="nav-section-label">Configurações</div>
   </nav>
-
   <div class="sidebar-bottom">
     <div class="user-info">
       <div class="user-avatar">TM</div>
-      <div>
-        <div class="user-name">Dr. Thiago</div>
-        <div class="user-role">Clínica Médica</div>
-      </div>
+      <div><div class="user-name">Dr. Thiago</div><div class="user-role">Clínica Médica</div></div>
     </div>
     <button class="theme-btn" onclick="toggleTheme()" title="Alternar tema">🌙</button>
-
-    <!-- ALTAS -->
-    <div id="view-altas" style="display:none;" class="fade-in">
-      <div class="section-header">
-        <div>
-          <div class="section-title">🏠 Pacientes com Alta</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Histórico de altas — evoluções preservadas</div>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="renderAltas()">🔄 Atualizar</button>
-      </div>
-      <div id="altas-list" style="display:flex;flex-direction:column;gap:10px;"></div>
-    </div>
   </div>
 </aside>
-
-<!-- MAIN -->
-<main id="main">
+<div id="main">
   <header id="header">
     <button class="hamburger" id="hamburger" onclick="openSidebar()">☰</button>
     <div>
@@ -1177,366 +1118,428 @@ input, textarea, select { font-family: inherit; }
       <div class="header-sub" id="header-sub">Sistema Hospitalar Inteligente</div>
     </div>
     <div class="header-actions">
-      <button class="btn btn-ghost btn-sm" id="cloud-btn" onclick="openSupaConfig()" title="Configurar Supabase">☁️</button>
+      <button class="btn btn-ghost btn-sm" id="cloud-btn" onclick="openSupaConfig()" title="Supabase">☁️</button>
       <button class="btn btn-ghost btn-sm" onclick="openImportPatient()">📄 Importar</button>
-      <button class="btn btn-primary" onclick="openAddPatient()">+ Novo Paciente</button>
+      <button class="btn btn-primary btn-sm" onclick="openAddPatient()">+ Novo Paciente</button>
     </div>
   </header>
-
   <div id="content">
-    <!-- DASHBOARD -->
+
+    <!-- VIEW: DASHBOARD -->
     <div id="view-dashboard" class="fade-in">
       <div class="dashboard-grid">
         <div class="stat-card highlight">
-          <div class="stat-label">Pacientes Totais</div>
+          <div class="stat-label">Total Internados</div>
           <div class="stat-value" id="stat-total">0</div>
-          <div class="stat-sub">Todas as enfermarias</div>
+          <div class="stat-sub">todas as enfermarias</div>
         </div>
-        <div class="stat-card" id="dash-card-cmm" onclick="dashSelectWard('cmm')" style="cursor:pointer;">
-          <div class="stat-icon">🏥</div>
-          <div class="stat-label">CMM</div>
-          <div class="stat-value" id="stat-cmm">0</div>
-          <div class="stat-sub">Clínica Masc.</div>
-        </div>
-        <div class="stat-card" id="dash-card-cmf1" onclick="dashSelectWard('cmf1')" style="cursor:pointer;">
-          <div class="stat-icon">🏥</div>
-          <div class="stat-label">CMF1</div>
-          <div class="stat-value" id="stat-cmf1">0</div>
-          <div class="stat-sub">Clínica Fem. 1</div>
-        </div>
-        <div class="stat-card" id="dash-card-cmf2" onclick="dashSelectWard('cmf2')" style="cursor:pointer;">
-          <div class="stat-icon">🏥</div>
-          <div class="stat-label">CMF2</div>
-          <div class="stat-value" id="stat-cmf2">0</div>
-          <div class="stat-sub">Clínica Fem. 2</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon">🔴</div>
-          <div class="stat-label">Críticos</div>
-          <div class="stat-value" id="stat-critical">0</div>
-          <div class="stat-trend down" id="stat-critical-trend"></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon">💊</div>
-          <div class="stat-label">Antibióticos Ativos</div>
-          <div class="stat-value" id="stat-abx">0</div>
-          <div class="stat-sub">Pacientes em uso</div>
-        </div>
+        <div class="stat-card"><div class="stat-icon">🛏️</div><div class="stat-label">CMM</div><div class="stat-value" id="stat-cmm">0</div><div class="stat-sub">Clínica Masculina</div></div>
+        <div class="stat-card"><div class="stat-icon">🛏️</div><div class="stat-label">CMF1</div><div class="stat-value" id="stat-cmf1">0</div><div class="stat-sub">Clínica Feminina 1</div></div>
+        <div class="stat-card"><div class="stat-icon">🛏️</div><div class="stat-label">CMF2</div><div class="stat-value" id="stat-cmf2">0</div><div class="stat-sub">Clínica Feminina 2</div></div>
+        <div class="stat-card"><div class="stat-icon">🚨</div><div class="stat-label">Críticos</div><div class="stat-value" id="stat-critical" style="color:var(--danger)">0</div><div class="stat-sub">status crítico</div></div>
+        <div class="stat-card"><div class="stat-icon">💊</div><div class="stat-label">Em ATB</div><div class="stat-value" id="stat-atb" style="color:var(--warning)">0</div><div class="stat-sub">antibióticos ativos</div></div>
       </div>
-
-      <div class="section-header">
-        <div class="section-title">Visão Geral — <span id="dash-ward-label">CMM</span></div>
-        <button class="btn btn-ghost btn-sm" onclick="showView('patients')">Ver todos →</button>
-      </div>
-
-      <div id="dashboard-patients-grid" class="patients-grid"></div>
     </div>
 
-    <!-- PATIENTS LIST -->
+    <!-- VIEW: PATIENTS -->
     <div id="view-patients" style="display:none;" class="fade-in">
-      <div class="ward-header-banner" id="ward-banner">
-        <div>
-          <div class="ward-label" id="ward-name-label">CMM</div>
-          <div class="ward-sublabel" id="ward-full-label">Clínica Médica Masculina</div>
+      <div class="patients-header">
+        <div style="display:flex;align-items:center;gap:10px;flex:1;flex-wrap:wrap;">
+          <div class="search-wrap" style="flex:1;min-width:180px;">
+            <span class="search-icon">🔍</span>
+            <input class="search-input" id="patient-search" placeholder="Buscar por nome, prontuário, diagnóstico..." oninput="filterPatients()">
+          </div>
+          <select class="filter-select" id="filter-status" onchange="filterPatients()">
+            <option value="">Todos status</option>
+            <option value="critical">Crítico</option>
+            <option value="attention">Atenção</option>
+            <option value="stable">Estável</option>
+            <option value="alta">Alta prevista</option>
+          </select>
+          <select class="filter-select" id="filter-leito" onchange="filterPatients()" style="min-width:110px;">
+            <option value="">Todos leitos</option>
+          </select>
         </div>
-        <div class="ward-stats">
-          <div class="ward-stat-mini"><div class="val" id="ws-total">0</div><div class="lbl">Total</div></div>
-          <div class="ward-stat-mini"><div class="val" style="color:var(--danger)" id="ws-critical">0</div><div class="lbl">Críticos</div></div>
-          <div class="ward-stat-mini"><div class="val" style="color:var(--success)" id="ws-stable">0</div><div class="lbl">Estáveis</div></div>
-        </div>
-      </div>
-
-      <div class="filters-row">
-        <div class="search-input">
-          <span>🔍</span>
-          <input type="text" placeholder="Buscar por nome, prontuário, diagnóstico..." id="search-input" oninput="filterPatients()">
-        </div>
-        <select class="filter-select" id="filter-status" onchange="filterPatients()">
-          <option value="">Todos status</option>
-          <option value="critical">Crítico</option>
-          <option value="attention">Atenção</option>
-          <option value="stable">Estável</option>
-          <option value="alta">Alta prevista</option>
-        </select>
-        <select class="filter-select" id="filter-bed" onchange="filterPatients()">
-          <option value="">Todos leitos</option>
-        </select>
-        <button class="btn btn-ghost btn-sm" onclick="openCondutas()">📋 Resumo Condutas</button>
-        <button class="btn btn-ghost btn-sm" onclick="verificarAltasManual()" title="Verificar quais pacientes devem receber alta">🏠 Verificar Altas</button>
-        <button class="btn btn-ghost btn-sm" onclick="toggleDeleteMode()" id="delete-mode-btn" style="color:var(--danger);border-color:var(--danger);">🗑️ Excluir</button>
-        <div style="position:relative;display:inline-block;" id="sort-dropdown-wrap">
-          <button class="btn btn-ghost btn-sm" onclick="toggleSortDropdown()" id="sort-btn">⇅ Filtrar</button>
-          <div id="sort-dropdown" style="display:none;position:absolute;right:0;top:110%;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:200;min-width:180px;overflow:hidden;">
-            <div style="padding:8px 6px 4px;font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;padding-left:14px;">Organizar por</div>
-            <button class="sort-option" onclick="setSortMode('leito')">🛏️ Leito (numérico)</button>
-            <button class="sort-option" onclick="setSortMode('gravidade')">🚨 Gravidade clínica</button>
+        <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" onclick="openCondutas()">📋 Resumo Condutas</button>
+          <button class="btn btn-ghost btn-sm" onclick="verificarAltasManual()">🏠 Verificar Altas</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleDeleteMode()" id="delete-mode-btn" style="color:var(--danger);border-color:var(--danger);">🗑️ Excluir</button>
+          <div style="position:relative;display:inline-block;" id="sort-dropdown-wrap">
+            <button class="btn btn-ghost btn-sm" onclick="toggleSortDropdown()">⇅ Filtrar</button>
+            <div id="sort-dropdown" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:6px;min-width:160px;z-index:50;box-shadow:var(--shadow-lg);">
+              <div onclick="setSortMode('leito')" style="padding:8px 12px;cursor:pointer;border-radius:6px;font-size:13px;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background=''">🛏️ Leito (numérico)</div>
+              <div onclick="setSortMode('gravidade')" style="padding:8px 12px;cursor:pointer;border-radius:6px;font-size:13px;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background=''">🚨 Gravidade clínica</div>
+            </div>
           </div>
         </div>
       </div>
-
-      <div class="patients-grid" id="patients-grid"></div>
+      <div id="ward-label" style="font-size:13px;font-weight:700;color:var(--text-muted);margin-bottom:10px;"></div>
+      <div id="patients-grid" class="patients-grid"></div>
     </div>
 
-    <!-- PATIENT DETAIL -->
+    <!-- VIEW: DETAIL -->
     <div id="view-detail" style="display:none;" class="fade-in">
       <div style="margin-bottom:14px;">
         <button class="btn btn-ghost btn-sm" onclick="backToPatients()">← Voltar</button>
       </div>
-
       <div class="detail-header" id="detail-header"></div>
-
       <div class="detail-tabs" id="detail-tabs" style="flex-wrap:wrap;gap:2px;">
-        <div class="detail-tab active" onclick="switchTab('evolucao')">📝 Evolução</div>
-        <div class="detail-tab" onclick="switchTab('identificacao')">🪪 Identificação</div>
-        <div class="detail-tab" onclick="switchTab('diagnosticos')">🩺 Problemas</div>
-        <div class="detail-tab" onclick="switchTab('historia')">📋 Hist. Clínica</div>
-        <div class="detail-tab" onclick="switchTab('condutas-tab')">💊 Condutas</div>
-        <div class="detail-tab" onclick="switchTab('exames')">🔬 Labs</div>
-        <div class="detail-tab" onclick="switchTab('imagem')">🖼️ Imagens</div>
+        <div class="detail-tab active" onclick="switchTab('evolucao')">📝 Evolução Completa</div>
+        <div class="detail-tab" onclick="switchTab('exames')">🔬 Laboratório</div>
+        <div class="detail-tab" onclick="switchTab('imagem')">🖼️ Exames de Imagem</div>
         <div class="detail-tab" onclick="switchTab('timeline')">📅 Timeline</div>
-        <div class="detail-tab" onclick="switchTab('ai-suggest')">🤖 Sugestões IA</div>
-        <div class="detail-tab" onclick="switchTab('sumario')">📄 Sumário Alta</div>
-        <div class="detail-tab" onclick="switchTab('upload')">📎 Documentos</div>
+        <div class="detail-tab" onclick="switchTab('ai-suggest')">🤖 Sugestão de IA</div>
+        <div class="detail-tab" onclick="switchTab('sumario')">📄 Sumário de Alta</div>
       </div>
-
-      <!-- TAB: Identificação -->
-      <div id="tab-identificacao" class="tab-content active">
-        <div id="tab-identificacao-body" style="display:flex;flex-direction:column;gap:14px;"></div>
-      </div>
-
-      <!-- TAB: Evolução -->
-      <div id="tab-evolucao" class="tab-content" style="display:none;">
-        <div id="evolutions-list"></div>
-      </div>
-
-      <!-- TAB: Diagnósticos -->
-      <div id="tab-diagnosticos" class="tab-content" style="display:none;">
-        <div id="tab-diagnosticos-body"></div>
-      </div>
-
-      <!-- TAB: História Clínica -->
-      <div id="tab-historia" class="tab-content" style="display:none;">
-        <div id="tab-historia-body"></div>
-      </div>
-
-      <!-- TAB: Exames de Imagem -->
-      <div id="tab-imagem" class="tab-content" style="display:none;">
-        <div id="tab-imagem-body"></div>
-      </div>
-
-      <!-- TAB: Condutas do paciente -->
-      <div id="tab-condutas-tab" class="tab-content" style="display:none;">
-        <div id="tab-condutas-tab-body"></div>
-      </div>
-
-      <div id="tab-exames" class="tab-content" style="display:none;">
-        
-        <table class="lab-table" id="lab-table">
-              <thead id="lab-thead"></thead>
-              <tbody id="lab-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div id="tab-upload" class="tab-content">
-        <div class="upload-area">
-          <div class="upload-tabs">
-            <div class="upload-tab active" onclick="setUploadTab('file',this)">📁 Arquivo</div>
-            <div class="upload-tab" onclick="setUploadTab('text',this)">📝 Texto</div>
-          </div>
-
-          <div id="upload-file-section">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-              <!-- Individual files -->
-              <div class="upload-zone" id="upload-zone" style="padding:20px 14px;">
-                <input type="file" id="upload-file-input" multiple accept=".pdf,.docx,.doc,.txt,.mp3,.wav,.m4a,.ogg" onchange="handleFileUpload(event)">
-                <div class="upload-icon" style="font-size:24px;">📄</div>
-                <div class="upload-text" style="font-size:13px;">Arquivos individuais</div>
-                <div class="upload-sub">PDF, DOCX, TXT — múltiplos</div>
-              </div>
-              <!-- Folder upload -->
-              <div class="upload-zone" id="upload-folder-zone" style="padding:20px 14px;border-color:var(--blue-500);">
-                <input type="file" id="upload-folder-input" webkitdirectory mozdirectory multiple onchange="handleFolderUpload(event)">
-                <div class="upload-icon" style="font-size:24px;">📁</div>
-                <div class="upload-text" style="font-size:13px;">Pasta completa</div>
-                <div class="upload-sub">Selecione uma pasta com vários arquivos</div>
-              </div>
-            </div>
-            <div id="upload-progress-list" style="margin-top:4px;"></div>
-          </div>
-
-          <div id="upload-text-section" style="display:none;">
-            <textarea class="medical-textarea" id="paste-text" placeholder="Cole ou digite a evolução, laudos, resultados de exames..."></textarea>
-            <div style="margin-top:10px;display:flex;gap:8px;">
-              <button class="btn btn-primary" onclick="processTextInput()">🤖 Processar com IA</button>
-              <button class="btn btn-ghost" onclick="clearPasteText()">Limpar</button>
-            </div>
-          </div>
-
-          
-              <div class="rec-visualizer" id="rec-visualizer">
-                <div class="rec-bar"></div><div class="rec-bar"></div><div class="rec-bar"></div>
-                <div class="rec-bar"></div><div class="rec-bar"></div><div class="rec-bar"></div>
-                <div class="rec-bar"></div><div class="rec-bar"></div>
-              </div>
-            </div>
-            <div class="transcription-box" id="transcription-box" style="display:none;"></div>
-            <div id="transcription-actions" style="display:none;margin-top:10px;gap:8px;flex-wrap:wrap;">
-              <button class="btn btn-primary" onclick="processTranscription()">🤖 Processar com IA</button>
-              <button class="btn btn-ghost" onclick="clearTranscription()">Descartar</button>
-            </div>
-          </div>
-        </div>
-
-        <div id="uploaded-files-list"></div>
-      </div>
-
-      <div id="tab-ai-suggest" class="tab-content">
-        <div class="ai-panel">
-          <div class="ai-panel-header">
-            <span class="ai-icon">🤖</span>
-            <div>
-              <div class="ai-title">Condutas Sugeridas por IA</div>
-              <div class="ai-sub">Baseado em guidelines internacionais e MBE</div>
-            </div>
-            <div class="ai-disclaimer">⚠️ Apoio à decisão</div>
-          </div>
-          <div class="ai-body" id="ai-suggestions-body">
-            <div style="text-align:center;padding:30px 0;">
-              <button class="btn btn-primary" onclick="generateAISuggestions()">🤖 Gerar Sugestões para Este Paciente</button>
-              <div style="font-size:12px;color:var(--text-muted);margin-top:10px;">Análise baseada em UpToDate, PubMed, ESC, AHA, IDSA, KDIGO</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div id="tab-sumario" class="tab-content">
-        <div style="margin-bottom:16px;display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-primary" onclick="generateSumario()">🤖 Gerar Sumário de Alta com IA</button>
-          <button class="btn btn-ghost" onclick="exportSumario()">📥 Exportar</button>
-        </div>
-        <!-- AUDIO SUMARIO -->
-        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:16px;">
-            <div class="rec-visualizer" id="sum-rec-visualizer">
-              <div class="rec-bar"></div><div class="rec-bar"></div><div class="rec-bar"></div>
-              <div class="rec-bar"></div><div class="rec-bar"></div><div class="rec-bar"></div>
-            </div>
-          </div>
-          <div class="transcription-box" id="sum-transcription-box" style="display:none;min-height:60px;margin-top:12px;font-size:13px;"></div>
-          <div id="sum-transcription-actions" style="display:none;margin-top:10px;gap:8px;flex-wrap:wrap;">
-            <button class="btn btn-primary btn-sm" onclick="processSumTranscription()">🤖 Incorporar ao Sumário com IA</button>
-            <button class="btn btn-ghost btn-sm" onclick="clearSumTranscription()">Descartar</button>
-          </div>
-        </div>
-        <div id="sumario-content"></div>
-      </div>
-
-      <div id="tab-timeline" class="tab-content">
-        <div class="timeline" id="timeline-content"></div>
+      <div id="detail-body">
+        <div id="tab-evolucao" class="tab-content"><div id="evolucao-completa-body"></div></div>
+        <div id="tab-exames" class="tab-content" style="display:none;"></div>
+        <div id="tab-imagem" class="tab-content" style="display:none;"></div>
+        <div id="tab-timeline" class="tab-content" style="display:none;"></div>
+        <div id="tab-ai-suggest" class="tab-content" style="display:none;"></div>
+        <div id="tab-sumario" class="tab-content" style="display:none;"></div>
       </div>
     </div>
 
-    <!-- PASSAGEM -->
+    <!-- VIEW: PASSAGEM -->
     <div id="view-passagem" style="display:none;" class="fade-in">
-      <div class="section-header" style="margin-bottom:16px;">
-        <div>
-          <div class="section-title">📋 Passagem</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Tabela de passagem de plantão — atualizada automaticamente</div>
-        </div>
+      <div class="section-header">
+        <div><div class="section-title">📋 Passagem de Plantão</div></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-ghost btn-sm" onclick="exportPassagem()">📥 Exportar</button>
-          <button class="btn btn-ghost btn-sm" onclick="organizeAllThemes()" id="btn-organize-themes">🤖 Organizar temas IA</button>
-          <button class="btn btn-warning btn-sm" onclick="togglePassagemEdit()" id="btn-passagem-edit" style="background:var(--warning);color:#000;">✏️ Editar</button>
-          <button class="btn btn-primary btn-sm" onclick="renderPassagem()">↺ Atualizar</button>
+          <button class="btn btn-ghost btn-sm active-ward" onclick="selectPassagemWard('cmm')" id="passagem-tab-cmm">CMM</button>
+          <button class="btn btn-ghost btn-sm" onclick="selectPassagemWard('cmf1')" id="passagem-tab-cmf1">CMF1</button>
+          <button class="btn btn-ghost btn-sm" onclick="selectPassagemWard('cmf2')" id="passagem-tab-cmf2">CMF2</button>
+          <button class="btn btn-primary btn-sm" onclick="exportPassagem()">📥 Exportar</button>
+          <button class="btn btn-ghost btn-sm" onclick="togglePassagemEdit()" id="passagem-edit-btn">✏️ Editar</button>
         </div>
       </div>
-
-      <!-- Ward selector -->
-      <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;" id="passagem-ward-tabs">
-        <button class="btn btn-primary btn-sm" id="ptab-cmm" onclick="selectPassagemWard('cmm',this)">CMM</button>
-        <button class="btn btn-ghost btn-sm" id="ptab-cmf1" onclick="selectPassagemWard('cmf1',this)">CMF1</button>
-        <button class="btn btn-ghost btn-sm" id="ptab-cmf2" onclick="selectPassagemWard('cmf2',this)">CMF2</button>
-      </div>
-
-      <!-- Passagem date header -->
-      <div style="background:var(--blue-700);border-radius:var(--radius-lg) var(--radius-lg) 0 0;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;">
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:white;" id="passagem-title">ENFERMARIA DE CLÍNICA MÉDICA MASCULINA</div>
-        <div style="font-size:13px;color:rgba(255,255,255,.75);" id="passagem-date"></div>
-      </div>
-
-      <!-- Table header -->
-      <div style="overflow-x:auto;">
-        <table id="passagem-table" style="width:100%;border-collapse:collapse;min-width:900px;">
-          <thead>
-            <tr style="background:var(--blue-800);">
-              <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:rgba(255,255,255,.8);white-space:nowrap;width:14%;">Identificação</th>
-              <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:rgba(255,255,255,.8);width:20%;">Lista de Problemas</th>
-              <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:rgba(255,255,255,.8);width:16%;">Dispositivos │ ATB e Culturas</th>
-              <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:rgba(255,255,255,.8);width:26%;">Exames e Pareceres Relevantes</th>
-              <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:rgba(255,255,255,.8);width:24%;">Programação</th>
-            </tr>
-          </thead>
-          <tbody id="passagem-tbody"></tbody>
-        </table>
-      </div>
+      <div id="passagem-table-wrap"></div>
     </div>
 
-    <!-- CONDUTAS -->
+    <!-- VIEW: CONDUTAS -->
     <div id="view-condutas" style="display:none;" class="fade-in">
       <div class="section-header">
-        <div class="section-title">📋 Resumo de Condutas</div>
+        <div><div class="section-title">📄 Resumo de Condutas</div></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-ghost" onclick="gerarCondutasDireto()">⚡ Gerar (sem IA)</button>
-          <button class="btn btn-primary" onclick="generateCondutas()">🤖 Gerar com IA</button>
-          <button class="btn btn-ghost" onclick="exportCondutas()">📥 Exportar</button>
+          <button class="btn btn-ghost btn-sm" onclick="selectAllCondutas()">☑️ Selecionar todos</button>
+          <button class="btn btn-primary btn-sm" onclick="gerarCondutasDireto()">⚡ Gerar</button>
+          <button class="btn btn-ghost btn-sm" onclick="generateCondutas()">🤖 Gerar com IA</button>
         </div>
       </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
-        <span style="font-size:13px;color:var(--text-muted);">Selecione os pacientes para incluir no resumo:</span>
-        <div style="display:flex;gap:6px;">
-          <button class="btn btn-ghost btn-sm" onclick="selectAllCondutas(true)">☑ Selecionar todos</button>
-          <button class="btn btn-ghost btn-sm" onclick="selectAllCondutas(false)">☐ Desmarcar todos</button>
-        </div>
-      </div>
-      <div id="condutas-select-list" style="margin-bottom:16px;"></div>
-      <div id="condutas-result"></div>
+      <div id="condutas-select-list"></div>
+      <div id="condutas-result" style="margin-top:16px;"></div>
     </div>
 
-    <!-- SUMÁRIOS -->
-    <!-- ══ TARDE FIXA VIEW ══ -->
-    <div id="view-tardefixa" style="display:none;" class="fade-in">
-      <div class="section-header" style="margin-bottom:16px;">
-        <div>
-          <div class="section-title">🌅 Tarde Fixa</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Painel colaborativo em tempo real — <span id="tf-date-label"></span></div>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-          <div id="tf-sync-status" style="font-size:11px;padding:4px 10px;border-radius:20px;background:var(--bg-hover);color:var(--text-muted);">⬜ Local</div>
-          <button class="btn btn-ghost btn-sm" onclick="tfExportPdf()">📥 PDF</button>
-          <button class="btn btn-ghost btn-sm" onclick="tfExportDocx()">📄 Word</button>
-          <button class="btn btn-ghost btn-sm" onclick="tfNewSession()">📅 Nova Data</button>
-          <button class="btn btn-primary btn-sm" onclick="tfSaveNow()">💾 Salvar</button>
-        </div>
-      </div>
-      <!-- Ward selector -->
-      <div style="display:flex;gap:8px;margin-bottom:16px;">
-        <button class="btn btn-sm" id="tf-ward-cmm"  onclick="tfSetWard('cmm')"  style="border:1.5px solid var(--blue-500);">CMM</button>
-        <button class="btn btn-sm" id="tf-ward-cmf1" onclick="tfSetWard('cmf1')" style="">CMF1</button>
-        <button class="btn btn-sm" id="tf-ward-cmf2" onclick="tfSetWard('cmf2')" style="">CMF2</button>
-        <div style="margin-left:auto;font-size:12px;color:var(--text-muted);line-height:32px;" id="tf-users-online"></div>
-      </div>
-      <!-- Patient cards grid -->
-      <div id="tf-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:14px;"></div>
-    </div>
-
+    <!-- VIEW: SUMÁRIOS -->
     <div id="view-sumarios" style="display:none;" class="fade-in">
       <div class="section-header">
-        <div class="section-title">📄 Sumários de Alta</div>
+        <div><div class="section-title">📑 Sumários de Alta</div></div>
       </div>
       <div id="sumarios-list"></div>
     </div>
 
+    <!-- VIEW: TARDE FIXA -->
+    <div id="view-tardefixa" style="display:none;" class="fade-in">
+      <div class="section-header">
+        <div><div class="section-title">🌅 Tarde Fixa</div></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="tfSaveNow()">💾 Salvar</button>
+          <button class="btn btn-ghost btn-sm" onclick="tfExportDocx()">📥 Exportar</button>
+        </div>
+      </div>
+      <div id="tf-ward-selector" style="display:flex;gap:6px;margin-bottom:14px;">
+        <button class="btn btn-ghost btn-sm active-ward" onclick="tfSetWard('cmm')" id="tf-tab-cmm">CMM</button>
+        <button class="btn btn-ghost btn-sm" onclick="tfSetWard('cmf1')" id="tf-tab-cmf1">CMF1</button>
+        <button class="btn btn-ghost btn-sm" onclick="tfSetWard('cmf2')" id="tf-tab-cmf2">CMF2</button>
+      </div>
+      <div id="tf-date-label" style="font-size:12px;color:var(--text-muted);margin-bottom:10px;"></div>
+      <div id="tf-cards-container"></div>
+    </div>
+
+    <!-- VIEW: ALTAS -->
+    <div id="view-altas" style="display:none;" class="fade-in">
+      <div class="section-header">
+        <div><div class="section-title">🏠 Pacientes com Alta</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="renderAltas()">🔄 Atualizar</button>
+      </div>
+      <div id="altas-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+
+    <!-- VIEW: CONFIGURAÇÕES -->
+    <div id="view-config" style="display:none;" class="fade-in">
+      <div class="section-header">
+        <div>
+          <div class="section-title">⚙️ Configurações</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Inteligência artificial, nuvem e dados</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px;padding-bottom:40px;">
+
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:22px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+            <div style="font-size:32px;">🤖</div>
+            <div style="flex:1;"><div style="font-size:15px;font-weight:700;">Claude (Anthropic)</div><div style="font-size:12px;color:var(--text-muted);">Sugestão clínica e Sumário de Alta por IA</div></div>
+            <span id="claude-status-badge" style="font-size:11px;padding:4px 12px;border-radius:20px;background:var(--bg-hover);color:var(--text-muted);">não configurado</span>
+          </div>
+          <label style="font-size:11px;font-weight:700;color:var(--text-muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;">API Key</label>
+          <input id="config-claude-key" type="password" placeholder="sk-ant-api03-..." autocomplete="off"
+            style="width:100%;padding:10px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:13px;font-family:monospace;box-sizing:border-box;margin-bottom:8px;">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">📍 Obtenha em <strong>console.anthropic.com</strong> → API Keys → Create Key</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" onclick="saveClaudeKey()">💾 Salvar</button>
+            <button class="btn btn-ghost btn-sm" onclick="testClaudeKey()">🔌 Testar conexão</button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="removeClaudeKey()">🗑️ Remover</button>
+          </div>
+          <div id="claude-test-result" style="display:none;margin-top:10px;font-size:12px;padding:8px 12px;border-radius:6px;"></div>
+        </div>
+
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:22px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+            <div style="font-size:32px;">✨</div>
+            <div style="flex:1;"><div style="font-size:15px;font-weight:700;">Gemini (Google)</div><div style="font-size:12px;color:var(--text-muted);">Via Supabase Edge Functions — chave fica segura no servidor</div></div>
+            <span id="gemini-status-badge" style="font-size:11px;padding:4px 12px;border-radius:20px;background:var(--bg-hover);color:var(--text-muted);">não configurado</span>
+          </div>
+          <label style="font-size:11px;font-weight:700;color:var(--text-muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;">URL Edge Function — ai-assist</label>
+          <input id="config-gemini-assist" type="text" placeholder="https://xxx.supabase.co/functions/v1/ai-assist"
+            style="width:100%;padding:10px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:12px;font-family:monospace;box-sizing:border-box;margin-bottom:8px;">
+          <label style="font-size:11px;font-weight:700;color:var(--text-muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;">URL Edge Function — ai-summarize</label>
+          <input id="config-gemini-summarize" type="text" placeholder="https://xxx.supabase.co/functions/v1/ai-summarize"
+            style="width:100%;padding:10px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:12px;font-family:monospace;box-sizing:border-box;margin-bottom:12px;">
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary btn-sm" onclick="saveGeminiConfig()">💾 Salvar</button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="removeGeminiConfig()">🗑️ Remover</button>
+          </div>
+        </div>
+
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:22px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+            <div style="font-size:32px;">☁️</div>
+            <div style="flex:1;"><div style="font-size:15px;font-weight:700;">Supabase</div><div style="font-size:12px;color:var(--text-muted);">Banco em nuvem e sincronização em tempo real</div></div>
+            <span id="supa-config-badge" style="font-size:11px;padding:4px 12px;border-radius:20px;background:var(--bg-hover);color:var(--text-muted);">não configurado</span>
+          </div>
+          <label style="font-size:11px;font-weight:700;color:var(--text-muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;">Project URL</label>
+          <input id="config-supa-url" type="text" placeholder="https://xxx.supabase.co"
+            style="width:100%;padding:10px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:12px;font-family:monospace;box-sizing:border-box;margin-bottom:8px;">
+          <label style="font-size:11px;font-weight:700;color:var(--text-muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;">Anon Public Key</label>
+          <input id="config-supa-key" type="password" placeholder="eyJhbGci..." autocomplete="off"
+            style="width:100%;padding:10px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:12px;font-family:monospace;box-sizing:border-box;margin-bottom:12px;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" onclick="saveSupaFromConfig()">🔌 Conectar</button>
+            <button class="btn btn-ghost btn-sm" onclick="syncToCloud()">🔄 Sincronizar agora</button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="clearSupaConfig()">🗑️ Desconectar</button>
+          </div>
+          <div id="supa-config-result" style="display:none;margin-top:10px;font-size:12px;padding:8px 12px;border-radius:6px;"></div>
+        </div>
+
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:22px;">
+          <div style="font-size:15px;font-weight:700;margin-bottom:14px;">🗃️ Dados &amp; Backup</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+            <button class="btn btn-ghost btn-sm" onclick="exportBackup()">📤 Exportar backup JSON</button>
+            <button class="btn btn-ghost btn-sm" onclick="importBackup()">📥 Importar backup</button>
+            <button class="btn btn-ghost btn-sm" onclick="showDataStats()">📊 Estatísticas</button>
+          </div>
+          <div id="data-stats" style="display:none;font-size:13px;color:var(--text-secondary);line-height:1.9;background:var(--bg-hover);padding:12px;border-radius:8px;"></div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-import">
+  <div class="modal" style="max-width:560px;width:95%;max-height:90vh;display:flex;flex-direction:column;">
+    <div class="modal-header" style="flex-shrink:0;">
+      <div class="modal-title">📄 Importar Evoluções</div>
+      <button class="modal-close" onclick="closeModal('modal-import')">×</button>
+    </div>
+    <div class="modal-body" style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px;">
+
+      <!-- Upload zones -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <label class="upload-zone" style="padding:20px 14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;">
+          <input type="file" id="import-file-input" multiple accept=".pdf,.docx,.doc,.txt" style="display:none" onchange="importHandleFiles(this.files)">
+          <div style="font-size:28px;">📄</div>
+          <div style="font-size:13px;font-weight:600;">Arquivos</div>
+          <div style="font-size:11px;color:var(--text-muted);text-align:center;">PDF, DOCX<br>múltiplos</div>
+        </label>
+        <label class="upload-zone" style="padding:20px 14px;cursor:pointer;border-color:var(--blue-500);display:flex;flex-direction:column;align-items:center;gap:6px;">
+          <input type="file" id="import-folder-input" webkitdirectory multiple style="display:none" onchange="importHandleFiles(this.files)">
+          <div style="font-size:28px;">📁</div>
+          <div style="font-size:13px;font-weight:600;">Pasta</div>
+          <div style="font-size:11px;color:var(--text-muted);text-align:center;">Pasta inteira<br>de uma vez</div>
+        </label>
+      </div>
+
+      <!-- Ward selector -->
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-hover);border-radius:8px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);flex-shrink:0;">Importar para:</div>
+        <select id="import-ward-select" style="flex:1;padding:6px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;">
+          <option value="cmm">CMM — Clínica Médica Masculina</option>
+          <option value="cmf1">CMF1 — Clínica Médica Feminina 1</option>
+          <option value="cmf2">CMF2 — Clínica Médica Feminina 2</option>
+        </select>
+      </div>
+
+      <!-- File list selected -->
+      <div id="import-filelist" style="display:none;background:var(--bg-hover);border-radius:8px;padding:10px 14px;">
+        <div style="font-size:11px;font-weight:700;color:var(--blue-400);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Arquivos selecionados:</div>
+        <div id="import-filelist-names" style="font-size:12px;color:var(--text-secondary);line-height:1.8;"></div>
+      </div>
+
+      <!-- Loading -->
+      <div id="import-loading" style="display:none;align-items:center;gap:12px;padding:12px;background:var(--bg-hover);border-radius:8px;">
+        <div style="width:18px;height:18px;border:2px solid var(--blue-500);border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0;"></div>
+        <span id="import-loading-text" style="font-size:12.5px;color:var(--text-muted);">Processando...</span>
+      </div>
+
+      <!-- Preview area -->
+      <div id="import-preview" style="display:none;"></div>
+      <div id="import-save-btn" style="display:none;"></div>
+    </div>
+
+    <div class="modal-footer" style="flex-shrink:0;gap:10px;">
+      <button class="btn btn-ghost" onclick="closeModal('modal-import')">Cancelar</button>
+      <button class="btn btn-primary" id="import-upload-btn" style="display:none;" onclick="_confirmImport()">✅ Confirmar Importação</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-patient">
+  <div class="modal" style="max-width:560px;width:95%;max-height:90vh;display:flex;flex-direction:column;">
+    <div class="modal-header" style="flex-shrink:0;"><div class="modal-title" id="modal-patient-title">+ Novo Paciente</div><button class="modal-close" onclick="closeModal('modal-patient')">×</button></div>
+    <div class="modal-body" style="flex:1;overflow-y:auto;padding:20px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div><label class="form-label">Nome*</label><input class="form-input" id="p-name" placeholder="Nome completo"></div>
+        <div><label class="form-label">Leito</label><input class="form-input" id="p-leito" placeholder="Ex: 01"></div>
+        <div><label class="form-label">Prontuário</label><input class="form-input" id="p-pront" placeholder="Nº prontuário"></div>
+        <div><label class="form-label">Idade</label><input class="form-input" id="p-age" placeholder="Ex: 65" type="number"></div>
+        <div><label class="form-label">Data Internação</label><input class="form-input" id="p-dt" type="date"></div>
+        <div><label class="form-label">Status</label><select class="form-input" id="p-status"><option value="stable">Estável</option><option value="attention">Atenção</option><option value="critical">Crítico</option></select></div>
+        <div style="grid-column:1/-1;"><label class="form-label">Diagnóstico Principal</label><input class="form-input" id="p-diag" placeholder="MIH / diagnóstico de entrada"></div>
+        <div style="grid-column:1/-1;"><label class="form-label">Lista de Problemas</label><textarea class="form-input" id="p-problems" rows="3" placeholder="# Problema 1&#10;# Problema 2"></textarea></div>
+        <div style="grid-column:1/-1;"><label class="form-label">ATB e Culturas</label><textarea class="form-input" id="p-abx" rows="2" placeholder="ATB em uso, culturas..."></textarea></div>
+        <div style="grid-column:1/-1;"><label class="form-label">Dispositivos</label><input class="form-input" id="p-devices" placeholder="AVP, CVC, SVD..."></div>
+        <div style="grid-column:1/-1;"><label class="form-label">Alergias</label><input class="form-input" id="p-allergy" placeholder="Nega / descreva alergias"></div>
+      </div>
+    </div>
+    <div class="modal-footer" style="flex-shrink:0;"><button class="btn btn-ghost" onclick="closeModal('modal-patient')">Cancelar</button><button class="btn btn-primary" onclick="savePatient()">💾 Salvar</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-evolution">
+  <div class="modal" style="max-width:640px;width:95%;max-height:92vh;display:flex;flex-direction:column;">
+    <div class="modal-header" style="flex-shrink:0;"><div class="modal-title">📝 Nova Evolução</div><button class="modal-close" onclick="closeModal('modal-evolution')">×</button></div>
+    <div class="modal-body" style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px;">
+      <div><label class="form-label">IH / DIH</label><input class="form-input" id="ev-ih" placeholder="Data internação / dias"></div>
+      <div><label class="form-label">MIH</label><input class="form-input" id="ev-mih" placeholder="Motivo da internação"></div>
+      <div><label class="form-label">Lista de Problemas</label><textarea class="form-input" id="ev-problems" rows="3" placeholder="# Problema 1&#10;# Problema 2"></textarea></div>
+      <div><label class="form-label">Resumo do Caso</label><textarea class="form-input" id="ev-resumo" rows="3" placeholder="Resumo clínico..."></textarea></div>
+      <div><label class="form-label">Últimas 24h</label><textarea class="form-input" id="ev-24h" rows="3" placeholder="Evolução das últimas 24h..."></textarea></div>
+      <div><label class="form-label">ATB e Culturas</label><textarea class="form-input" id="ev-abx" rows="2" placeholder="ATB em uso, culturas..."></textarea></div>
+      <div><label class="form-label">Dispositivos</label><input class="form-input" id="ev-devices" placeholder="AVP, CVC, SVD..."></div>
+      <div><label class="form-label">Exames Laboratoriais</label><textarea class="form-input" id="ev-labs" rows="3" placeholder="Labs do dia..."></textarea></div>
+      <div><label class="form-label">Exames de Imagem</label><textarea class="form-input" id="ev-image" rows="2" placeholder="Imagens, laudos..."></textarea></div>
+      <div><label class="form-label">Pareceres</label><textarea class="form-input" id="ev-pareceres" rows="2" placeholder="Pareceres de especialidades..."></textarea></div>
+      <div><label class="form-label">Impressão Clínica</label><textarea class="form-input" id="ev-impressao" rows="2" placeholder="Impressão diagnóstica..."></textarea></div>
+      <div><label class="form-label">Conduta / Programação</label><textarea class="form-input" id="ev-conduta" rows="4" placeholder=">> TEMA:&#10;- conduta 1&#10;- conduta 2"></textarea></div>
+    </div>
+    <div class="modal-footer" style="flex-shrink:0;"><button class="btn btn-ghost" onclick="closeModal('modal-evolution')">Cancelar</button><button class="btn btn-primary" onclick="saveEvolution()">💾 Salvar Evolução</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-delete-confirm">
+  <div class="modal" style="max-width:400px;width:95%;">
+    <div class="modal-header"><div class="modal-title">⚠️ Confirmar Remoção</div></div>
+    <div class="modal-body" style="padding:20px;text-align:center;"><p style="color:var(--text-secondary);">Deseja remover este paciente?</p><p style="font-size:12px;color:var(--text-muted);">Esta ação não pode ser desfeita.</p></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-delete-confirm')">Cancelar</button><button class="btn btn-danger" onclick="confirmDeletePatient()">🗑️ Remover</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-supa-config">
+  <div class="modal" style="max-width:480px;width:95%;">
+    <div class="modal-header">
+      <div class="modal-title">☁️ Configurar Supabase</div>
+      <button class="modal-close" onclick="closeModal('modal-supa-config')">×</button>
+    </div>
+    <div class="modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px;">
+
+      <div style="background:rgba(30,86,170,.1);border:1px solid var(--blue-700);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--blue-300);line-height:1.6;">
+        📋 <strong>Como obter as credenciais:</strong><br>
+        1. Acesse <strong>supabase.com</strong> → seu projeto<br>
+        2. Menu <strong>Settings → API</strong><br>
+        3. Copie <strong>Project URL</strong> e <strong>anon public key</strong>
+      </div>
+
+      <div>
+        <label class="form-label">Project URL</label>
+        <input class="form-input" id="supa-url-input"
+          placeholder="https://xxxxxxxxxxxx.supabase.co"
+          style="font-family:monospace;font-size:12.5px;">
+      </div>
+
+      <div>
+        <label class="form-label">Anon Public Key</label>
+        <textarea class="form-input" id="supa-key-input" rows="3"
+          placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          style="font-family:monospace;font-size:11.5px;resize:vertical;"></textarea>
+      </div>
+
+      <div id="supa-status-msg" style="font-size:12px;display:none;padding:8px 12px;border-radius:8px;"></div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="clearSupaConfig()" style="color:var(--danger);">🗑️ Remover</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-supa-config')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveSupaConfig()">✅ Conectar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-apikey">
+  <div class="modal" style="max-width:480px;width:95%;">
+    <div class="modal-header">
+      <div class="modal-title">🤖 API Key — Claude (Anthropic)</div>
+      <button class="modal-close" onclick="closeModal('modal-apikey')">×</button>
+    </div>
+    <div class="modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px;">
+
+      <div style="background:rgba(30,86,170,.1);border:1px solid var(--blue-700);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--blue-300);line-height:1.65;">
+        <strong>Como obter sua API Key:</strong><br>
+        1. Acesse <strong>console.anthropic.com</strong><br>
+        2. Menu → <strong>API Keys</strong> → <strong>Create Key</strong><br>
+        3. Copie a chave e cole abaixo<br>
+        <span style="font-size:11px;color:var(--text-muted);">A chave começa com <code>sk-ant-api03-...</code></span>
+      </div>
+
+      <div>
+        <label class="form-label">Anthropic API Key</label>
+        <input class="form-input" id="api-key-input" type="password"
+          placeholder="sk-ant-api03-..."
+          style="font-family:monospace;font-size:13px;">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
+          🔒 Salva apenas neste dispositivo (localStorage). Nunca enviada a terceiros.
+        </div>
+      </div>
+
+      <div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--success);">
+        Usada em: <strong>Sugestão de IA</strong> e <strong>Sumário de Alta</strong> quando não houver Edge Function configurada.
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-apikey')">Cancelar</button>
+      <button class="btn btn-ghost" style="color:var(--danger);" onclick="localStorage.removeItem('medroundApiKey');updateApiKeyStatus();closeModal('modal-apikey');showToast('API Key removida','');">🗑️ Remover</button>
+      <button class="btn btn-primary" onclick="saveApiKey()">✅ Salvar</button>
+    </div>
+  </div>
+
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js" crossorigin="anonymous"></script>
 <script>
 // ══════════════════════════════════════════════
 //  STATE
@@ -1721,6 +1724,41 @@ function saveData(d) {
 }
 function getApiKey() { return localStorage.getItem('medroundApiKey') || ''; }
 
+function updateApiKeyStatus() {
+  const el = document.getElementById('api-key-status');
+  if (!el) return;
+  const key = getApiKey();
+  if (key && key.startsWith('sk-ant')) {
+    el.textContent = '✅ conectada';
+    el.style.color = 'var(--success)';
+  } else if (key) {
+    el.textContent = '⚠️ inválida';
+    el.style.color = 'var(--warning)';
+  } else {
+    el.textContent = 'não configurada';
+    el.style.color = 'var(--text-muted)';
+  }
+}
+
+function openApiKeyModal() {
+  const input = document.getElementById('api-key-input');
+  if (input) input.value = getApiKey();
+  openModal('modal-apikey');
+}
+
+function saveApiKey() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (!key) { showToast('⚠️ Digite a API Key', 'error'); return; }
+  if (!key.startsWith('sk-ant')) {
+    showToast('⚠️ API Key inválida — deve começar com sk-ant', 'error');
+    return;
+  }
+  localStorage.setItem('medroundApiKey', key);
+  closeModal('modal-apikey');
+  updateApiKeyStatus();
+  showToast('✅ API Key do Claude configurada', 'success');
+}
+
 // ══════════════════════════════════════════════
 //  SUPABASE LAYER
 // ══════════════════════════════════════════════
@@ -1729,8 +1767,8 @@ const sb = {
   channel: null,
   // ══════════════════════════════════════════════
   //  COLE SUAS CREDENCIAIS DO SUPABASE AQUI:
-  url: 'https://sxtihlavbggfpplhlbsm.supabase.co',        // ex: https://abcdefgh.supabase.co
-  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4dGlobGF2YmdnZnBwbGhsYnNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5ODQwMDMsImV4cCI6MjA5NDU2MDAwM30.Rjwx6xbk27oM3_j-7FPRU57cmikbXi-x71NXcplI5RU',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  url: 'COLE_AQUI_A_PROJECT_URL',        // ex: https://abcdefgh.supabase.co
+  key: 'COLE_AQUI_A_ANON_KEY',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   // ══════════════════════════════════════════════
   isSyncing: false
 };
@@ -2909,100 +2947,108 @@ function extractRawSection(text, keywords) {
 }
 
 function extractIdentityFromText(text, filename) {
-  // Support both "# ID:" (with hash) and "ID:" (without hash)
-  const idLine  = text.match(/^#?\s*ID[:\s]+(.+)$/m)?.[1]?.trim() || '';
-  const ihLine  = text.match(/^#?\s*(?:IH|DIH)[:\s]+(.+)$/m)?.[1]?.trim() || '';
-  const mihLine = text.match(/^#?\s*MIH[:\s]+(.+)$/m)?.[1]?.trim() || '';
+  const lines = text.split('\n');
 
-  let name = '', age = '', pront = '';
+  // ── Leito: ALWAYS from filename ──────────────────────────────────
+  const leitoRaw = filename.match(/LT[_\s-]*(?:CM\s*)?(\d+(?:[.,]\d+)?[A-Za-z]?)/i)?.[1] || '';
+  const leito    = leitoRaw.replace(',', '.');
 
-  // Standard: ID: Name | age anos | Prontuário: XXXXXX
-  if (idLine && !idLine.match(/^(Evolução|Clínica|Médica|Admissão)/i)) {
-    name  = idLine.split('|')[0].trim()
-               .replace(/,\s*\d{2,3}\s*anos.*/i, '')
-               .replace(/\s*\(\s*\d{1,2}[\s_/-]\d{1,2}\s*\)\s*$/, '')
-               .replace(/\s+\d{6,}\s*$/, '')
-               .trim();
-    age   = idLine.match(/(\d{2,3})\s*anos/i)?.[1] || '';
-    pront = idLine.match(/[Pp]rontu[aá]rio[:\s]+([\d\/]+)/)?.[1]?.replace(/\D/g,'') ||
-            idLine.match(/\bPt[:\s]+([\d\/]+)/)?.[1]?.replace(/\D/g,'') ||
-            idLine.match(/\bP[:\s]+([\d\/]{3,})/)?.[1]?.replace(/\D/g,'') ||
-            idLine.match(/\bPront[:\s]+([\d]+)/i)?.[1] || '';
-  }
+  // ── Name: try filename FIRST (most reliable) ─────────────────────
+  // "LT_07_-_Edmundo_13_05.docx"       → "Edmundo"
+  // "LT 02 - Reinaldo (10_06).docx"    → "Reinaldo"
+  // "LT_06_-_Clemildo_13_05.docx"      → "Clemildo"
+  // "Co_pia_de_LT_08_-_Wagner.docx"    → "Wagner"
+  let nameFromFile = filename
+    .replace(/^Co_pia_de_/i, '')
+    .replace(/\.(docx?|pdf|txt)$/i, '')
+    .replace(/LT[_\s-]*\d+(?:[.,]\d+)?[A-Za-z]?(?:[_\s\u2013\u2014-]+)/i, '')
+    .replace(/[\s_]?\(?\d{2}[_\/]\d{2}\)?[\s_]*$/, '')
+    .replace(/_+/g, ' ')
+    .trim();
+  // Clean up artifacts like trailing date fragments
+  nameFromFile = nameFromFile.replace(/\s*\d{2}[_\s]\d{2}\s*$/, '').trim();
 
-  // Fallback: "# NAME | Prontuário: XXXX" format (Clemildo-style)
-  if (!pront) {
-    const m = text.match(/^#+\s+([A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇa-záéíóúâêîôûãõç\s]+)\s*\|\s*[Pp]rontu[aá]rio[:\s]*(\d+)/m);
-    if (m) { if (!name) name = m[1].trim().replace(/\s+/g,' '); pront = m[2]; }
-  }
+  // ── Name from text: scan first 6 lines ───────────────────────────
+  let nameFromText = '';
+  let idLine = '';
+  for (let i = 1; i <= Math.min(6, lines.length - 1); i++) {
+    const raw = lines[i].trim();
+    if (/^#\s*Evolu[cç]/i.test(raw)) continue;
+    if (/^#\s*Enfermaria/i.test(raw)) continue;
+    if (/^\d{2}\/\d{2}\/\d{4}/.test(raw)) continue;
+    if (/^#\s*Idade:/i.test(raw)) continue;
+    if (/^#\s*DIH:/i.test(raw)) continue;
+    if (/^#\s*MIH/i.test(raw)) continue;
 
-  // Fallback: plain lines in first 8 lines with | separator
-  if (!name || !pront) {
-    const plainLines = text.split('\n').slice(0, 8);
-    for (const pl of plainLines) {
-      const t = pl.trim();
-      // Match "ID: NAME | ..." or "NAME | ..."
-      const isIdLine = /^ID[:\s]/i.test(t);
-      const hasPipe  = t.includes('|');
-      if (!hasPipe) continue;
+    // Remove leading #, ID:, ##
+    const cleaned = raw.replace(/^#+\s*(?:ID[:\s]+)?/i, '').trim();
+    if (cleaned.length < 4) continue;
 
-      if (isIdLine) {
-        // "ID: REINALDO FERREIRA | 28 anos | Prontuário: 3028743"
-        const afterId = t.replace(/^ID[:\s]+/i, '').trim();
-        if (!name) name = afterId.split('|')[0].trim().replace(/\s+/g,' ');
-        const agM = t.match(/\b(\d{2,3})\s*anos/i);
-        if (agM && !age) age = agM[1];
-        const prM = t.match(/[Pp]rontu[aá]rio[:\s*]+([\d\/]+)/);
-        if (prM && !pront) pront = prM[1].replace(/\D/g,'');
-        break;
-      }
-
-      if (/^[A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇÀÈÌÒÙÜ][A-ZÁÉÍÓÚÂÊÎÔÛÃÕÇÀÈÌÒÙÜa-záéíóúâêîôûãõçàèìòùü\s]{4,60}\s*\|/.test(t)) {
-        if (!name) name = t.split('|')[0].trim().replace(/\s+/g,' ');
-        const agM = t.match(/\b(\d{2,3})\s*anos/i);
-        if (agM && !age) age = agM[1];
-        const prM = t.match(/[Pp]rontu[aá]rio[:\s*]+([\d\/]+)/);
-        if (prM && !pront) pront = prM[1].replace(/\D/g,'');
-        break;
-      }
+    const firstPart = cleaned.split(/[|,]/)[0].trim();
+    // Must look like a name: mostly letters, >= 4 chars, not a number/date
+    if (firstPart.length >= 4
+        && /[A-Za-záéíóúâêîôûãõçàèìòùüÁÉÍÓÚÂÊÎÔÛÃÕÇ]/.test(firstPart)
+        && !/^\d/.test(firstPart)
+        && !/^(Lista|Prontu|Idade|Internação|Evolução)/i.test(firstPart)) {
+      idLine = cleaned;
+      nameFromText = firstPart
+        .replace(/\s*,?\s*\d{2,3}\s*[Aa]nos.*$/, '')
+        .replace(/\s*\(?\d{2}[_\/]\d{2}\)?\s*$/, '')
+        .replace(/\s+\d{5,}\s*$/, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      break;
     }
   }
 
-  // Filename fallback for name
-  if (!name) {
-    const fn = filename.match(/LT[_\s-]*\d+[A-Za-z]?[_\s-]+(.+?)(?:[_\s]\d{2}[_\s]\d{2}|\.docx|$)/i);
-    if (fn) name = fn[1].replace(/[_-]+/g,' ').trim();
-    if (!name) {
-      const fn2 = filename.replace(/Admissa_o_|_\d{2}_\d{2}_|\\.docx/gi,'').replace(/[_-]+/g,' ').trim();
-      if (fn2 && fn2.length > 2) name = fn2;
-    }
+  // ── Merge: prefer the longer/more complete name ───────────────────
+  // If filename gives "Reinaldo" and text gives "REINALDO FERREIRA DE FRANCA",
+  // use the text version (more complete)
+  let name = '';
+  if (nameFromText && nameFromFile) {
+    // Use text name if it's longer (more complete) or contains the file name
+    name = nameFromText.length >= nameFromFile.length ? nameFromText : nameFromFile;
+  } else {
+    name = nameFromText || nameFromFile || '';
   }
 
-  if (!age) age = text.match(/\b(\d{2,3})\s*anos/i)?.[1] || '';
+  // ── Extract age ───────────────────────────────────────────────────
+  const topText = lines.slice(0, 8).join(' ');
+  const age = topText.match(/(\d{2,3})\s*[Aa]nos/)?.[1] || '';
 
-  if (!pront) {
-    pront = text.match(/[Pp]rontu[aá]rio[:\s*#]*([\d]{4,})/)?.[1] ||
-            text.match(/\bPt[:\s]+(\d{4,})/)?.[1] ||
-            text.match(/\bP[:\s]+(\d{4,})/)?.[1] || '';
-  }
+  // ── Extract prontuário ────────────────────────────────────────────
+  const prontSearch = lines.slice(0, 10).join('\n');
+  let pront = prontSearch.match(/[Pp]rontu[aá]rio[:\s*#]*([\d\/]+)/)?.[1]?.replace(/\D/g,'') ||
+              prontSearch.match(/\bPt[:\s]+([\d\/]+)/)?.[1]?.replace(/\D/g,'') ||
+              prontSearch.match(/\bP[:\s]+(\d{4,})/)?.[1] || '';
 
-  // Leito from filename — supports formats: LT 02, LT 02.1, LT CM 12
-  const leitoRaw = filename.match(/LT[_\s-]*(?:CM\s*)?(\d+(?:[.,]\d+)?[A-Za-z]?)/i)?.[1] ||
-                   text.match(/(?:[Ll]eito|LT)[:\s]+(\d+(?:[.,]\d+)?[A-Za-z]?)/)?.[1] || '';
-  const leito = leitoRaw.replace(',', '.');
+  // ── IH / MIH ─────────────────────────────────────────────────────
+  const ihLine  = text.match(/^[#\s]*(?:IH|DIH)[:\s]+(.+)$/m)?.[1]?.trim() || '';
+  const mihLine = text.match(/^[#\s]*MIH[:\s]+(.+)$/m)?.[1]?.trim() || '';
 
-  // Parse IH date
-  const allDates = [...(ihLine).matchAll(/(\d{2})\/(\d{2})\/(\d{2,4})/g)];
+  // ── Parse admission date ──────────────────────────────────────────
   let dt = new Date().toISOString().split('T')[0];
-  if (allDates.length) {
-    const d = allDates[allDates.length - 1];
+  const dates = [...ihLine.matchAll(/(\d{2})\/(\d{2})\/(\d{2,4})/g)];
+  if (dates.length) {
+    const d = dates[dates.length - 1];
     const yr = d[3].length === 2 ? '20' + d[3] : d[3];
-    dt = `${yr}-${d[2]}-${d[1]}`;
+    dt = `${yr}-${d[2].padStart(2,'0')}-${d[1].padStart(2,'0')}`;
+  } else {
+    const sd = ihLine.match(/(\d{2})\/(\d{2})(?:\/(\d{2,4}))?/);
+    if (sd) {
+      const yr = sd[3] ? (sd[3].length===2?'20'+sd[3]:sd[3]) : new Date().getFullYear().toString();
+      dt = `${yr}-${sd[2].padStart(2,'0')}-${sd[1].padStart(2,'0')}`;
+    }
   }
 
-  name = (name || '').replace(/\s+/g,' ').trim();
-  return { name, age, pront, leito, dt, ih: ihLine ? `IH: ${ihLine}` : '', mih: mihLine };
+  return {
+    name:  name.replace(/\s+/g,' ').trim(),
+    age, pront, leito, dt,
+    ih:  ihLine  ? `IH: ${ihLine}` : '',
+    mih: mihLine || '',
+  };
 }
+
 function extractCondutaSection(text) {
   if (!text) return '';
 
@@ -4656,8 +4702,16 @@ if (savedTheme) { document.body.setAttribute('data-theme', savedTheme); document
 // ══════════════════════════════════════════════
 //  SIDEBAR
 // ══════════════════════════════════════════════
-function openSidebar() { document.getElementById('sidebar').classList.add('open'); document.getElementById('overlay').classList.add('open'); }
-function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('open'); }
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  const bd = document.getElementById('sidebar-backdrop');
+  if (bd) bd.classList.add('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  const bd = document.getElementById('sidebar-backdrop');
+  if (bd) bd.classList.remove('open');
+}
 
 // ══════════════════════════════════════════════
 //  DRAG AND DROP
@@ -5069,7 +5123,7 @@ function setupCardDragDrop(ward) {
 function filterPatients() { renderPatients(); }
 
 function showView(view) {
-  ['dashboard','patients','detail','condutas','sumarios','passagem','tardefixa','altas'].forEach(v => {
+  ['dashboard','patients','detail','condutas','sumarios','passagem','tardefixa','altas','config'].forEach(v => {
     const el = document.getElementById('view-'+v);
     if (el) el.style.display = (v === view) ? 'block' : 'none';
   });
@@ -5079,7 +5133,7 @@ function showView(view) {
   if (navEl) navEl.classList.add('active');
   const titles = {dashboard:'Dashboard',patients:'Pacientes',detail:'Prontuário',
     condutas:'Resumo Condutas',sumarios:'Sumários de Alta',passagem:'Passagem',
-    tardefixa:'🌅 Tarde Fixa',altas:'🏠 Altas'};
+    tardefixa:'🌅 Tarde Fixa',altas:'🏠 Altas',config:'⚙️ Configurações'};
   const ht = document.getElementById('header-title'); if (ht) ht.textContent = titles[view] || view;
   const hs = document.getElementById('header-sub');
   if (hs) hs.textContent = view==='patients' ? (WARD_FULL[state.currentWard]||'') : 'Sistema Hospitalar Inteligente';
@@ -5090,6 +5144,7 @@ function showView(view) {
   if (view==='passagem')  renderPassagem();
   if (view==='tardefixa') showTardeFixaView();
   if (view==='altas')     renderAltas();
+  if (view==='config')    renderConfigView();
   if (view==='sumarios'  && typeof renderSumarios==='function') renderSumarios();
 }
 
@@ -5254,12 +5309,19 @@ function setupDragDrop() {
 })();
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Load saved Gemini URLs
+  const savedAssist = localStorage.getItem('fnAiAssist');
+  const savedSum    = localStorage.getItem('fnAiSummarize');
+  if (savedAssist) sb.fnAiAssist    = savedAssist;
+  if (savedSum)    sb.fnAiSummarize = savedSum;
+
   autoSyncAllLabs();
-  migrateCondutaFromRawText();   // backfill conduta/problems from rawText for existing evolutions
+  migrateCondutaFromRawText();
   updateCounts();
   renderDashboard();
   setupDragDrop();
   sbInit();
+  updateApiKeyStatus();
   const t = localStorage.getItem('medroundTheme');
   if (t) { document.body.setAttribute('data-theme', t); const btn = document.querySelector('.theme-btn'); if(btn) btn.textContent = t==='dark'?'🌙':'☀️'; }
 });
@@ -8190,22 +8252,17 @@ function selectWard(ward) {
 
 // Alternar abas no prontuário do paciente
 function switchTab(tab) {
-  const allTabs = ['tab-identificacao','tab-evolucao','tab-diagnosticos','tab-historia',
-                   'tab-exames','tab-imagem','tab-condutas-tab',
-                   'tab-upload','tab-ai-suggest','tab-sumario','tab-timeline'];
-  // Tab headers
+  const allTabs = ['tab-evolucao','tab-exames','tab-imagem','tab-timeline','tab-ai-suggest','tab-sumario'];
   document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('[onclick^="switchTab"]').forEach(t => {
     if (t.getAttribute('onclick') === "switchTab('" + tab + "')") t.classList.add('active');
   });
-  // Tab content
   allTabs.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = (id === 'tab-' + tab) ? 'block' : 'none';
   });
   state.activeTab = tab;
 
-  // Load tab-specific content
   const pid = state.currentPatientId;
   const allData = getData();
   let patient = null;
@@ -8215,18 +8272,841 @@ function switchTab(tab) {
   }
   if (!patient) return;
 
-  if (tab === 'identificacao')  renderTabIdentificacao(patient);
-  if (tab === 'evolucao')       renderEvolutionsList(patient);
-  if (tab === 'diagnosticos')   renderTabDiagnosticos(patient);
-  if (tab === 'historia')       renderTabHistoria(patient);
-  if (tab === 'exames')         renderLabTable(patient);
-  if (tab === 'imagem')         renderTabImagem(patient);
-  if (tab === 'condutas-tab')   renderTabCondutas(patient);
-  if (tab === 'sumario')        renderSumarioTab(patient);
-  if (tab === 'timeline')       renderTimeline(patient);
-  if (tab === 'ai-suggest')     generateAISuggestions(patient);
-  if (tab === 'upload')         renderFilesList(patient);
+  if (tab === 'evolucao')    renderEvolucaoCompleta(patient);
+  if (tab === 'exames')      renderLaboratorio(patient);
+  if (tab === 'imagem')      renderExamesImagem(patient);
+  if (tab === 'timeline')    renderTimeline(patient);
+  if (tab === 'ai-suggest')  renderAISuggest(patient);
+  if (tab === 'sumario')     renderSumarioAlta(patient);
 }
+
+// ══════════════════════════════════════════════════════════════
+//  TAB: EVOLUÇÃO COMPLETA
+//  Mostra rawText integral até a seção de condutas (inclusive)
+// ══════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════════
+//  TAB 1: EVOLUÇÃO COMPLETA
+//  Mostra o rawText integral de cada evolução até a seção de condutas
+// ══════════════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════
+//  TAB 1 — EVOLUÇÃO COMPLETA
+//  Texto integral do arquivo até o fim da seção de condutas
+// ══════════════════════════════════════════════════════════════════
+function renderEvolucaoCompleta(patient) {
+  const el = document.getElementById('evolucao-completa-body');
+  if (!el) return;
+  const evols = [...(patient.evolutions || [])].reverse(); // mais recente primeiro
+
+  if (!evols.length) {
+    el.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-muted);">Nenhuma evolução importada ainda.</div>';
+    return;
+  }
+
+  el.innerHTML = evols.map(ev => {
+    // Build raw text content
+    let raw = ev.rawText || '';
+
+    // If rawText is empty, reconstruct from structured fields
+    if (!raw.trim()) {
+      const parts = [
+        ev.resumo    && `# Resumo do caso:\n${ev.resumo}`,
+        ev['24h']    && `# 24h:\n${ev['24h']}`,
+        ev.problems  && `# Lista de problemas:\n${ev.problems}`,
+        ev.devices   && `# Dispositivos:\n${ev.devices}`,
+        ev.abx       && `# ATB e Culturas:\n${ev.abx}`,
+        ev.labs      && `# Laboratório:\n${ev.labs}`,
+        ev.image     && `# Imagens:\n${ev.image}`,
+        ev.pareceres && `# Pareceres:\n${ev.pareceres}`,
+        ev.impressao && `# Impressão clínica:\n${ev.impressao}`,
+        ev.conduta   && `# Conduta:\n${ev.conduta}`,
+      ].filter(Boolean);
+      raw = parts.join('\n\n');
+    }
+
+    // Cut at post-conduta markers
+    const cutRx = /\n(?:ESSA PARTE|NÃO VAI PRO|ESPELHO DE EXAMES|_{8,}|-{20,}|={8,})/i;
+    const cutIdx = raw.search(cutRx);
+    if (cutIdx > 100) raw = raw.substring(0, cutIdx);
+
+    // Also cut after last conduta block if it goes on too long past >>
+    const lastCond = raw.lastIndexOf('\n>>');
+    if (lastCond > 0) {
+      const afterCond = raw.indexOf('\n\n\n', lastCond + 100);
+      if (afterCond > 0 && afterCond - lastCond < 2000) {
+        // Check if what follows looks like non-clinical content
+        const tail = raw.substring(afterCond).trim();
+        if (/^[A-Z]{20,}|Espelho|Laboratório geral/i.test(tail)) {
+          raw = raw.substring(0, afterCond);
+        }
+      }
+    }
+
+    // Render lines with formatting
+    const lines = raw.split('\n');
+    const rendered = lines.map(line => {
+      const t = line.trim();
+      if (!t) return '<div style="height:5px;"></div>';
+
+      if (/^#{2,}/.test(t)) {
+        const clean = t.replace(/^#+\s*/, '');
+        return `<div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--blue-400);margin:16px 0 5px;padding:5px 0;border-bottom:1px solid var(--border);">${escapeHtml(clean)}</div>`;
+      }
+      if (/^#/.test(t)) {
+        const clean = t.replace(/^#\s*/, '');
+        return `<div style="font-size:13.5px;font-weight:600;color:var(--text-primary);margin:10px 0 3px;">${escapeHtml(clean)}</div>`;
+      }
+      if (/^>>/.test(t)) {
+        const clean = t.replace(/^>>\s*/, '').replace(/:?\s*$/, '');
+        return `<div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--blue-300);border-left:3px solid var(--blue-500);padding:4px 0 4px 10px;margin:12px 0 5px;background:rgba(30,86,170,.08);border-radius:0 6px 6px 0;">${escapeHtml(clean)}</div>`;
+      }
+      if (/^[-–•]\s/.test(t)) {
+        const clean = t.replace(/^[-–•]\s*/, '');
+        return `<div style="font-size:13px;color:var(--text-secondary);padding:2px 0 2px 16px;line-height:1.65;">• ${escapeHtml(clean)}</div>`;
+      }
+      return `<div style="font-size:13px;color:var(--text-secondary);padding:2px 0;line-height:1.7;">${escapeHtml(t)}</div>`;
+    }).join('');
+
+    return `
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);">
+          <div style="font-size:14px;font-weight:700;color:var(--blue-400);">${escapeHtml(ev.date || '—')}</div>
+          <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(ev.doctor || '')}</div>
+        </div>
+        <div style="line-height:1.7;">${rendered}</div>
+      </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  TAB 2 — LABORATÓRIO
+//  Linha do tempo dos exames laboratoriais
+// ══════════════════════════════════════════════════════════════════
+function renderLaboratorio(patient) {
+  const el = document.getElementById('tab-exames');
+  if (!el) return;
+
+  // Collect lab data sorted chronologically
+  const evols = [...(patient.evolutions || [])].sort((a, b) => {
+    const da = a.date ? a.date.split('/').reverse().join('') : '0';
+    const db = b.date ? b.date.split('/').reverse().join('') : '0';
+    return da.localeCompare(db);
+  });
+
+  const entries = evols
+    .filter(ev => ev.labs && ev.labs.trim())
+    .map(ev => ({ date: ev.date || '—', text: ev.labs.trim() }));
+
+  if (!entries.length) {
+    el.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-muted);">Nenhum exame laboratorial encontrado nas evoluções.</div>';
+    return;
+  }
+
+  // Build structured table
+  const allDates = entries.map(e => e.date);
+  const labMap = {}; // labName → { date: value }
+
+  entries.forEach(entry => {
+    entry.text.split('\n').forEach(line => {
+      const t = line.trim().replace(/^[-•·]\s*/, '');
+      if (!t || t.length < 3) return;
+      // Pattern: "Hb 10.2" or "Hemoglobina: 10.2 g/dL"
+      const m = t.match(/^([A-Za-záéíóúâêÁÉÍÓÚÂÊ][A-Za-záéíóúâêÁÉÍÓÚÂÊ\s\-\/\.]{1,28}?)\s*[:=]?\s*([\d\.,]+(?:\s*(?:\/\w{1,6}|\w{1,6}\/\w{1,6}|%|mmol|mEq|mg|g|U|K))?)/);
+      if (m) {
+        const name = m[1].trim().replace(/\s+/g, ' ');
+        const val  = m[2].trim();
+        if (name.length < 2 || name.length > 30) return;
+        if (!labMap[name]) labMap[name] = {};
+        labMap[name][entry.date] = val;
+      }
+    });
+  });
+
+  const labNames = Object.keys(labMap);
+  let html = '';
+
+  // Table view
+  if (labNames.length >= 2) {
+    html += `
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;overflow-x:auto;">
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--blue-400);margin-bottom:12px;">📊 Espelho de Exames</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:300px;">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:7px 12px;background:var(--bg-hover);color:var(--text-muted);font-size:10px;font-weight:700;text-transform:uppercase;border-radius:6px 0 0 0;min-width:100px;">Exame</th>
+              ${allDates.map(d => `<th style="padding:7px 12px;background:var(--bg-hover);color:var(--blue-400);font-size:10px;font-weight:700;text-align:center;white-space:nowrap;">${escapeHtml(d)}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${labNames.map(name => `
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:7px 12px;color:var(--text-primary);font-weight:500;">${escapeHtml(name)}</td>
+                ${allDates.map(d => {
+                  const v = labMap[name][d] || '—';
+                  const abnormal = v !== '—' && /[↑↓]/.test(v);
+                  return `<td style="padding:7px 12px;text-align:center;color:${v === '—' ? 'var(--text-muted)' : abnormal ? 'var(--danger)' : 'var(--text-primary)'};">${escapeHtml(v)}</td>`;
+                }).join('')}
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  // Raw text per date (newest first)
+  html += `<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--blue-400);margin-bottom:10px;">📋 Registros por Data</div>`;
+  html += [...entries].reverse().map(entry => `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+      <div style="font-size:12px;font-weight:700;color:var(--blue-400);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);">${escapeHtml(entry.date)}</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.8;white-space:pre-wrap;">${escapeHtml(entry.text)}</div>
+    </div>`).join('');
+
+  el.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  TAB 3 — EXAMES DE IMAGEM
+//  Mais recente no topo, com data e laudo
+// ══════════════════════════════════════════════════════════════════
+function renderExamesImagem(patient) {
+  const el = document.getElementById('tab-imagem');
+  if (!el) return;
+
+  // Collect all image entries, newest first
+  const evols = [...(patient.evolutions || [])].sort((a, b) => {
+    const da = a.date ? a.date.split('/').reverse().join('') : '0';
+    const db = b.date ? b.date.split('/').reverse().join('') : '0';
+    return db.localeCompare(da); // newest first
+  });
+
+  const all = [];
+  const seen = new Set();
+
+  evols.forEach(ev => {
+    if (!ev.image?.trim()) return;
+    const lines = ev.image.trim().split('\n').map(l => l.trim().replace(/^[-•]\s*/, '')).filter(Boolean);
+    lines.forEach(line => {
+      const key = line.toLowerCase().replace(/\s+/g, '').substring(0, 40);
+      if (!seen.has(key)) {
+        seen.add(key);
+        all.push({ date: ev.date || '—', line });
+      }
+    });
+  });
+
+  if (!all.length) {
+    el.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-muted);">Nenhum exame de imagem registrado.</div>';
+    return;
+  }
+
+  // Group by date
+  const byDate = {};
+  all.forEach(item => {
+    if (!byDate[item.date]) byDate[item.date] = [];
+    byDate[item.date].push(item.line);
+  });
+
+  el.innerHTML = Object.entries(byDate).map(([date, lines]) => `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--blue-400);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+        📅 ${escapeHtml(date)}
+      </div>
+      ${lines.map(line => {
+        // Try to separate exam name from result
+        const colonIdx = line.indexOf(':');
+        if (colonIdx > 2 && colonIdx < 60) {
+          const name   = line.substring(0, colonIdx).trim();
+          const result = line.substring(colonIdx + 1).trim();
+          return `
+            <div style="margin-bottom:12px;">
+              <div style="font-size:13.5px;font-weight:600;color:var(--text-primary);margin-bottom:3px;">${escapeHtml(name)}</div>
+              ${result ? `<div style="font-size:13px;color:var(--text-secondary);line-height:1.65;padding-left:10px;border-left:2px solid var(--border);">${escapeHtml(result)}</div>` : ''}
+            </div>`;
+        }
+        return `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;line-height:1.65;">${escapeHtml(line)}</div>`;
+      }).join('')}
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  TAB 4 — TIMELINE
+//  Resumo cronológico em poucas palavras por dia
+// ══════════════════════════════════════════════════════════════════
+function renderTimeline(patient) {
+  const el = document.getElementById('tab-timeline');
+  if (!el) return;
+
+  const evols = [...(patient.evolutions || [])].sort((a, b) => {
+    const da = a.date ? a.date.split('/').reverse().join('') : '0';
+    const db = b.date ? b.date.split('/').reverse().join('') : '0';
+    return da.localeCompare(db); // oldest first
+  });
+
+  if (!evols.length) {
+    el.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-muted);">Nenhuma evolução para gerar timeline.</div>';
+    return;
+  }
+
+  const events = [];
+
+  // Admission
+  if (patient.dt) {
+    const dtFmt = new Date(patient.dt).toLocaleDateString('pt-BR');
+    events.push({
+      date:    dtFmt,
+      type:    'admission',
+      title:   '🏥 Internação',
+      summary: patient.mih || patient.diag || 'Admissão hospitalar',
+      color:   'var(--blue-400)',
+    });
+  }
+
+  evols.forEach(ev => {
+    const bullets = [];
+
+    // Problems (max 2)
+    (ev.problems || '').split('\n')
+      .filter(l => l.trim().startsWith('#'))
+      .slice(0, 2)
+      .forEach(l => bullets.push(l.replace(/^#\s*/, '').trim()));
+
+    // Condutas headers (max 2)
+    (ev.conduta || '').split('\n')
+      .filter(l => /^>>/.test(l.trim()))
+      .slice(0, 2)
+      .map(l => l.replace(/^>>\s*/, '').replace(/:?\s*$/, '').trim())
+      .forEach(l => bullets.push(l));
+
+    // Impressao (first sentence)
+    if (ev.impressao) {
+      const first = ev.impressao.split('\n')[0].replace(/^[#\->\s]+/, '').trim();
+      if (first.length > 5) bullets.push(first.substring(0, 120));
+    }
+
+    // Fallback: resumo
+    const summary = bullets.filter(Boolean).slice(0, 3).join(' · ')
+      || (ev.resumo || '').split('\n')[0].substring(0, 150)
+      || 'Evolução registrada';
+
+    events.push({
+      date:    ev.date || '—',
+      type:    'evolution',
+      title:   '📝 Evolução',
+      summary: summary.substring(0, 200),
+      color:   'var(--text-muted)',
+    });
+  });
+
+  // Render timeline
+  el.innerHTML = `
+    <div style="position:relative;padding:4px 0 4px 24px;margin-left:8px;">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--border);border-radius:2px;"></div>
+      ${events.map((ev) => `
+        <div style="position:relative;margin-bottom:16px;">
+          <div style="position:absolute;left:-30px;top:8px;width:12px;height:12px;border-radius:50%;background:${ev.color};border:2px solid var(--bg-secondary);flex-shrink:0;"></div>
+          <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:5px;">
+              <div style="font-size:12px;font-weight:700;color:${ev.color};">${escapeHtml(ev.title)}</div>
+              <div style="font-size:11px;color:var(--text-muted);font-weight:600;white-space:nowrap;">${escapeHtml(ev.date)}</div>
+            </div>
+            <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;">${escapeHtml(ev.summary)}</div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  TAB 5 — SUGESTÃO DE IA
+// ══════════════════════════════════════════════════════════════════
+function renderAISuggest(patient) {
+  const el = document.getElementById('tab-ai-suggest');
+  if (!el) return;
+  el.innerHTML = `
+    <div style="text-align:center;padding:40px 20px 24px;">
+      <div style="font-size:48px;margin-bottom:14px;">🤖</div>
+      <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--text-primary);">Análise Clínica por IA</div>
+      <div style="font-size:13px;color:var(--text-muted);max-width:420px;margin:0 auto 24px;line-height:1.7;">
+        Análise baseada em guidelines internacionais atualizados<br>
+        (ESC, IDSA, UpToDate, NEJM) com sugestões de conduta.
+      </div>
+      <button class="btn btn-primary" onclick="runAISuggestion('${escapeHtml(patient.id)}')"
+        style="padding:13px 32px;font-size:14px;font-weight:600;">
+        ✨ Sugerir análise por IA
+      </button>
+    </div>
+    <div id="ai-result-${escapeHtml(patient.id)}" style="display:none;"></div>`;
+}
+
+async function runAISuggestion(patientId) {
+  const data = getData();
+  let patient = null;
+  for (const w of ['cmm','cmf1','cmf2']) {
+    patient = (data[w] || []).find(p => p.id === patientId);
+    if (patient) break;
+  }
+  if (!patient) return;
+
+  const btn = document.querySelector(`button[onclick="runAISuggestion('${patientId}')"]`);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Analisando...'; }
+
+  const resultEl = document.getElementById('ai-result-' + patientId);
+  if (resultEl) { resultEl.style.display = 'none'; resultEl.innerHTML = ''; }
+
+  const lastEvol = patient.evolutions?.length
+    ? patient.evolutions[patient.evolutions.length - 1] : null;
+
+  const problems = (lastEvol?.problems || patient.problems || '')
+    .split('\n').filter(l => l.trim().startsWith('#'))
+    .map(l => l.replace(/^#\s*/, '').trim()).join('\n') || '—';
+
+  const prompt = `Você é um médico clínico especialista. Analise o caso abaixo e gere sugestões de conduta baseadas em guidelines internacionais atualizados.
+
+PACIENTE: ${patient.name}, ${patient.age || '?'}a
+DIAGNÓSTICO/MIH: ${patient.mih || patient.diag || '—'}
+PROBLEMAS ATIVOS:
+${problems}
+ATB EM USO: ${patient.abx || 'Nenhum'}
+DISPOSITIVOS: ${patient.devices || 'Nenhum'}
+${lastEvol ? `ÚLTIMA EVOLUÇÃO (${lastEvol.date || '—'}):
+Resumo: ${(lastEvol.resumo || '—').substring(0, 300)}
+Impressão: ${(lastEvol.impressao || '—').substring(0, 200)}
+Labs: ${(lastEvol.labs || '—').substring(0, 200)}
+Conduta: ${(lastEvol.conduta || '—').substring(0, 300)}` : ''}
+
+Gere 4 a 6 sugestões clínicas objetivas e acionáveis. Para cada uma use EXATAMENTE este formato:
+[SUGESTAO]
+Texto: (conduta específica e acionável)
+Fonte: (ex: ESC 2023, IDSA 2024, UpToDate 2025, NEJM 2024)
+Evidencia: (A, B ou C)
+[/SUGESTAO]
+
+⚠️ Sugestões de apoio à decisão. Não substituem julgamento clínico.`;
+
+  try {
+    let suggestions = [];
+
+    // Try Gemini Edge Function first
+    if (sb.fnAiAssist) {
+      const session = sb.client ? await sb.client.auth.getSession().catch(() => null) : null;
+      const token = session?.data?.session?.access_token;
+      if (token) {
+        const res = await fetch(sb.fnAiAssist, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({
+            patient: {
+              name: patient.name, age: patient.age,
+              diag: patient.mih || patient.diag, problems,
+              abx: patient.abx, devices: patient.devices,
+              lastEvolution: lastEvol ? {
+                resumo: lastEvol.resumo, impressao: lastEvol.impressao,
+                labs: lastEvol.labs, conduta: lastEvol.conduta
+              } : null
+            },
+            callType: 'suggestions'
+          }),
+        });
+        if (res.ok) {
+          const r = await res.json();
+          suggestions = r.suggestions || [];
+        }
+      }
+    }
+
+    // Fallback: Claude direct API
+    if (!suggestions.length) {
+      const key = getApiKey();
+      if (!key) throw new Error('Configure a API Key do Claude (ou as Edge Functions do Gemini) nas Configurações.');
+      const rawText = await callClaude(prompt);
+      const rx = /\[SUGESTAO\]([\s\S]*?)\[\/SUGESTAO\]/g;
+      let mm;
+      while ((mm = rx.exec(rawText)) !== null) {
+        const body = mm[1];
+        const g = label => body.match(new RegExp(label + ':\\s*(.+)'))?.[1]?.trim() || '';
+        suggestions.push({ text: g('Texto'), fonte: g('Fonte'), evidencia: g('Evidencia') });
+      }
+      if (!suggestions.length && rawText) {
+        suggestions = [{ text: rawText.substring(0, 800), fonte: 'IA', evidencia: 'C' }];
+      }
+    }
+
+    if (!suggestions.length) throw new Error('Nenhuma sugestão gerada. Verifique a configuração da IA.');
+
+    if (resultEl) {
+      resultEl.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:12px;padding-top:8px;">
+          ${suggestions.map(s => `
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;">
+              <div style="font-size:13.5px;color:var(--text-primary);line-height:1.7;margin-bottom:10px;">${escapeHtml(s.text || '')}</div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <span style="font-size:11px;background:var(--bg-hover);padding:3px 9px;border-radius:6px;color:var(--text-muted);">📚 ${escapeHtml(s.fonte || '—')}</span>
+                <span style="font-size:11px;padding:3px 9px;border-radius:6px;font-weight:700;
+                  background:${s.evidencia === 'A' ? 'rgba(16,185,129,.15)' : s.evidencia === 'B' ? 'rgba(245,158,11,.15)' : 'rgba(100,116,139,.15)'};
+                  color:${s.evidencia === 'A' ? 'var(--success)' : s.evidencia === 'B' ? 'var(--warning)' : 'var(--text-muted)'};">
+                  Nível ${escapeHtml(s.evidencia || 'C')}
+                </span>
+              </div>
+            </div>`).join('')}
+          <div style="font-size:11px;color:var(--text-muted);text-align:center;padding:8px;">⚠️ Apoio à decisão clínica — não substitui o julgamento médico</div>
+        </div>`;
+      resultEl.style.display = 'block';
+    }
+
+  } catch (e) {
+    if (resultEl) {
+      resultEl.innerHTML = `
+        <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:16px 18px;color:var(--danger);">
+          ❌ ${escapeHtml(e.message || String(e))}
+        </div>`;
+      resultEl.style.display = 'block';
+    }
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = '✨ Sugerir análise por IA'; }
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  TAB 6 — SUMÁRIO DE ALTA
+//  Gerado por IA, editável inline
+// ══════════════════════════════════════════════════════════════════
+function renderSumarioAlta(patient) {
+  const el = document.getElementById('tab-sumario');
+  if (!el) return;
+  const saved = patient._sumario || '';
+  el.innerHTML = `
+    <div style="display:flex;gap:10px;margin-bottom:18px;align-items:center;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="gerarSumarioIA('${escapeHtml(patient.id)}')"
+        id="btn-gerar-sumario-${escapeHtml(patient.id)}" style="padding:11px 22px;font-size:13.5px;">
+        📄 Gerar Sumário de Alta
+      </button>
+      <span style="font-size:12px;color:var(--text-muted);">Narrativa cronológica completa da internação · editável após geração</span>
+    </div>
+    <div id="sumario-loading-${escapeHtml(patient.id)}" style="display:none;text-align:center;padding:40px;color:var(--text-muted);">
+      <div style="width:28px;height:28px;border:3px solid var(--blue-600);border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px;"></div>
+      Gerando sumário com IA...
+    </div>
+    <div id="sumario-content-${escapeHtml(patient.id)}">
+      ${saved ? renderSumarioContent(saved, patient.id) : '<div style="color:var(--text-muted);font-size:13px;padding:20px 0;">Clique em "Gerar Sumário de Alta" para criar o documento.</div>'}
+    </div>`;
+}
+
+function renderSumarioContent(text, patientId) {
+  return `
+    <div id="sumario-view-${patientId}">
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:14px;white-space:pre-wrap;font-size:13.5px;line-height:1.85;color:var(--text-secondary);font-family:inherit;">${escapeHtml(text)}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" onclick="editarSumario('${patientId}')">✏️ Editar</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportarSumario('${patientId}')">📄 Exportar .txt</button>
+      </div>
+    </div>`;
+}
+
+async function gerarSumarioIA(patientId) {
+  const data = getData();
+  let patient = null, ward = null;
+  for (const w of ['cmm','cmf1','cmf2']) {
+    patient = (data[w] || []).find(p => p.id === patientId);
+    if (patient) { ward = w; break; }
+  }
+  if (!patient) return;
+
+  const btn     = document.getElementById('btn-gerar-sumario-' + patientId);
+  const loadEl  = document.getElementById('sumario-loading-' + patientId);
+  const contEl  = document.getElementById('sumario-content-' + patientId);
+  if (btn)    btn.disabled = true;
+  if (loadEl) loadEl.style.display = 'block';
+  if (contEl) contEl.style.display = 'none';
+
+  const evols = [...(patient.evolutions || [])].sort((a, b) => {
+    const da = a.date ? a.date.split('/').reverse().join('') : '0';
+    const db = b.date ? b.date.split('/').reverse().join('') : '0';
+    return da.localeCompare(db);
+  });
+
+  const evolSummary = evols.slice(-10).map((ev, i) =>
+    `Dia ${i + 1} (${ev.date || '?'}): ${(ev.resumo || ev.impressao || ev.conduta || 'sem resumo').substring(0, 250)}`
+  ).join('\n\n');
+
+  const today = new Date().toLocaleDateString('pt-BR');
+  const prompt = `Você é um médico clínico redigindo um sumário de alta hospitalar formal e completo do HUAP/UFF.
+
+PACIENTE: ${patient.name}
+Idade: ${patient.age || '?'}a | Prontuário: ${patient.pront || '—'}
+Data internação: ${patient.dt || '—'} | Alta: ${today}
+Motivo de internação: ${patient.mih || patient.diag || '—'}
+Alergias: ${patient.allergy || 'Nega'}
+ATBs utilizados: ${patient.abx || 'Nenhum'}
+Dispositivos: ${patient.devices || 'Nenhum'}
+
+EVOLUÇÃO DA INTERNAÇÃO:
+${evolSummary || 'Sem evoluções registradas'}
+
+Redija o sumário completo em forma de texto corrido e cronológico com as seções:
+
+SUMÁRIO DE ALTA HOSPITALAR — HUAP/UFF
+Data: ${today}
+
+Paciente: ${patient.name} | Prontuário: ${patient.pront || '—'} | Leito: ${patient.leito || '—'}
+Data internação: ${patient.dt || '—'} | Data alta: ${today}
+
+DIAGNÓSTICO PRINCIPAL:
+DIAGNÓSTICOS SECUNDÁRIOS:
+RESUMO DA INTERNAÇÃO:
+[narrativa cronológica em 3-5 parágrafos]
+PRINCIPAIS EXAMES REALIZADOS:
+TRATAMENTOS REALIZADOS:
+EVOLUÇÃO CLÍNICA:
+CONDUTA DE ALTA:
+[medicações, orientações, retorno]
+ORIENTAÇÕES AO PACIENTE:
+
+Médico responsável: _______________ CRM: _________ Data: ${today}
+
+Seja completo, preciso e formal.`;
+
+  try {
+    let text = '';
+
+    // Try Gemini Edge Function
+    if (sb.fnAiSummarize) {
+      const session = sb.client ? await sb.client.auth.getSession().catch(() => null) : null;
+      const token = session?.data?.session?.access_token;
+      if (token) {
+        const res = await fetch(sb.fnAiSummarize, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ patient }),
+        });
+        if (res.ok) { const r = await res.json(); text = r.text || ''; }
+      }
+    }
+
+    // Fallback: Claude direct
+    if (!text) {
+      const key = getApiKey();
+      if (!key) throw new Error('Configure a API Key do Claude (ou as Edge Functions do Gemini) nas Configurações.');
+      text = await callClaude(prompt);
+    }
+
+    if (!text) throw new Error('Nenhum conteúdo gerado pela IA.');
+
+    // Save
+    const fresh = getData();
+    for (const w of ['cmm','cmf1','cmf2']) {
+      const p = (fresh[w] || []).find(x => x.id === patientId);
+      if (p) { p._sumario = text; saveData(fresh); break; }
+    }
+
+    if (loadEl) loadEl.style.display = 'none';
+    if (contEl) { contEl.innerHTML = renderSumarioContent(text, patientId); contEl.style.display = 'block'; }
+    showToast('✅ Sumário gerado com sucesso', 'success');
+
+  } catch (e) {
+    if (loadEl) loadEl.style.display = 'none';
+    if (contEl) {
+      contEl.innerHTML = `<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:16px;color:var(--danger);">❌ ${escapeHtml(e.message || String(e))}</div>`;
+      contEl.style.display = 'block';
+    }
+  }
+
+  if (btn) btn.disabled = false;
+}
+
+function editarSumario(patientId) {
+  const data = getData();
+  let patient = null;
+  for (const w of ['cmm','cmf1','cmf2']) { patient = (data[w]||[]).find(p=>p.id===patientId); if(patient) break; }
+  if (!patient) return;
+  const viewEl = document.getElementById('sumario-view-' + patientId);
+  if (!viewEl) return;
+  viewEl.innerHTML = `
+    <textarea id="sumario-editor-${patientId}"
+      style="width:100%;min-height:450px;padding:16px;background:var(--bg-card);border:1px solid var(--blue-500);border-radius:10px;color:var(--text-primary);font-size:13.5px;line-height:1.85;resize:vertical;box-sizing:border-box;font-family:inherit;"
+    >${escapeHtml(patient._sumario || '')}</textarea>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="btn btn-primary btn-sm" onclick="salvarSumario('${patientId}')">💾 Salvar alterações</button>
+      <button class="btn btn-ghost btn-sm" onclick="cancelarEditSumario('${patientId}')">Cancelar</button>
+    </div>`;
+}
+
+function salvarSumario(patientId) {
+  const editor = document.getElementById('sumario-editor-' + patientId);
+  if (!editor) return;
+  const newText = editor.value;
+  const data = getData();
+  for (const w of ['cmm','cmf1','cmf2']) {
+    const p = (data[w]||[]).find(x=>x.id===patientId);
+    if (p) { p._sumario = newText; saveData(data); break; }
+  }
+  const viewEl = document.getElementById('sumario-view-' + patientId);
+  if (viewEl) viewEl.outerHTML = renderSumarioContent(newText, patientId);
+  showToast('✅ Sumário salvo', 'success');
+}
+
+function cancelarEditSumario(patientId) {
+  const data = getData();
+  let patient = null;
+  for (const w of ['cmm','cmf1','cmf2']) { patient = (data[w]||[]).find(p=>p.id===patientId); if(patient) break; }
+  if (!patient) return;
+  const viewEl = document.getElementById('sumario-view-' + patientId);
+  if (viewEl) viewEl.outerHTML = renderSumarioContent(patient._sumario || '', patientId);
+}
+
+function exportarSumario(patientId) {
+  const data = getData();
+  let patient = null;
+  for (const w of ['cmm','cmf1','cmf2']) { patient = (data[w]||[]).find(p=>p.id===patientId); if(patient) break; }
+  if (!patient?._sumario) { showToast('Gere o sumário primeiro', 'error'); return; }
+  triggerDownload(
+    new Blob([patient._sumario], {type:'text/plain;charset=utf-8'}),
+    `Sumario_${cleanPatientName(patient.name).replace(/\s+/g,'_')}.txt`
+  );
+  showToast('✅ Sumário exportado', 'success');
+}
+
+
+
+
+
+
+
+async function gerarSumario_v2(patientId) {
+  const data = getData();
+  let patient = null;
+  for (const w of ['cmm','cmf1','cmf2']) {
+    patient = (data[w]||[]).find(p => p.id === patientId);
+    if (patient) break;
+  }
+  if (!patient) return;
+
+  document.getElementById('sumario-loading').style.display = 'flex';
+  document.getElementById('btn-gerar-sumario').disabled = true;
+
+  const today = new Date().toLocaleDateString('pt-BR');
+  const evols = [...(patient.evolutions||[])].sort((a,b) => {
+    const da = a.date ? new Date(a.date.split('/').reverse().join('-')) : new Date(0);
+    const db = b.date ? new Date(b.date.split('/').reverse().join('-')) : new Date(0);
+    return da - db;
+  });
+
+  const evolHistory = evols.slice(-8).map((ev,i) =>
+    `Evolução ${ev.date||'?'}: ${(ev.resumo||ev['24h']||'').substring(0,300)} | Conduta: ${(ev.conduta||'').substring(0,200)}`
+  ).join('\n');
+
+  const prompt = `Você é um médico clínico redigindo um sumário de alta hospitalar completo e formal para o HUAP/UFF.
+
+PACIENTE: ${patient.name}
+IDADE: ${patient.age||'?'} anos | PRONTUÁRIO: ${patient.pront||'—'}
+DATA INTERNAÇÃO: ${patient.dt||'—'} | MIH: ${patient.mih||patient.diag||'—'}
+ALERGIAS: ${patient.allergy||'Nega'}
+ATB UTILIZADOS: ${patient.abx||'Nenhum'}
+DISPOSITIVOS: ${patient.devices||'Nenhum'}
+PROBLEMAS ATIVOS: ${patient.problems||'—'}
+
+HISTÓRICO DE EVOLUÇÕES:
+${evolHistory}
+
+Redija o sumário com:
+1. Diagnóstico principal e secundários
+2. Resumo cronológico da internação (história completa — o que aconteceu, quando, como evoluiu)
+3. Principais exames realizados e resultados relevantes
+4. Procedimentos e intervenções realizadas
+5. ATB e tratamentos realizados
+6. Evolução clínica
+7. Conduta de alta (medicações, orientações, retorno)
+8. Assinatura: Dr. _______________ CRM: _________ Data: ${today}
+
+Seja completo, formal, clínico e escreva em texto corrido organizado.`;
+
+  try {
+    let text = '';
+    const fnUrl = sb?.fnAiSummarize;
+    let token = null;
+    if (fnUrl && sb?.client) {
+      try { token = (await sb.client.auth.getSession())?.data?.session?.access_token; } catch(e){}
+    }
+
+    if (fnUrl && token) {
+      const res = await fetch(fnUrl, {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body: JSON.stringify({ patient: { ...patient, evolutions: evols } }),
+      });
+      if (res.ok) { const r = await res.json(); text = r.text || ''; }
+    } else if (getApiKey()) {
+      text = await callClaude(prompt);
+    } else {
+      text = `SUMÁRIO DE ALTA HOSPITALAR\n\nPaciente: ${patient.name}\nData: ${today}\n\n[Configure a integração com IA para gerar o sumário automaticamente]`;
+    }
+
+    // Save to patient
+    const freshData = getData();
+    for (const w of ['cmm','cmf1','cmf2']) {
+      const p = (freshData[w]||[]).find(x => x.id === patientId);
+      if (p) { p._sumario = text; saveData(freshData); break; }
+    }
+
+    // Show editor
+    document.getElementById('sumario-loading').style.display = 'none';
+    const editor  = document.getElementById('sumario-editor');
+    const textarea = document.getElementById('sumario-text');
+    const exportBtn = document.getElementById('btn-export-sumario');
+    if (editor)   { editor.style.display = 'block'; }
+    if (textarea) { textarea.value = text; }
+    if (exportBtn){ exportBtn.style.display = 'inline-flex'; }
+    document.getElementById('btn-gerar-sumario').disabled = false;
+    showToast('✅ Sumário gerado — edite conforme necessário', 'success');
+
+  } catch(e) {
+    document.getElementById('sumario-loading').style.display = 'none';
+    document.getElementById('btn-gerar-sumario').disabled = false;
+    showToast('❌ Erro ao gerar sumário: ' + (e.message||e), 'error');
+  }
+}
+
+function salvarSumario(patientId) {
+  const text = document.getElementById('sumario-text')?.value || '';
+  const data = getData();
+  for (const w of ['cmm','cmf1','cmf2']) {
+    const p = (data[w]||[]).find(x => x.id === patientId);
+    if (p) { p._sumario = text; saveData(data); showToast('💾 Sumário salvo', 'success'); return; }
+  }
+}
+
+function exportarSumario(patientId) {
+  const text = document.getElementById('sumario-text')?.value || '';
+  if (!text) { showToast('Gere o sumário primeiro', 'error'); return; }
+  const data = getData();
+  let pname = 'Paciente';
+  for (const w of ['cmm','cmf1','cmf2']) {
+    const p = (data[w]||[]).find(x => x.id === patientId);
+    if (p) { pname = cleanPatientName(p.name); break; }
+  }
+  // Build DOCX
+  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const paras = text.split('\n').map(line => {
+    const t = line.trim();
+    if (!t) return '<w:p><w:pPr><w:spacing w:after="120"/></w:pPr></w:p>';
+    const isTitle = /^(SUMÁRIO|DIAGNÓST|RESUMO|PRINCIPAIS|PROCEDIMENT|CONDUTA|EVOLUÇÃO|ATB)/i.test(t) && t.length < 60;
+    return `<w:p><w:pPr><w:spacing w:before="${isTitle?200:0}" w:after="80"/></w:pPr><w:r>${isTitle?'<w:rPr><w:b/><w:sz w:val="26"/></w:rPr>':''}<w:t xml:space="preserve">${esc(t)}</w:t></w:r></w:p>`;
+  }).join('');
+
+  const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${paras}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1080" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>`;
+  const files = {
+    '[Content_Types].xml':'<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>',
+    '_rels/.rels':'<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>',
+    'word/document.xml': docXml,
+    'word/_rels/document.xml.rels':'<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>',
+  };
+  triggerDownload(new Blob([buildZip(files)], {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}), `Sumario_${pname}.docx`);
+  showToast('📄 Sumário exportado', 'success');
+}
+
+// Keep generateAISuggestions as alias for backward compat
+function generateAISuggestions(patient) {
+  if (patient?.id) renderAISuggest(patient);
+}
+
 
 // Upload tab
 function setUploadTab(type, el) {
@@ -8265,9 +9145,7 @@ function renderPatientDetail(patient) {
       ${patient.devices ? `<div style="font-size:12px;color:var(--blue-300);background:var(--bg-hover);border-radius:8px;padding:8px 14px;margin-bottom:4px;">🔌 <strong>Dispositivos:</strong> ${escapeHtml(patient.devices)}</div>` : ''}`;
   }
 
-  // Render evolutions list
-  renderEvolutionsList(patient);
-  // Open evolucao tab first (original behavior)
+  // Open evolucao tab — renderEvolucaoCompleta is called by switchTab
   switchTab('evolucao');
 }
 
@@ -8863,19 +9741,208 @@ function handleImportFiles(event)   { importHandleFiles(event.target?.files || e
 function handleFolderUpload(event)  { importHandleFiles(event.target?.files || []); }
 function handleImportFolder(event)  { importHandleFiles(event.target?.files || []); }
 
-// ── Supabase Config UI ──
-function openSupaConfig() {
-  const urlInput = document.getElementById('supa-url-input');
-  const keyInput = document.getElementById('supa-key-input');
-  const msg      = document.getElementById('supa-status-msg');
-  if (urlInput) urlInput.value = localStorage.getItem('supaUrl') || '';
-  if (keyInput) keyInput.value = localStorage.getItem('supaKey') || '';
-  if (msg)      msg.style.display = 'none';
-  // Show current connection status
-  const cloudBtn = document.getElementById('cloud-btn');
-  if (sb.client && cloudBtn) cloudBtn.textContent = '✅';
-  openModal('modal-supa-config');
+// ══════════════════════════════════════════════════════════════════════
+//  CONFIGURAÇÕES VIEW
+// ══════════════════════════════════════════════════════════════════════
+function renderConfigView() {
+  // Populate current values
+  const claudeKey = getApiKey();
+  const ck = document.getElementById('config-claude-key');
+  if (ck) ck.value = claudeKey || '';
+
+  const fnAssist = sb.fnAiAssist || localStorage.getItem('fnAiAssist') || '';
+  const fnSum    = sb.fnAiSummarize || localStorage.getItem('fnAiSummarize') || '';
+  const ga = document.getElementById('config-gemini-assist');
+  const gs = document.getElementById('config-gemini-summarize');
+  if (ga) ga.value = fnAssist;
+  if (gs) gs.value = fnSum;
+
+  const supaUrl = localStorage.getItem('supaUrl') || sb.url || '';
+  const supaKey = localStorage.getItem('supaKey') || sb.key || '';
+  const su = document.getElementById('config-supa-url');
+  const sk = document.getElementById('config-supa-key');
+  if (su) su.value = supaUrl;
+  if (sk) sk.value = supaKey;
+
+  // Update badges
+  const clBadge = document.getElementById('claude-status-badge');
+  if (clBadge) {
+    if (claudeKey?.startsWith('sk-ant')) {
+      clBadge.textContent = '✅ conectado';
+      clBadge.style.background = 'rgba(16,185,129,.15)';
+      clBadge.style.color = 'var(--success)';
+    } else {
+      clBadge.textContent = '⚪ não configurado';
+      clBadge.style.background = 'var(--bg-hover)';
+      clBadge.style.color = 'var(--text-muted)';
+    }
+  }
+  const gemBadge = document.getElementById('gemini-status-badge');
+  if (gemBadge) {
+    if (fnAssist) {
+      gemBadge.textContent = '✅ configurado';
+      gemBadge.style.background = 'rgba(16,185,129,.15)';
+      gemBadge.style.color = 'var(--success)';
+    } else {
+      gemBadge.textContent = '⚪ não configurado';
+      gemBadge.style.background = 'var(--bg-hover)';
+      gemBadge.style.color = 'var(--text-muted)';
+    }
+  }
+  const supBadge = document.getElementById('supa-config-badge');
+  if (supBadge) {
+    if (sb.client) {
+      supBadge.textContent = '✅ conectado';
+      supBadge.style.background = 'rgba(16,185,129,.15)';
+      supBadge.style.color = 'var(--success)';
+    } else if (supaUrl) {
+      supBadge.textContent = '⚠️ credenciais salvas';
+      supBadge.style.background = 'rgba(245,158,11,.15)';
+      supBadge.style.color = 'var(--warning)';
+    } else {
+      supBadge.textContent = '⚪ não configurado';
+      supBadge.style.background = 'var(--bg-hover)';
+      supBadge.style.color = 'var(--text-muted)';
+    }
+  }
+
+  // Sidebar badge
+  updateApiKeyStatus();
 }
+
+function saveClaudeKey() {
+  const key = document.getElementById('config-claude-key')?.value?.trim();
+  if (!key) { showToast('⚠️ Digite a API Key', 'error'); return; }
+  if (!key.startsWith('sk-ant')) { showToast('⚠️ Chave inválida — deve começar com sk-ant', 'error'); return; }
+  localStorage.setItem('medroundApiKey', key);
+  renderConfigView();
+  showToast('✅ API Key do Claude salva', 'success');
+}
+
+async function testClaudeKey() {
+  const key = getApiKey();
+  if (!key) { showToast('⚠️ Configure a API Key primeiro', 'error'); return; }
+  const res = document.getElementById('claude-test-result');
+  if (res) { res.style.display='block'; res.textContent='⏳ Testando...'; res.style.background='var(--bg-hover)'; res.style.color='var(--text-muted)'; }
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body: JSON.stringify({model:'claude-sonnet-4-5-20251022',max_tokens:10,messages:[{role:'user',content:'ok'}]}),
+    });
+    if (r.ok) {
+      if (res) { res.textContent='✅ Conexão OK! Claude disponível.'; res.style.background='rgba(16,185,129,.1)'; res.style.color='var(--success)'; }
+    } else {
+      const e = await r.json().catch(()=>({}));
+      if (res) { res.textContent='❌ Erro: '+(e.error?.message||r.status); res.style.background='rgba(239,68,68,.1)'; res.style.color='var(--danger)'; }
+    }
+  } catch(e) {
+    if (res) { res.textContent='❌ Erro de rede: '+e.message; res.style.background='rgba(239,68,68,.1)'; res.style.color='var(--danger)'; }
+  }
+}
+
+function removeClaudeKey() {
+  localStorage.removeItem('medroundApiKey');
+  const ck = document.getElementById('config-claude-key'); if (ck) ck.value='';
+  renderConfigView();
+  showToast('API Key removida', '');
+}
+
+function saveGeminiConfig() {
+  const assist  = document.getElementById('config-gemini-assist')?.value?.trim();
+  const summ    = document.getElementById('config-gemini-summarize')?.value?.trim();
+  if (assist) { sb.fnAiAssist    = assist; localStorage.setItem('fnAiAssist', assist); }
+  if (summ)   { sb.fnAiSummarize = summ;   localStorage.setItem('fnAiSummarize', summ); }
+  renderConfigView();
+  showToast('✅ URLs do Gemini salvas', 'success');
+}
+
+function removeGeminiConfig() {
+  sb.fnAiAssist = ''; sb.fnAiSummarize = '';
+  localStorage.removeItem('fnAiAssist'); localStorage.removeItem('fnAiSummarize');
+  const ga = document.getElementById('config-gemini-assist');     if (ga) ga.value='';
+  const gs = document.getElementById('config-gemini-summarize');  if (gs) gs.value='';
+  renderConfigView();
+  showToast('Gemini removido', '');
+}
+
+async function saveSupaFromConfig() {
+  const url = document.getElementById('config-supa-url')?.value?.trim();
+  const key = document.getElementById('config-supa-key')?.value?.trim();
+  const res = document.getElementById('supa-config-result');
+  if (!url || !key) { showToast('⚠️ Preencha URL e Key do Supabase', 'error'); return; }
+  if (res) { res.style.display='block'; res.textContent='⏳ Conectando...'; res.style.background='var(--bg-hover)'; res.style.color='var(--text-muted)'; }
+  localStorage.setItem('supaUrl', url); localStorage.setItem('supaKey', key);
+  sb.url = url; sb.key = key;
+  try {
+    await sbInit();
+    if (res) { res.textContent='✅ Conectado ao Supabase com sucesso!'; res.style.background='rgba(16,185,129,.1)'; res.style.color='var(--success)'; }
+    renderConfigView();
+  } catch(e) {
+    if (res) { res.textContent='❌ Erro: '+e.message; res.style.background='rgba(239,68,68,.1)'; res.style.color='var(--danger)'; }
+  }
+}
+
+async function syncToCloud() {
+  if (!sb.client) { showToast('⚠️ Supabase não conectado', 'error'); return; }
+  showToast('⏳ Sincronizando...', '');
+  await sbPush(getData());
+  showToast('✅ Dados sincronizados com a nuvem', 'success');
+}
+
+function exportBackup() {
+  const data = getData();
+  const json = JSON.stringify(data, null, 2);
+  const date = new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
+  triggerDownload(new Blob([json], {type:'application/json'}), `MedRound_backup_${date}.json`);
+  showToast('✅ Backup exportado', 'success');
+}
+
+function importBackup() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (!data.cmm && !data.cmf1 && !data.cmf2) throw new Error('Arquivo inválido — sem dados de ward');
+        if (!confirm(`Importar backup? Isso substituirá todos os dados atuais.\n\nArquivo: ${file.name}`)) return;
+        saveData(data);
+        updateCounts();
+        showToast('✅ Backup importado com sucesso', 'success');
+        showView('patients');
+      } catch(e) { showToast('❌ Erro ao importar: '+e.message, 'error'); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+function showDataStats() {
+  const data = getData();
+  const statsEl = document.getElementById('data-stats');
+  if (!statsEl) return;
+  let html = '';
+  let total = 0, totalEvols = 0;
+  for (const w of ['cmm','cmf1','cmf2']) {
+    const pts = data[w]||[];
+    const active = pts.filter(p=>p.status!=='alta');
+    const evols  = pts.reduce((n,p)=>n+(p.evolutions?.length||0),0);
+    total += active.length; totalEvols += evols;
+    html += `<div><strong>${w.toUpperCase()}:</strong> ${active.length} internados / ${pts.length} total / ${evols} evoluções</div>`;
+  }
+  const size = (JSON.stringify(data).length/1024).toFixed(1);
+  html += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);"><strong>Total:</strong> ${total} internados / ${totalEvols} evoluções / ${size}KB em localStorage</div>`;
+  statsEl.innerHTML = html;
+  statsEl.style.display = 'block';
+}
+
+
+function openSupaConfig() { showView('config'); }
+
 
 async function saveSupaConfig() {
   const url = document.getElementById('supa-url-input')?.value?.trim();
@@ -9002,181 +10069,6 @@ document.addEventListener('DOMContentLoaded', () => {
   renderDashboard();
   setupDragDrop();
 });
-
-
 </script>
-<!-- ══ MODALS ══ -->
-<div class="modal-overlay" id="modal-import">
-  <div class="modal" style="max-width:560px;width:95%;max-height:90vh;display:flex;flex-direction:column;">
-    <div class="modal-header" style="flex-shrink:0;">
-      <div class="modal-title">📄 Importar Evoluções</div>
-      <button class="modal-close" onclick="closeModal('modal-import')">×</button>
-    </div>
-    <div class="modal-body" style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px;">
-
-      <!-- Upload zones -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <label class="upload-zone" style="padding:20px 14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;">
-          <input type="file" id="import-file-input" multiple accept=".pdf,.docx,.doc,.txt" style="display:none" onchange="importHandleFiles(this.files)">
-          <div style="font-size:28px;">📄</div>
-          <div style="font-size:13px;font-weight:600;">Arquivos</div>
-          <div style="font-size:11px;color:var(--text-muted);text-align:center;">PDF, DOCX<br>múltiplos</div>
-        </label>
-        <label class="upload-zone" style="padding:20px 14px;cursor:pointer;border-color:var(--blue-500);display:flex;flex-direction:column;align-items:center;gap:6px;">
-          <input type="file" id="import-folder-input" webkitdirectory multiple style="display:none" onchange="importHandleFiles(this.files)">
-          <div style="font-size:28px;">📁</div>
-          <div style="font-size:13px;font-weight:600;">Pasta</div>
-          <div style="font-size:11px;color:var(--text-muted);text-align:center;">Pasta inteira<br>de uma vez</div>
-        </label>
-      </div>
-
-      <!-- Ward selector -->
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-hover);border-radius:8px;">
-        <div style="font-size:12px;font-weight:700;color:var(--text-muted);flex-shrink:0;">Importar para:</div>
-        <select id="import-ward-select" style="flex:1;padding:6px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;">
-          <option value="cmm">CMM — Clínica Médica Masculina</option>
-          <option value="cmf1">CMF1 — Clínica Médica Feminina 1</option>
-          <option value="cmf2">CMF2 — Clínica Médica Feminina 2</option>
-        </select>
-      </div>
-
-      <!-- File list selected -->
-      <div id="import-filelist" style="display:none;background:var(--bg-hover);border-radius:8px;padding:10px 14px;">
-        <div style="font-size:11px;font-weight:700;color:var(--blue-400);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Arquivos selecionados:</div>
-        <div id="import-filelist-names" style="font-size:12px;color:var(--text-secondary);line-height:1.8;"></div>
-      </div>
-
-      <!-- Loading -->
-      <div id="import-loading" style="display:none;align-items:center;gap:12px;padding:12px;background:var(--bg-hover);border-radius:8px;">
-        <div style="width:18px;height:18px;border:2px solid var(--blue-500);border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0;"></div>
-        <span id="import-loading-text" style="font-size:12.5px;color:var(--text-muted);">Processando...</span>
-      </div>
-
-      <!-- Preview area -->
-      <div id="import-preview" style="display:none;"></div>
-      <div id="import-save-btn" style="display:none;"></div>
-    </div>
-
-    <div class="modal-footer" style="flex-shrink:0;gap:10px;">
-      <button class="btn btn-ghost" onclick="closeModal('modal-import')">Cancelar</button>
-      <button class="btn btn-primary" id="import-upload-btn" style="display:none;" onclick="_confirmImport()">✅ Confirmar Importação</button>
-    </div>
-  </div>
-</div>
-<div class="modal-overlay" id="modal-patient">
-  <div class="modal" style="max-width:560px;width:95%;max-height:90vh;display:flex;flex-direction:column;">
-    <div class="modal-header" style="flex-shrink:0;"><div class="modal-title" id="modal-patient-title">+ Novo Paciente</div><button class="modal-close" onclick="closeModal('modal-patient')">×</button></div>
-    <div class="modal-body" style="flex:1;overflow-y:auto;padding:20px;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div><label class="form-label">Nome*</label><input class="form-input" id="p-name" placeholder="Nome completo"></div>
-        <div><label class="form-label">Leito</label><input class="form-input" id="p-leito" placeholder="Ex: 01"></div>
-        <div><label class="form-label">Prontuário</label><input class="form-input" id="p-pront" placeholder="Nº prontuário"></div>
-        <div><label class="form-label">Idade</label><input class="form-input" id="p-age" placeholder="Ex: 65" type="number"></div>
-        <div><label class="form-label">Data Internação</label><input class="form-input" id="p-dt" type="date"></div>
-        <div><label class="form-label">Status</label><select class="form-input" id="p-status"><option value="stable">Estável</option><option value="attention">Atenção</option><option value="critical">Crítico</option></select></div>
-        <div style="grid-column:1/-1;"><label class="form-label">Diagnóstico Principal</label><input class="form-input" id="p-diag" placeholder="MIH / diagnóstico de entrada"></div>
-        <div style="grid-column:1/-1;"><label class="form-label">Lista de Problemas</label><textarea class="form-input" id="p-problems" rows="3" placeholder="# Problema 1&#10;# Problema 2"></textarea></div>
-        <div style="grid-column:1/-1;"><label class="form-label">ATB e Culturas</label><textarea class="form-input" id="p-abx" rows="2" placeholder="ATB em uso, culturas..."></textarea></div>
-        <div style="grid-column:1/-1;"><label class="form-label">Dispositivos</label><input class="form-input" id="p-devices" placeholder="AVP, CVC, SVD..."></div>
-        <div style="grid-column:1/-1;"><label class="form-label">Alergias</label><input class="form-input" id="p-allergy" placeholder="Nega / descreva alergias"></div>
-      </div>
-    </div>
-    <div class="modal-footer" style="flex-shrink:0;"><button class="btn btn-ghost" onclick="closeModal('modal-patient')">Cancelar</button><button class="btn btn-primary" onclick="savePatient()">💾 Salvar</button></div>
-  </div>
-</div>
-<div class="modal-overlay" id="modal-evolution">
-  <div class="modal" style="max-width:640px;width:95%;max-height:92vh;display:flex;flex-direction:column;">
-    <div class="modal-header" style="flex-shrink:0;"><div class="modal-title">📝 Nova Evolução</div><button class="modal-close" onclick="closeModal('modal-evolution')">×</button></div>
-    <div class="modal-body" style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px;">
-      <div><label class="form-label">IH / DIH</label><input class="form-input" id="ev-ih" placeholder="Data internação / dias"></div>
-      <div><label class="form-label">MIH</label><input class="form-input" id="ev-mih" placeholder="Motivo da internação"></div>
-      <div><label class="form-label">Lista de Problemas</label><textarea class="form-input" id="ev-problems" rows="3" placeholder="# Problema 1&#10;# Problema 2"></textarea></div>
-      <div><label class="form-label">Resumo do Caso</label><textarea class="form-input" id="ev-resumo" rows="3" placeholder="Resumo clínico..."></textarea></div>
-      <div><label class="form-label">Últimas 24h</label><textarea class="form-input" id="ev-24h" rows="3" placeholder="Evolução das últimas 24h..."></textarea></div>
-      <div><label class="form-label">ATB e Culturas</label><textarea class="form-input" id="ev-abx" rows="2" placeholder="ATB em uso, culturas..."></textarea></div>
-      <div><label class="form-label">Dispositivos</label><input class="form-input" id="ev-devices" placeholder="AVP, CVC, SVD..."></div>
-      <div><label class="form-label">Exames Laboratoriais</label><textarea class="form-input" id="ev-labs" rows="3" placeholder="Labs do dia..."></textarea></div>
-      <div><label class="form-label">Exames de Imagem</label><textarea class="form-input" id="ev-image" rows="2" placeholder="Imagens, laudos..."></textarea></div>
-      <div><label class="form-label">Pareceres</label><textarea class="form-input" id="ev-pareceres" rows="2" placeholder="Pareceres de especialidades..."></textarea></div>
-      <div><label class="form-label">Impressão Clínica</label><textarea class="form-input" id="ev-impressao" rows="2" placeholder="Impressão diagnóstica..."></textarea></div>
-      <div><label class="form-label">Conduta / Programação</label><textarea class="form-input" id="ev-conduta" rows="4" placeholder=">> TEMA:&#10;- conduta 1&#10;- conduta 2"></textarea></div>
-    </div>
-    <div class="modal-footer" style="flex-shrink:0;"><button class="btn btn-ghost" onclick="closeModal('modal-evolution')">Cancelar</button><button class="btn btn-primary" onclick="saveEvolution()">💾 Salvar Evolução</button></div>
-  </div>
-</div>
-<div class="modal-overlay" id="modal-delete-confirm">
-  <div class="modal" style="max-width:400px;width:95%;">
-    <div class="modal-header"><div class="modal-title">⚠️ Confirmar Remoção</div></div>
-    <div class="modal-body" style="padding:20px;text-align:center;"><p style="color:var(--text-secondary);">Deseja remover este paciente?</p><p style="font-size:12px;color:var(--text-muted);">Esta ação não pode ser desfeita.</p></div>
-    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-delete-confirm')">Cancelar</button><button class="btn btn-danger" onclick="confirmDeletePatient()">🗑️ Remover</button></div>
-  </div>
-</div>
-<!-- ══ SUPABASE CONFIG MODAL ══ -->
-<div class="modal-overlay" id="modal-supa-config">
-  <div class="modal" style="max-width:480px;width:95%;">
-    <div class="modal-header">
-      <div class="modal-title">☁️ Configurar Supabase</div>
-      <button class="modal-close" onclick="closeModal('modal-supa-config')">×</button>
-    </div>
-    <div class="modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px;">
-
-      <div style="background:rgba(30,86,170,.1);border:1px solid var(--blue-700);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--blue-300);line-height:1.6;">
-        📋 <strong>Como obter as credenciais:</strong><br>
-        1. Acesse <strong>supabase.com</strong> → seu projeto<br>
-        2. Menu <strong>Settings → API</strong><br>
-        3. Copie <strong>Project URL</strong> e <strong>anon public key</strong>
-      </div>
-
-      <div>
-        <label class="form-label">Project URL</label>
-        <input class="form-input" id="supa-url-input"
-          placeholder="https://xxxxxxxxxxxx.supabase.co"
-          style="font-family:monospace;font-size:12.5px;">
-      </div>
-
-      <div>
-        <label class="form-label">Anon Public Key</label>
-        <textarea class="form-input" id="supa-key-input" rows="3"
-          placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-          style="font-family:monospace;font-size:11.5px;resize:vertical;"></textarea>
-      </div>
-
-      <div id="supa-status-msg" style="font-size:12px;display:none;padding:8px 12px;border-radius:8px;"></div>
-
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="clearSupaConfig()" style="color:var(--danger);">🗑️ Remover</button>
-      <button class="btn btn-ghost" onclick="closeModal('modal-supa-config')">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveSupaConfig()">✅ Conectar</button>
-    </div>
-  </div>
-</div>
-
-<!-- ══ API KEY MODAL ══ -->
-<div class="modal-overlay" id="modal-apikey">
-  <div class="modal" style="max-width:460px;width:95%;">
-    <div class="modal-header">
-      <div class="modal-title">🤖 API Key — Claude</div>
-      <button class="modal-close" onclick="closeModal('modal-apikey')">×</button>
-    </div>
-    <div class="modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px;">
-      <div style="background:rgba(30,86,170,.1);border:1px solid var(--blue-700);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--blue-300);line-height:1.6;">
-        📋 Obtenha sua API Key em <strong>console.anthropic.com</strong><br>
-        A chave fica salva localmente e nunca sai do seu dispositivo.
-      </div>
-      <div>
-        <label class="form-label">Anthropic API Key</label>
-        <input class="form-input" id="api-key-input" type="password"
-          placeholder="sk-ant-api03-..."
-          style="font-family:monospace;font-size:12.5px;">
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modal-apikey')">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveApiKey()">✅ Salvar</button>
-    </div>
-  </div>
-</div>
-
 </body>
 </html>
