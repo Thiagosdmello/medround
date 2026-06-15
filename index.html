@@ -1188,6 +1188,7 @@ input, textarea, select { font-family: inherit; }
         <div class="detail-tab" onclick="switchTab('exames')">🔬 Laboratório</div>
         <div class="detail-tab" onclick="switchTab('imagem')">🖼️ Exames de Imagem</div>
         <div class="detail-tab" onclick="switchTab('timeline')">📅 Timeline</div>
+        <div class="detail-tab" onclick="switchTab('tardefixa-tab')">🌅 Tarde Fixa</div>
         <div class="detail-tab" onclick="switchTab('ai-suggest')">🤖 Sugestão de IA</div>
         <div class="detail-tab" onclick="switchTab('sumario')">📄 Sumário de Alta</div>
       </div>
@@ -1196,6 +1197,7 @@ input, textarea, select { font-family: inherit; }
         <div id="tab-exames" class="tab-content" style="display:none;"></div>
         <div id="tab-imagem" class="tab-content" style="display:none;"></div>
         <div id="tab-timeline" class="tab-content" style="display:none;"></div>
+        <div id="tab-tardefixa-tab" class="tab-content" style="display:none;"></div>
         <div id="tab-ai-suggest" class="tab-content" style="display:none;"></div>
         <div id="tab-sumario" class="tab-content" style="display:none;"></div>
       </div>
@@ -1767,8 +1769,8 @@ const sb = {
   channel: null,
   // ══════════════════════════════════════════════
   //  COLE SUAS CREDENCIAIS DO SUPABASE AQUI:
-  url: 'https://sxtihlavbggfpplhlbsm.supabase.co',        // ex: https://abcdefgh.supabase.co
-  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4dGlobGF2YmdnZnBwbGhsYnNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5ODQwMDMsImV4cCI6MjA5NDU2MDAwM30.Rjwx6xbk27oM3_j-7FPRU57cmikbXi-x71NXcplI5RU',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  url: 'COLE_AQUI_A_PROJECT_URL',        // ex: https://abcdefgh.supabase.co
+  key: 'COLE_AQUI_A_ANON_KEY',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   // ══════════════════════════════════════════════
   isSyncing: false
 };
@@ -2381,29 +2383,63 @@ async function _confirmImport() {
     if (!data.cmf2) data.cmf2 = [];
     let updated = 0, created = 0, tfSaved = 0;
 
-    // ── 1. Tarde Fixa ──
-    for (const r of _batchTardesData) {
-      try {
-        const td = (r.tardeData && Object.keys(r.tardeData).length > 0) ? r.tardeData : r;
-        const ln = parseInt(String(r.leito || td.leito || ''), 10);
-        if (!ln) continue;
-        for (const w of ['cmm','cmf1','cmf2']) {
-          const p = (data[w]||[]).find(x => parseInt(String(x.leito||''),10) === ln);
-          if (!p) continue;
-          p.tardeFixa = {
-            date: td.date || today,
-            observacoes: td.observacoes || [],
-            pendencias: (td.pendencias||[]).map(i => typeof i==='string' ? {text:i,done:false} : {text:i.text||'',done:i.done||false}),
-            dieta:   { valor: td.dieta?.valor   || '', flag: td.dieta?.flag   || false },
-            clexane: { valor: td.clexane?.valor || '', flag: td.clexane?.flag || false },
-            atb:     { valor: td.atb?.valor     || '', flag: td.atb?.flag     || false },
-            risco:   { valor: td.risco?.valor   || '', flag: td.risco?.flag   || false },
-            labs: td.labs || '',
-          };
-          tfSaved++; break;
-        }
-      } catch(e) { console.warn('[TF]', e); }
-    }
+    // ── 1. Tarde Fixa — save after patients are created ──
+    // (TF matching happens AFTER evolutions are processed so new patients exist)
+    const applyTardeFixas = () => {
+      for (const r of _batchTardesData) {
+        try {
+          const td = r.tardeData || r;
+          const leitoStr = String(r.leito || td.leito || '').replace(',','.');
+          if (!leitoStr) continue;
+
+          for (const w of ['cmm','cmf1','cmf2']) {
+            const p = (data[w]||[]).find(x => {
+              const pl = String(x.leito||'').replace(',','.');
+              return pl === leitoStr || parseFloat(pl) === parseFloat(leitoStr);
+            });
+            if (!p) continue;
+
+            // Save tardeFixa to patient
+            p.tardeFixa = {
+              date:       td.date || today,
+              observacoes: td.observacoes || [],
+              pendencias: (td.pendencias||[]).map(i => typeof i==='string' ? {text:i,done:false} : {text:i.text||'',done:!!i.done}),
+              dieta:   { valor: td.dieta?.valor   || '', flag: td.dieta?.flag   || false },
+              clexane: { valor: td.clexane?.valor || '', flag: td.clexane?.flag || false },
+              atb:     { valor: td.atb?.valor     || '', flag: td.atb?.flag     || false },
+              risco:   { valor: td.risco?.valor   || '', flag: td.risco?.flag   || false },
+              labs:    td.labs || '',
+            };
+
+            // Inject AI-parsed findings into today's evolution
+            const extraConduta = r.condutaAdicional || td.condutaAdicional || '';
+            const extraExames  = r.examesResultados || td.examesResultados || '';
+            if (extraConduta || extraExames) {
+              if (!p.evolutions) p.evolutions = [];
+              const todayEvol = p.evolutions.find(ev => ev.date === today);
+              if (todayEvol) {
+                if (extraExames) todayEvol.labs = (todayEvol.labs ? todayEvol.labs + '\n' : '') + '🌅 Tarde Fixa: ' + extraExames;
+                if (extraConduta) todayEvol.conduta = (todayEvol.conduta ? todayEvol.conduta + '\n' : '') + '>> Tarde Fixa:\n- ' + extraConduta;
+              } else {
+                p.evolutions.push({
+                  id: 'ev-tf-' + Date.now(),
+                  date: today,
+                  doctor: 'Dr. Thiago',
+                  ward: w,
+                  resumo: '',
+                  conduta: extraConduta ? ('>> Tarde Fixa:\n- ' + extraConduta) : '',
+                  labs: extraExames || '',
+                  rawText: '',
+                  '24h':'', problems:'', abx:'', devices:'', image:'', pareceres:'', impressao:'',
+                });
+              }
+            }
+            tfSaved++;
+            break;
+          }
+        } catch(e) { console.warn('[TF apply]', e); }
+      }
+    };
 
     // ── 2. Build leito→ward map ──
     const leitoWardMap = {};
@@ -2501,7 +2537,10 @@ async function _confirmImport() {
       } catch(e) { console.error('[import item]', idx, r?.filename, e); }
     }
 
-    // ── 4. Save ──
+    // ── 4. Apply Tarde Fixa AFTER patients/evolutions exist ──
+    applyTardeFixas();
+
+    // ── 5. Save ──
     saveData(data);
     console.log('[import] SAVED. updated:', updated, 'created:', created, 'ward:', importWard);
     console.log('[import] Ward data after save:', (data[importWard]||[]).map(p=>`LT${p.leito} ${p.name}`));
@@ -3868,12 +3907,12 @@ ${text.substring(0, 3000)}`);
 }
 
 async function processTextInput() {
-  const text = document.getElementById('paste-text').value.trim();
+  const text = (document.getElementById('paste-text')||{}).value.trim();
   if (!text) { showToast('⚠️ Digite ou cole algum texto', 'error'); return; }
   await processFileText(text, 'texto_colado');
 }
 
-function clearPasteText() { document.getElementById('paste-text').value = ''; }
+function clearPasteText() { (document.getElementById('paste-text')||{}).value = ''; }
 
 function renderFilesList(p) {
   const container = document.getElementById('uploaded-files-list');
@@ -3901,18 +3940,18 @@ function startRecording() {
   btn.textContent = '⏹️';
   btn.classList.add('recording');
   area.classList.add('recording');
-  document.getElementById('rec-status').textContent = 'Gravando...';
+  (document.getElementById('rec-status')||{}).textContent = 'Gravando...';
   (document.getElementById('transcription-box')?.style ?? {}).display = 'block';
-  document.getElementById('transcription-box').innerHTML = '<span class="cursor"></span>';
+  (document.getElementById('transcription-box')||{}).innerHTML = '<span class="cursor"></span>';
   (document.getElementById('transcription-actions')?.style ?? {}).display = 'flex';
   state.recTimer = setInterval(() => {
     state.recSeconds++;
     const m = Math.floor(state.recSeconds/60).toString().padStart(2,'0');
     const s = (state.recSeconds%60).toString().padStart(2,'0');
-    document.getElementById('rec-time').textContent = m+':'+s;
+    (document.getElementById('rec-time')||{}).textContent = m+':'+s;
     // Simulated transcription (in real app, would use Whisper)
     if (state.recSeconds % 5 === 0 && getApiKey()) {
-      document.getElementById('transcription-box').innerHTML = `<em style="color:var(--text-muted)">Transcrevendo em tempo real... (${m}:${s})</em><span class="cursor"></span>`;
+      (document.getElementById('transcription-box')||{}).innerHTML = `<em style="color:var(--text-muted)">Transcrevendo em tempo real... (${m}:${s})</em><span class="cursor"></span>`;
     }
   }, 1000);
   showToast('🎙️ Gravação iniciada');
@@ -3926,11 +3965,11 @@ function stopRecording() {
   btn.textContent = '🎙️';
   btn.classList.remove('recording');
   area.classList.remove('recording');
-  document.getElementById('rec-status').textContent = 'Gravação concluída';
+  (document.getElementById('rec-status')||{}).textContent = 'Gravação concluída';
   const m = Math.floor(state.recSeconds/60).toString().padStart(2,'0');
   const s = (state.recSeconds%60).toString().padStart(2,'0');
-  state.transcriptionText = document.getElementById('transcription-box').textContent || '';
-  document.getElementById('transcription-box').innerHTML = `<em style="color:var(--text-muted)">Áudio gravado: ${m}:${s}. Clique em "Processar com IA" para transcrever e organizar os dados clínicos.</em>`;
+  state.transcriptionText = (document.getElementById('transcription-box')||{}).textContent || '';
+  (document.getElementById('transcription-box')||{}).innerHTML = `<em style="color:var(--text-muted)">Áudio gravado: ${m}:${s}. Clique em "Processar com IA" para transcrever e organizar os dados clínicos.</em>`;
   showToast(`✅ Gravação de ${m}:${s} concluída`, 'success');
 }
 
@@ -3945,8 +3984,8 @@ function clearTranscription() {
   state.transcriptionText = '';
   (document.getElementById('transcription-box')?.style ?? {}).display = 'none';
   (document.getElementById('transcription-actions')?.style ?? {}).display = 'none';
-  document.getElementById('rec-status').textContent = 'Pressione para gravar';
-  document.getElementById('rec-time').textContent = '00:00';
+  (document.getElementById('rec-status')||{}).textContent = 'Pressione para gravar';
+  (document.getElementById('rec-time')||{}).textContent = '00:00';
 }
 
 // ── ROUND MODE ──
@@ -3965,16 +4004,16 @@ function startRoundRecording() {
   const area = document.getElementById('round-recorder');
   btn.textContent = '⏹️'; btn.classList.add('recording');
   area.classList.add('recording');
-  document.getElementById('round-rec-status').textContent = 'Round em andamento...';
+  (document.getElementById('round-rec-status')||{}).textContent = 'Round em andamento...';
   const bannerBtn = document.getElementById('round-banner-btn');
   if (bannerBtn) bannerBtn.textContent = 'Encerrar Round';
   state.roundTimer = setInterval(() => {
     state.roundSeconds++;
     const m = Math.floor(state.roundSeconds/60).toString().padStart(2,'0');
     const s = (state.roundSeconds%60).toString().padStart(2,'0');
-    document.getElementById('round-rec-time').textContent = m+':'+s;
+    (document.getElementById('round-rec-time')||{}).textContent = m+':'+s;
   }, 1000);
-  document.getElementById('round-transcription').innerHTML = '<em style="color:var(--text-muted);">Dite continuamente. Diga "próximo paciente" ou o nome do paciente para mudar de sujeito. A IA irá organizar automaticamente...</em><span class="cursor"></span>';
+  (document.getElementById('round-transcription')||{}).innerHTML = '<em style="color:var(--text-muted);">Dite continuamente. Diga "próximo paciente" ou o nome do paciente para mudar de sujeito. A IA irá organizar automaticamente...</em><span class="cursor"></span>';
   showToast('🎙️ Modo Round iniciado');
 }
 
@@ -3985,7 +4024,7 @@ async function stopRoundRecording() {
   const area = document.getElementById('round-recorder');
   btn.textContent = '🎙️'; btn.classList.remove('recording');
   area.classList.remove('recording');
-  document.getElementById('round-rec-status').textContent = 'Round encerrado';
+  (document.getElementById('round-rec-status')||{}).textContent = 'Round encerrado';
   const bannerBtn = document.getElementById('round-banner-btn');
   if (bannerBtn) bannerBtn.textContent = 'Iniciar Round';
   showToast('✅ Round encerrado. Gerando resumo completo...', 'success');
@@ -4482,7 +4521,7 @@ function renderSumarios() {
 async function askAI() {
   const key = getApiKey();
   if (!key) { openApiKeyModal(); return; }
-  const query = document.getElementById('ai-query').value.trim();
+  const query = (document.getElementById('ai-query')||{}).value.trim();
   if (!query) { showToast('⚠️ Digite uma pergunta', 'error'); return; }
   const container = document.getElementById('ai-response');
   container.innerHTML = '<div class="ai-loading"><div class="ai-spinner"></div> Consultando base de conhecimento médico...</div>';
@@ -4501,7 +4540,7 @@ Seja objetivo e clínico.`);
   } catch(e) { container.innerHTML = `<div style="color:var(--danger);">❌ Erro: ${escapeHtml(e.message)}</div>`; }
 }
 
-function setAIQuery(q) { document.getElementById('ai-query').value = q; }
+function setAIQuery(q) { (document.getElementById('ai-query')||{}).value = q; }
 
 // ══════════════════════════════════════════════
 //  TIMELINE
@@ -5504,15 +5543,15 @@ function startEvolRec() {
   const btn = document.getElementById('evol-rec-btn');
   const area = document.getElementById('evol-recorder-area');
   btn.textContent = '⏹️'; btn.classList.add('recording'); area.classList.add('recording');
-  document.getElementById('evol-rec-status').textContent = 'Gravando... dite a evolução';
+  (document.getElementById('evol-rec-status')||{}).textContent = 'Gravando... dite a evolução';
   (document.getElementById('evol-transcription-box')?.style ?? {}).display = 'block';
-  document.getElementById('evol-transcription-box').innerHTML = '<span class="cursor"></span>';
+  (document.getElementById('evol-transcription-box')||{}).innerHTML = '<span class="cursor"></span>';
   (document.getElementById('evol-transcription-actions')?.style ?? {}).display = 'flex';
   evolRecState.timer = setInterval(() => {
     evolRecState.seconds++;
     const m = Math.floor(evolRecState.seconds/60).toString().padStart(2,'0');
     const s = (evolRecState.seconds%60).toString().padStart(2,'0');
-    document.getElementById('evol-rec-time').textContent = m+':'+s;
+    (document.getElementById('evol-rec-time')||{}).textContent = m+':'+s;
   }, 1000);
   showToast('🎙️ Gravando evolução...');
 }
@@ -5524,8 +5563,8 @@ function stopEvolRec() {
   btn.textContent = '🎙️'; btn.classList.remove('recording'); area.classList.remove('recording');
   const m = Math.floor(evolRecState.seconds/60).toString().padStart(2,'0');
   const s = (evolRecState.seconds%60).toString().padStart(2,'0');
-  document.getElementById('evol-rec-status').textContent = `Gravado: ${m}:${s} — clique em "Processar"`;
-  document.getElementById('evol-transcription-box').innerHTML = `<em style="color:var(--text-muted)">Áudio ${m}:${s} capturado. A IA irá transcrever e distribuir os dados nos campos da evolução. Clique em "Processar com IA".</em>`;
+  (document.getElementById('evol-rec-status')||{}).textContent = `Gravado: ${m}:${s} — clique em "Processar"`;
+  (document.getElementById('evol-transcription-box')||{}).innerHTML = `<em style="color:var(--text-muted)">Áudio ${m}:${s} capturado. A IA irá transcrever e distribuir os dados nos campos da evolução. Clique em "Processar com IA".</em>`;
   showToast(`✅ Áudio ${m}:${s} capturado`, 'success');
 }
 function resetEvolRecorder() {
@@ -5546,7 +5585,7 @@ function resetEvolRecorder() {
 async function processEvolTranscription() {
   const key = getApiKey();
   if (!key) { openApiKeyModal(); return; }
-  const sampleText = document.getElementById('evol-transcription-box').innerText || 'Paciente afebril, hemodinamicamente estável. PCR reduziu de 210 para 140. Mantendo pip-tazo. Diurese preservada. Solicitar nova TC de tórax amanhã. Suspender cateter vesical.';
+  const sampleText = (document.getElementById('evol-transcription-box')||{}).innerText || 'Paciente afebril, hemodinamicamente estável. PCR reduziu de 210 para 140. Mantendo pip-tazo. Diurese preservada. Solicitar nova TC de tórax amanhã. Suspender cateter vesical.';
   await processFileText(sampleText, 'gravação_evolução');
   (document.getElementById('evol-transcription-box')?.style ?? {}).display = 'none';
   (document.getElementById('evol-transcription-actions')?.style ?? {}).display = 'none';
@@ -5554,8 +5593,8 @@ async function processEvolTranscription() {
 function clearEvolTranscription() {
   (document.getElementById('evol-transcription-box')?.style ?? {}).display = 'none';
   (document.getElementById('evol-transcription-actions')?.style ?? {}).display = 'none';
-  document.getElementById('evol-rec-status').textContent = 'Pressione e dite a evolução ou trechos clínicos';
-  document.getElementById('evol-rec-time').textContent = '00:00';
+  (document.getElementById('evol-rec-status')||{}).textContent = 'Pressione e dite a evolução ou trechos clínicos';
+  (document.getElementById('evol-rec-time')||{}).textContent = '00:00';
 }
 
 // ══════════════════════════════════════════════
@@ -5571,15 +5610,15 @@ function startSumRec() {
   const btn = document.getElementById('sum-rec-btn');
   const area = document.getElementById('sum-recorder-area');
   btn.textContent = '⏹️'; btn.classList.add('recording'); area.classList.add('recording');
-  document.getElementById('sum-rec-status').textContent = 'Gravando... dite informações para o sumário';
+  (document.getElementById('sum-rec-status')||{}).textContent = 'Gravando... dite informações para o sumário';
   (document.getElementById('sum-transcription-box')?.style ?? {}).display = 'block';
-  document.getElementById('sum-transcription-box').innerHTML = '<span class="cursor"></span>';
+  (document.getElementById('sum-transcription-box')||{}).innerHTML = '<span class="cursor"></span>';
   (document.getElementById('sum-transcription-actions')?.style ?? {}).display = 'flex';
   sumRecState.timer = setInterval(() => {
     sumRecState.seconds++;
     const m = Math.floor(sumRecState.seconds/60).toString().padStart(2,'0');
     const s = (sumRecState.seconds%60).toString().padStart(2,'0');
-    document.getElementById('sum-rec-time').textContent = m+':'+s;
+    (document.getElementById('sum-rec-time')||{}).textContent = m+':'+s;
   }, 1000);
 }
 function stopSumRec() {
@@ -5589,8 +5628,8 @@ function stopSumRec() {
   btn.textContent = '🎙️'; btn.classList.remove('recording'); area.classList.remove('recording');
   const m = Math.floor(sumRecState.seconds/60).toString().padStart(2,'0');
   const s = (sumRecState.seconds%60).toString().padStart(2,'0');
-  document.getElementById('sum-rec-status').textContent = `Áudio ${m}:${s} capturado`;
-  document.getElementById('sum-transcription-box').innerHTML = `<em style="color:var(--text-muted)">Áudio capturado. Clique em "Incorporar ao Sumário".</em>`;
+  (document.getElementById('sum-rec-status')||{}).textContent = `Áudio ${m}:${s} capturado`;
+  (document.getElementById('sum-transcription-box')||{}).innerHTML = `<em style="color:var(--text-muted)">Áudio capturado. Clique em "Incorporar ao Sumário".</em>`;
   showToast(`✅ Áudio ${m}:${s} capturado`, 'success');
 }
 async function processSumTranscription() {
@@ -5600,7 +5639,7 @@ async function processSumTranscription() {
   const all = [...data.cmm, ...data.cmf1, ...data.cmf2];
   const p = all.find(x => x.id === state.currentPatientId);
   if (!p) return;
-  const voiceText = document.getElementById('sum-transcription-box').innerText || 'Paciente recebeu alta em bom estado geral, afebril, com orientações de retorno ao ambulatório.';
+  const voiceText = (document.getElementById('sum-transcription-box')||{}).innerText || 'Paciente recebeu alta em bom estado geral, afebril, com orientações de retorno ao ambulatório.';
   const existingSumario = p.sumario || '';
   const container = document.getElementById('sumario-content');
   container.innerHTML = '<div class="ai-loading"><div class="ai-spinner"></div> Incorporando informação de voz ao sumário...</div>';
@@ -5619,8 +5658,8 @@ async function processSumTranscription() {
 function clearSumTranscription() {
   (document.getElementById('sum-transcription-box')?.style ?? {}).display = 'none';
   (document.getElementById('sum-transcription-actions')?.style ?? {}).display = 'none';
-  document.getElementById('sum-rec-status').textContent = 'Pressione para ditar informações adicionais';
-  document.getElementById('sum-rec-time').textContent = '00:00';
+  (document.getElementById('sum-rec-status')||{}).textContent = 'Pressione para ditar informações adicionais';
+  (document.getElementById('sum-rec-time')||{}).textContent = '00:00';
 }
 
 // ══════════════════════════════════════════════
@@ -5636,15 +5675,15 @@ function startLabRec() {
   const btn = document.getElementById('lab-rec-btn');
   const area = document.getElementById('lab-recorder-area');
   btn.textContent = '⏹️'; btn.classList.add('recording'); area.classList.add('recording');
-  document.getElementById('lab-rec-status').textContent = 'Gravando... dite os resultados';
+  (document.getElementById('lab-rec-status')||{}).textContent = 'Gravando... dite os resultados';
   (document.getElementById('lab-transcription-box')?.style ?? {}).display = 'block';
-  document.getElementById('lab-transcription-box').innerHTML = '<span class="cursor"></span>';
+  (document.getElementById('lab-transcription-box')||{}).innerHTML = '<span class="cursor"></span>';
   (document.getElementById('lab-transcription-actions')?.style ?? {}).display = 'flex';
   labRecState.timer = setInterval(() => {
     labRecState.seconds++;
     const m = Math.floor(labRecState.seconds/60).toString().padStart(2,'0');
     const s = (labRecState.seconds%60).toString().padStart(2,'0');
-    document.getElementById('lab-rec-time').textContent = m+':'+s;
+    (document.getElementById('lab-rec-time')||{}).textContent = m+':'+s;
   }, 1000);
 }
 function stopLabRec() {
@@ -5654,8 +5693,8 @@ function stopLabRec() {
   btn.textContent = '🎙️'; btn.classList.remove('recording'); area.classList.remove('recording');
   const m = Math.floor(labRecState.seconds/60).toString().padStart(2,'0');
   const s = (labRecState.seconds%60).toString().padStart(2,'0');
-  document.getElementById('lab-rec-status').textContent = `Áudio ${m}:${s} — clique em "Extrair"`;
-  document.getElementById('lab-transcription-box').innerHTML = `<em style="color:var(--text-muted)">Áudio capturado. Clique em "Extrair e atualizar Espelho".</em>`;
+  (document.getElementById('lab-rec-status')||{}).textContent = `Áudio ${m}:${s} — clique em "Extrair"`;
+  (document.getElementById('lab-transcription-box')||{}).innerHTML = `<em style="color:var(--text-muted)">Áudio capturado. Clique em "Extrair e atualizar Espelho".</em>`;
   showToast(`✅ Áudio ${m}:${s} capturado`, 'success');
 }
 async function processLabTranscription() {
@@ -5680,8 +5719,8 @@ async function processLabTranscription() {
 function clearLabTranscription() {
   (document.getElementById('lab-transcription-box')?.style ?? {}).display = 'none';
   (document.getElementById('lab-transcription-actions')?.style ?? {}).display = 'none';
-  document.getElementById('lab-rec-status').textContent = 'Ex: "Hemoglobina 10,2, leucócitos 18 mil, PCR 210"';
-  document.getElementById('lab-rec-time').textContent = '00:00';
+  (document.getElementById('lab-rec-status')||{}).textContent = 'Ex: "Hemoglobina 10,2, leucócitos 18 mil, PCR 210"';
+  (document.getElementById('lab-rec-time')||{}).textContent = '00:00';
 }
 
 // ══════════════════════════════════════════════
@@ -5700,19 +5739,19 @@ function pauseEvolTabRecording() {
   if (evolTabRecState.paused) {
     clearInterval(evolTabRecState.timer);
     btn.textContent = '▶ Continuar';
-    document.getElementById('evol-tab-rec-status').textContent = 'Pausado — clique para continuar';
+    (document.getElementById('evol-tab-rec-status')||{}).textContent = 'Pausado — clique para continuar';
     document.getElementById('evol-tab-rec-btn').classList.remove('recording');
     document.getElementById('evol-tab-recorder-area').classList.remove('recording');
   } else {
     btn.textContent = '⏸ Pausar';
-    document.getElementById('evol-tab-rec-status').textContent = 'Gravando...';
+    (document.getElementById('evol-tab-rec-status')||{}).textContent = 'Gravando...';
     document.getElementById('evol-tab-rec-btn').classList.add('recording');
     document.getElementById('evol-tab-recorder-area').classList.add('recording');
     evolTabRecState.timer = setInterval(() => {
       evolTabRecState.seconds++;
       const m = Math.floor(evolTabRecState.seconds/60).toString().padStart(2,'0');
       const s = (evolTabRecState.seconds%60).toString().padStart(2,'0');
-      document.getElementById('evol-tab-rec-time').textContent = m+':'+s;
+      (document.getElementById('evol-tab-rec-time')||{}).textContent = m+':'+s;
     }, 1000);
   }
 }
@@ -5722,9 +5761,9 @@ function startEvolTabRec() {
   const area = document.getElementById('evol-tab-recorder-area');
   btn.textContent = '⏹️'; btn.classList.add('recording');
   area.classList.add('recording');
-  document.getElementById('evol-tab-rec-status').textContent = 'Gravando — dite exames, condutas, observações clínicas...';
+  (document.getElementById('evol-tab-rec-status')||{}).textContent = 'Gravando — dite exames, condutas, observações clínicas...';
   (document.getElementById('evol-tab-transcription-box')?.style ?? {}).display = 'block';
-  document.getElementById('evol-tab-transcription-box').innerHTML = '<span class="cursor"></span>';
+  (document.getElementById('evol-tab-transcription-box')||{}).innerHTML = '<span class="cursor"></span>';
   (document.getElementById('evol-tab-transcription-actions')?.style ?? {}).display = 'none';
   (document.getElementById('evol-tab-pause-btn')?.style ?? {}).display = 'inline-flex';
   (document.getElementById('evol-tab-clear-btn')?.style ?? {}).display = 'inline-flex';
@@ -5732,7 +5771,7 @@ function startEvolTabRec() {
     evolTabRecState.seconds++;
     const m = Math.floor(evolTabRecState.seconds/60).toString().padStart(2,'0');
     const s = (evolTabRecState.seconds%60).toString().padStart(2,'0');
-    document.getElementById('evol-tab-rec-time').textContent = m+':'+s;
+    (document.getElementById('evol-tab-rec-time')||{}).textContent = m+':'+s;
   }, 1000);
   showToast('🎙️ Gravando — fale livremente sobre o paciente');
 }
@@ -5746,8 +5785,8 @@ function stopEvolTabRec() {
   (document.getElementById('evol-tab-pause-btn')?.style ?? {}).display = 'none';
   const m = Math.floor(evolTabRecState.seconds/60).toString().padStart(2,'0');
   const s = (evolTabRecState.seconds%60).toString().padStart(2,'0');
-  document.getElementById('evol-tab-rec-status').textContent = `Áudio ${m}:${s} — clique em "Processar"`;
-  document.getElementById('evol-tab-transcription-box').innerHTML =
+  (document.getElementById('evol-tab-rec-status')||{}).textContent = `Áudio ${m}:${s} — clique em "Processar"`;
+  (document.getElementById('evol-tab-transcription-box')||{}).innerHTML =
     `<em style="color:var(--text-muted);">Áudio de ${m}:${s} capturado. A IA irá transcrever, atualizar a evolução e o espelho de exames automaticamente.</em>`;
   (document.getElementById('evol-tab-transcription-actions')?.style ?? {}).display = 'flex';
   showToast(`✅ Áudio ${m}:${s} capturado — clique em "Processar"`,'success');
@@ -5759,8 +5798,8 @@ function clearEvolTabRecording() {
   const area = document.getElementById('evol-tab-recorder-area');
   btn.textContent = '🎙️'; btn.classList.remove('recording');
   area.classList.remove('recording');
-  document.getElementById('evol-tab-rec-status').textContent = 'Grave e dite informações — a IA atualiza a evolução e o espelho de exames automaticamente';
-  document.getElementById('evol-tab-rec-time').textContent = '00:00';
+  (document.getElementById('evol-tab-rec-status')||{}).textContent = 'Grave e dite informações — a IA atualiza a evolução e o espelho de exames automaticamente';
+  (document.getElementById('evol-tab-rec-time')||{}).textContent = '00:00';
   (document.getElementById('evol-tab-transcription-box')?.style ?? {}).display = 'none';
   (document.getElementById('evol-tab-transcription-actions')?.style ?? {}).display = 'none';
   (document.getElementById('evol-tab-pause-btn')?.style ?? {}).display = 'none';
@@ -5771,13 +5810,13 @@ async function processEvolTabAudio() {
   const key = getApiKey();
   if (!key) { openApiKeyModal(); return; }
 
-  const rawText = document.getElementById('evol-tab-transcription-box').innerText.trim();
+  const rawText = (document.getElementById('evol-tab-transcription-box')||{}).innerText.trim();
   if (!rawText || rawText.startsWith('Áudio') || rawText.startsWith('Grave')) {
     showToast('⚠️ Nenhum texto para processar. Grave um áudio primeiro.', 'error');
     return;
   }
 
-  document.getElementById('evol-tab-transcription-box').innerHTML =
+  (document.getElementById('evol-tab-transcription-box')||{}).innerHTML =
     '<div class="ai-loading" style="padding:0;"><div class="ai-spinner"></div> Reconhecendo comando e atualizando evolução...</div>';
   (document.getElementById('evol-tab-transcription-actions')?.style ?? {}).display = 'none';
 
@@ -5909,13 +5948,13 @@ Retorne o estado COMPLETO atualizado de todos os campos, mesmo os não modificad
     passagemWard = ward;
     renderPassagem();
 
-    document.getElementById('evol-tab-transcription-box').innerHTML =
+    (document.getElementById('evol-tab-transcription-box')||{}).innerHTML =
       `<div style="color:var(--success);font-size:13px;line-height:1.6;">✅ Comando reconhecido e aplicado com precisão.<br><span style="font-size:11px;color:var(--text-muted);">Dados anteriores preservados. Apenas as informações mencionadas foram alteradas.</span></div>`;
     (document.getElementById('evol-tab-clear-btn')?.style ?? {}).display = 'inline-flex';
     showToast('✅ Evolução atualizada com precisão', 'success');
 
   } catch(e) {
-    document.getElementById('evol-tab-transcription-box').innerHTML =
+    (document.getElementById('evol-tab-transcription-box')||{}).innerHTML =
       `<div style="color:var(--danger);font-size:13px;">❌ Erro: ${escapeHtml(e.message)}</div>`;
     (document.getElementById('evol-tab-transcription-actions')?.style ?? {}).display = 'flex';
     showToast('❌ Erro: ' + e.message, 'error');
@@ -7037,8 +7076,8 @@ function cleanPatientName(name) {
 
 function renderPassagem() {
   const today = new Date().toLocaleDateString('pt-BR');
-  document.getElementById('passagem-title').textContent = PASSAGEM_WARD_FULL[passagemWard];
-  document.getElementById('passagem-date').textContent = today;
+  (document.getElementById('passagem-title')||{}).textContent = PASSAGEM_WARD_FULL[passagemWard];
+  (document.getElementById('passagem-date')||{}).textContent = today;
 
   const data = [...getData()[passagemWard]].sort(sortByBed);
   const tbody = document.getElementById('passagem-tbody');
@@ -7582,10 +7621,10 @@ async function tfPushSupabase() {
   const key = tfKey();
   try {
     await sb.client.from('tardefixa').upsert({ id: key, ward: TF.ward, date: TF.date, data: TF.data, updated_at: new Date().toISOString() });
-    document.getElementById('tf-sync-status').textContent = '✅ Sincronizado';
+    (document.getElementById('tf-sync-status')||{}).textContent = '✅ Sincronizado';
     (document.getElementById('tf-sync-status')?.style ?? {}).color = 'var(--success)';
   } catch(e) {
-    document.getElementById('tf-sync-status').textContent = '⚠️ Sem nuvem';
+    (document.getElementById('tf-sync-status')||{}).textContent = '⚠️ Sem nuvem';
     (document.getElementById('tf-sync-status')?.style ?? {}).color = 'var(--warning)';
   }
 }
@@ -7612,10 +7651,10 @@ function tfSubscribe() {
       TF.data = payload.new.data;
       tfSaveLocal();
       renderTFCards();
-      document.getElementById('tf-sync-status').textContent = '🔄 Atualizado';
+      (document.getElementById('tf-sync-status')||{}).textContent = '🔄 Atualizado';
       (document.getElementById('tf-sync-status')?.style ?? {}).color = 'var(--blue-400)';
       setTimeout(() => {
-        document.getElementById('tf-sync-status').textContent = '✅ Sincronizado';
+        (document.getElementById('tf-sync-status')||{}).textContent = '✅ Sincronizado';
         (document.getElementById('tf-sync-status')?.style ?? {}).color = 'var(--success)';
       }, 1500);
     })
@@ -8126,68 +8165,83 @@ function splitTardeFixaBlocks(text) {
 
 // ── parseTardeFixa: divide o documento em blocos por LT e parseia cada um ──
 async function parseTardeFixa(text, filename) {
-  // Extract date from filename or text header
   const dateFromFile = (() => {
     const m = filename.match(/(\d{2})[_\-\s]?(\d{2})/);
-    if (m) return `${m[1]}/${m[2]}`;
+    if (m) return m[1]+'/'+m[2];
     const m2 = text.match(/TARDE FIXA[^0-9]*(\d{2})[\/\s_\-](\d{2})/i);
-    if (m2) return `${m2[1]}/${m2[2]}`;
+    if (m2) return m2[1]+'/'+m2[2];
     return new Date().toLocaleDateString('pt-BR');
   })();
 
-  // Split into per-patient blocks by "LT XX - Name" headers
-  const LT_HEADER_RX = /^(?:LT\s+(?:CM\s+)?(\d+)\s*[-–]\s*(.+))$/im;
+  // Split by LT headers
   const lines = text.split('\n');
   const blocks = [];
-  let curBlock = null;
-
+  let cur = null;
   for (const line of lines) {
     const t = line.trim();
-    // Skip document header and template footer
-    if (/^TARDE FIXA/i.test(t)) continue;
-    if (/^MODELO$/i.test(t)) break;
-    if (/^ATEN[ÇC][ÃA]O:/i.test(t)) continue;
-    if (/^LT\s+XX/i.test(t)) break;
-
-    const hm = t.match(/^LT\s+(?:CM\s+)?(\d+)\s*[-–]\s*(.+)/i);
+    if (!t || /^TARDE FIXA/i.test(t) || /^MODELO$/i.test(t) || /^LT\s+XX/i.test(t)) continue;
+    const hm = t.match(/^LT\s+(?:CM\s+)?(\d+(?:[.,]\d+)?[A-Za-z]?)\s*[-\u2013]\s*(.+)/i);
     if (hm) {
-      if (curBlock) blocks.push(curBlock);
-      curBlock = {
-        leito: hm[1].trim(),
-        name:  hm[2].trim().replace(/\s*NO CTI.*$/i,'').replace(/\*+/g,'').trim(),
-        lines: [],
+      if (cur) blocks.push(cur);
+      cur = {
+        leito: hm[1].replace(',','.').trim(),
+        name:  hm[2].replace(/\s*NO CTI.*$/i,'').replace(/\*+/g,'').trim(),
+        lines: []
       };
-    } else if (curBlock && t) {
-      curBlock.lines.push(t);
+    } else if (cur && t) {
+      cur.lines.push(t);
     }
   }
-  if (curBlock) blocks.push(curBlock);
+  if (cur) blocks.push(cur);
 
-  // Parse each block and match to patient in storage
-  const data = getData();
-  return blocks.map(block => {
-    const parsed = parseTardeFixaBlock(block, dateFromFile);
+  const useAI = !!getApiKey();
 
-    // Find patient in storage by leito
-    const leitoNum = parseInt(block.leito, 10);
-    let matchedPatientId = null;
-    outer: for (const w of ['cmm','cmf1','cmf2']) {
-      for (const p of (data[w]||[])) {
-        if (parseInt(String(p.leito||''),10) === leitoNum) {
-          matchedPatientId = p.id;
-          break outer;
+  return Promise.all(blocks.map(async (block) => {
+    const blockText = block.lines.join('\n');
+    let tardeData = { date: dateFromFile };
+
+    if (useAI && blockText.trim()) {
+      try {
+        const prompt = 'Analise este bloco de Tarde Fixa hospitalar e extraia as informações em JSON.\n\nPACIENTE: LT '+block.leito+' - '+block.name+'\nCONTEÚDO:\n'+blockText+'\n\nRetorne APENAS este JSON:\n{\n  "observacoes": ["obs 1"],\n  "pendencias": [{"text": "tarefa", "done": false}],\n  "dieta": {"valor": "texto", "flag": false},\n  "clexane": {"valor": "texto", "flag": false},\n  "atb": {"valor": "texto", "flag": false},\n  "risco": {"valor": "texto", "flag": false},\n  "labs": "exames/resultados mencionados",\n  "conduta_adicional": "condutas e intercorrências relevantes para evolução",\n  "exames_resultados": "resultados de exames"\n}\n"flag"=true se valor for relevante (não for vazio/sem/não).';
+
+        const raw = await callClaude(prompt, 600);
+        const clean = raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+        let parsed;
+        try { parsed = JSON.parse(clean); }
+        catch(e2) { const j = clean.match(/\{[\s\S]+\}/); if(j) parsed = JSON.parse(j[0]); }
+
+        if (parsed) {
+          tardeData = {
+            date: dateFromFile,
+            observacoes: Array.isArray(parsed.observacoes) ? parsed.observacoes.filter(Boolean) : [],
+            pendencias: (parsed.pendencias||[]).map(p => typeof p==='string' ? {text:p,done:false} : {text:p.text||'',done:!!p.done}),
+            dieta:   { valor: parsed.dieta?.valor   || '', flag: !!(parsed.dieta?.flag) },
+            clexane: { valor: parsed.clexane?.valor || '', flag: !!(parsed.clexane?.flag) },
+            atb:     { valor: parsed.atb?.valor     || '', flag: !!(parsed.atb?.flag) },
+            risco:   { valor: parsed.risco?.valor   || '', flag: !!(parsed.risco?.flag) },
+            labs:    parsed.labs || '',
+            condutaAdicional: parsed.conduta_adicional || '',
+            examesResultados: parsed.exames_resultados || '',
+          };
         }
+      } catch(e) {
+        console.warn('[parseTardeFixa AI] LT'+block.leito, e.message);
+        tardeData = { ...parseTardeFixaBlock(block, dateFromFile), date: dateFromFile };
       }
+    } else {
+      tardeData = { ...parseTardeFixaBlock(block, dateFromFile), date: dateFromFile };
     }
 
     return {
-      ...parsed,
-      date:             dateFromFile,
-      matchedPatientId,
-      isTardeFixa:      true,
-      tardeData:        { ...parsed, date: dateFromFile },
+      leito: block.leito,
+      name:  block.name,
+      date:  dateFromFile,
+      isTardeFixa: true,
+      tardeData,
+      condutaAdicional: tardeData.condutaAdicional || '',
+      examesResultados: tardeData.examesResultados || '',
     };
-  });
+  }));
 }
 
 function parseTardeFixaBlock(block, fileDate) {
@@ -8351,7 +8405,7 @@ function selectWard(ward) {
 
 // Alternar abas no prontuário do paciente
 function switchTab(tab) {
-  const allTabs = ['tab-evolucao','tab-exames','tab-imagem','tab-timeline','tab-ai-suggest','tab-sumario'];
+  const allTabs = ['tab-evolucao','tab-exames','tab-imagem','tab-timeline','tab-tardefixa-tab','tab-ai-suggest','tab-sumario'];
   document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('[onclick^="switchTab"]').forEach(t => {
     if (t.getAttribute('onclick') === "switchTab('" + tab + "')") t.classList.add('active');
@@ -8371,12 +8425,13 @@ function switchTab(tab) {
   }
   if (!patient) return;
 
-  if (tab === 'evolucao')    renderEvolucaoCompleta(patient);
-  if (tab === 'exames')      renderLaboratorio(patient);
-  if (tab === 'imagem')      renderExamesImagem(patient);
-  if (tab === 'timeline')    renderTimeline(patient);
-  if (tab === 'ai-suggest')  renderAISuggest(patient);
-  if (tab === 'sumario')     renderSumarioAlta(patient);
+  if (tab === 'evolucao')       renderEvolucaoCompleta(patient);
+  if (tab === 'exames')         renderLaboratorio(patient);
+  if (tab === 'imagem')         renderExamesImagem(patient);
+  if (tab === 'timeline')       renderTimeline(patient);
+  if (tab === 'tardefixa-tab')  renderTardeFixaTab(patient);
+  if (tab === 'ai-suggest')     renderAISuggest(patient);
+  if (tab === 'sumario')        renderSumarioAlta(patient);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -8390,7 +8445,89 @@ function switchTab(tab) {
 // ══════════════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════
-//  TAB 1 — EVOLUÇÃO COMPLETA
+//  TARDE FIXA TAB — render no prontuário do paciente
+// ══════════════════════════════════════════════════════════════════
+function renderTardeFixaTab(patient) {
+  const el = document.getElementById('tab-tardefixa-tab');
+  if (!el) return;
+
+  const tf = patient.tardeFixa;
+  if (!tf || (!tf.rawText && !tf.observacoes?.length && !tf.pendencias?.length && !tf.dieta?.valor)) {
+    el.innerHTML = `
+      <div style="text-align:center;padding:60px 20px;">
+        <div style="font-size:48px;margin-bottom:14px;">🌅</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:8px;">Tarde Fixa</div>
+        <div style="font-size:13px;color:var(--text-muted);">Nenhuma tarde fixa importada para este paciente ainda.<br>
+        Importe um arquivo com "tarde fixa" no nome para preencher esta aba.</div>
+      </div>`;
+    return;
+  }
+
+  const date = tf.date || '—';
+  const rows = [];
+
+  // Raw text display (AI-parsed content)
+  if (tf.rawText) {
+    el.innerHTML = `
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);">
+          <div style="font-size:14px;font-weight:700;color:var(--warning);">🌅 Tarde Fixa — ${escapeHtml(date)}</div>
+        </div>
+        <div style="white-space:pre-wrap;font-size:13px;color:var(--text-secondary);line-height:1.8;">${escapeHtml(tf.rawText)}</div>
+      </div>`;
+    return;
+  }
+
+  // Structured display
+  const section = (label, val, flag, color) => {
+    if (!val) return '';
+    return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border);">
+      <div style="font-size:12px;font-weight:700;color:var(--text-muted);min-width:90px;text-transform:uppercase;letter-spacing:.4px;padding-top:1px;">${label}</div>
+      <div style="font-size:13px;color:${flag ? color||'var(--warning)' : 'var(--text-primary)'};flex:1;">${escapeHtml(val)}</div>
+    </div>`;
+  };
+
+  const obsHtml = (tf.observacoes||[]).filter(Boolean).map(o =>
+    `<div style="font-size:13px;color:var(--text-secondary);padding:3px 0;">• ${escapeHtml(o)}</div>`).join('');
+
+  const pendHtml = (tf.pendencias||[]).filter(p=>p.text).map(p =>
+    `<label style="display:flex;gap:8px;align-items:flex-start;padding:4px 0;cursor:pointer;">
+      <input type="checkbox" ${p.done?'checked':''} style="margin-top:2px;accent-color:var(--success);" onchange="tfTogglePend('${patient.id}','${escapeHtml(p.text)}',this.checked)">
+      <span style="font-size:13px;color:${p.done?'var(--text-muted)':'var(--text-primary)'};${p.done?'text-decoration:line-through;':''}">
+        ${escapeHtml(p.text)}
+      </span>
+    </label>`).join('');
+
+  el.innerHTML = `
+    <div style="background:var(--bg-card);border:1px solid var(--warning);border-radius:12px;overflow:hidden;">
+      <div style="background:rgba(245,158,11,.1);padding:14px 18px;border-bottom:1px solid var(--warning);display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:14px;font-weight:700;color:var(--warning);">🌅 Tarde Fixa — ${escapeHtml(date)}</div>
+      </div>
+      <div style="padding:16px 18px;">
+        ${obsHtml ? `<div style="margin-bottom:12px;">${obsHtml}</div>` : ''}
+        ${pendHtml ? `<div style="margin-bottom:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:6px;">Pendências</div>${pendHtml}</div>` : ''}
+        ${section('Dieta', tf.dieta?.valor, tf.dieta?.flag)}
+        ${section('Clexane', tf.clexane?.valor, tf.clexane?.flag)}
+        ${section('ATB', tf.atb?.valor, tf.atb?.flag, '#ef4444')}
+        ${section('Risco', tf.risco?.valor, tf.risco?.flag)}
+        ${tf.labs ? section('Labs', tf.labs, false) : ''}
+      </div>
+    </div>`;
+}
+
+function tfTogglePend(patientId, text, done) {
+  const data = getData();
+  for (const w of ['cmm','cmf1','cmf2']) {
+    const p = (data[w]||[]).find(x=>x.id===patientId);
+    if (p && p.tardeFixa?.pendencias) {
+      const pend = p.tardeFixa.pendencias.find(pd=>pd.text===text);
+      if (pend) { pend.done = done; saveData(data); }
+      break;
+    }
+  }
+}
+
+
 //  Texto integral do arquivo até o fim da seção de condutas
 // ══════════════════════════════════════════════════════════════════
 function renderEvolucaoCompleta(patient) {
@@ -9079,7 +9216,7 @@ async function gerarSumario_v2(patientId) {
   if (!patient) return;
 
   (document.getElementById('sumario-loading')?.style ?? {}).display = 'flex';
-  document.getElementById('btn-gerar-sumario').disabled = true;
+  (document.getElementById('btn-gerar-sumario')||{}).disabled = true;
 
   const today = new Date().toLocaleDateString('pt-BR');
   const evols = [...(patient.evolutions||[])].sort((a,b) => {
@@ -9153,12 +9290,12 @@ Seja completo, formal, clínico e escreva em texto corrido organizado.`;
     if (editor)   { editor.style.display = 'block'; }
     if (textarea) { textarea.value = text; }
     if (exportBtn){ exportBtn.style.display = 'inline-flex'; }
-    document.getElementById('btn-gerar-sumario').disabled = false;
+    (document.getElementById('btn-gerar-sumario')||{}).disabled = false;
     showToast('✅ Sumário gerado — edite conforme necessário', 'success');
 
   } catch(e) {
     (document.getElementById('sumario-loading')?.style ?? {}).display = 'none';
-    document.getElementById('btn-gerar-sumario').disabled = false;
+    (document.getElementById('btn-gerar-sumario')||{}).disabled = false;
     showToast('❌ Erro ao gerar sumário: ' + (e.message||e), 'error');
   }
 }
