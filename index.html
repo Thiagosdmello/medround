@@ -1767,8 +1767,8 @@ const sb = {
   channel: null,
   // ══════════════════════════════════════════════
   //  COLE SUAS CREDENCIAIS DO SUPABASE AQUI:
-  url: 'https://sxtihlavbggfpplhlbsm.supabase.co',        // ex: https://abcdefgh.supabase.co
-  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4dGlobGF2YmdnZnBwbGhsYnNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5ODQwMDMsImV4cCI6MjA5NDU2MDAwM30.Rjwx6xbk27oM3_j-7FPRU57cmikbXi-x71NXcplI5RU',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  url: 'COLE_AQUI_A_PROJECT_URL',        // ex: https://abcdefgh.supabase.co
+  key: 'COLE_AQUI_A_ANON_KEY',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   // ══════════════════════════════════════════════
   isSyncing: false
 };
@@ -1939,26 +1939,31 @@ function sbSubscribe() {
 function openSupabaseModal() {
   const url = localStorage.getItem('supaUrl') || '';
   const key = localStorage.getItem('supaKey') || '';
-  document.getElementById('supa-url').value = url;
-  document.getElementById('supa-key').value = key;
-  document.getElementById('supa-sql-section').style.display = 'none';
-  document.getElementById('btn-show-sql').style.display = url ? 'inline-flex' : 'none';
-  document.getElementById('supa-sql-text').textContent = SUPA_SQL;
+  const safeSet = (id, val) => { const e = document.getElementById(id); if(e) e.style.display = val; };
+  const safeVal = (id, val) => { const e = document.getElementById(id); if(e) e.value = val; };
+  safeVal('supa-url', url);
+  safeVal('supa-key', key);
+  safeSet('supa-sql-section', 'none');
+  safeSet('btn-show-sql', url ? 'inline-flex' : 'none');
+  const sqlEl = document.getElementById('supa-sql-text'); if(sqlEl) sqlEl.textContent = SUPA_SQL;
   const banner = document.getElementById('supa-status-banner');
-  if (sb.client) {
-    banner.style.display = 'block';
-    banner.style.background = 'rgba(16,185,129,.1)';
-    banner.style.border = '1px solid rgba(16,185,129,.3)';
-    banner.style.color = 'var(--success)';
-    banner.textContent = '✅ Conectado ao Supabase — dados sincronizados em tempo real';
-  } else {
-    banner.style.display = 'none';
+  if (banner) {
+    if (sb.client) {
+      banner.style.display = 'block';
+      banner.style.background = 'rgba(16,185,129,.1)';
+      banner.style.border = '1px solid rgba(16,185,129,.3)';
+      banner.style.color = 'var(--success)';
+      banner.textContent = '✅ Conectado ao Supabase — dados sincronizados em tempo real';
+    } else {
+      banner.style.display = 'none';
+    }
   }
   openModal('modal-supabase');
 }
 
 function showSupabaseSQL() {
-  document.getElementById('supa-sql-section').style.display = 'block';
+  const el = document.getElementById('supa-sql-section');
+  if (el) el.style.display = 'block';
 }
 
 function copySQLToClipboard() {
@@ -1980,14 +1985,18 @@ async function connectSupabase() {
 
     if (error && error.code === '42P01') {
       // Table doesn't exist — show SQL
-      document.getElementById('supa-sql-section').style.display = 'block';
-      document.getElementById('btn-show-sql').style.display = 'inline-flex';
+      const sqlSec = document.getElementById('supa-sql-section');
+      const sqlBtn = document.getElementById('btn-show-sql');
+      if (sqlSec) sqlSec.style.display = 'block';
+      if (sqlBtn) sqlBtn.style.display = 'inline-flex';
       const banner = document.getElementById('supa-status-banner');
-      banner.style.display = 'block';
-      banner.style.background = 'rgba(245,158,11,.1)';
-      banner.style.border = '1px solid rgba(245,158,11,.3)';
-      banner.style.color = 'var(--warning)';
-      banner.innerHTML = '⚠️ Conexão OK! Mas a tabela não existe ainda.<br>Execute o SQL abaixo no <strong>SQL Editor</strong> do Supabase, depois clique em "Conectar" novamente.';
+      if (banner) {
+        banner.style.display = 'block';
+        banner.style.background = 'rgba(245,158,11,.1)';
+        banner.style.border = '1px solid rgba(245,158,11,.3)';
+        banner.style.color = 'var(--warning)';
+        banner.innerHTML = '⚠️ Conexão OK! Mas a tabela não existe ainda.<br>Execute o SQL abaixo no <strong>SQL Editor</strong> do Supabase, depois clique em "Conectar" novamente.';
+      }
       btn.textContent = 'Conectar'; btn.disabled = false;
       return;
     }
@@ -2075,12 +2084,12 @@ let _batchTardesData = [];
 function openImportPatient() {
   const el = document.getElementById('modal-import');
   if (!el) return;
-  document.getElementById('import-preview').style.display  = 'none';
-  document.getElementById('import-save-btn').style.display = 'none';
-  document.getElementById('import-loading').style.display  = 'none';
+  const safe = (id, val) => { const e = document.getElementById(id); if (e) e.style.display = val; };
+  safe('import-preview',  'none');
+  safe('import-save-btn', 'none');
+  safe('import-loading',  'none');
   const fi = document.getElementById('import-file-input');   if (fi) fi.value = '';
   const fo = document.getElementById('import-folder-input'); if (fo) fo.value = '';
-  // Pre-select current ward
   const sel = document.getElementById('import-ward-select');
   if (sel) sel.value = state.currentWard || 'cmm';
   openModal('modal-import');
@@ -3893,9 +3902,9 @@ function startRecording() {
   btn.classList.add('recording');
   area.classList.add('recording');
   document.getElementById('rec-status').textContent = 'Gravando...';
-  document.getElementById('transcription-box').style.display = 'block';
+  (document.getElementById('transcription-box')?.style ?? {}).display = 'block';
   document.getElementById('transcription-box').innerHTML = '<span class="cursor"></span>';
-  document.getElementById('transcription-actions').style.display = 'flex';
+  (document.getElementById('transcription-actions')?.style ?? {}).display = 'flex';
   state.recTimer = setInterval(() => {
     state.recSeconds++;
     const m = Math.floor(state.recSeconds/60).toString().padStart(2,'0');
@@ -3934,8 +3943,8 @@ async function processTranscription() {
 
 function clearTranscription() {
   state.transcriptionText = '';
-  document.getElementById('transcription-box').style.display = 'none';
-  document.getElementById('transcription-actions').style.display = 'none';
+  (document.getElementById('transcription-box')?.style ?? {}).display = 'none';
+  (document.getElementById('transcription-actions')?.style ?? {}).display = 'none';
   document.getElementById('rec-status').textContent = 'Pressione para gravar';
   document.getElementById('rec-time').textContent = '00:00';
 }
@@ -5496,9 +5505,9 @@ function startEvolRec() {
   const area = document.getElementById('evol-recorder-area');
   btn.textContent = '⏹️'; btn.classList.add('recording'); area.classList.add('recording');
   document.getElementById('evol-rec-status').textContent = 'Gravando... dite a evolução';
-  document.getElementById('evol-transcription-box').style.display = 'block';
+  (document.getElementById('evol-transcription-box')?.style ?? {}).display = 'block';
   document.getElementById('evol-transcription-box').innerHTML = '<span class="cursor"></span>';
-  document.getElementById('evol-transcription-actions').style.display = 'flex';
+  (document.getElementById('evol-transcription-actions')?.style ?? {}).display = 'flex';
   evolRecState.timer = setInterval(() => {
     evolRecState.seconds++;
     const m = Math.floor(evolRecState.seconds/60).toString().padStart(2,'0');
@@ -5539,12 +5548,12 @@ async function processEvolTranscription() {
   if (!key) { openApiKeyModal(); return; }
   const sampleText = document.getElementById('evol-transcription-box').innerText || 'Paciente afebril, hemodinamicamente estável. PCR reduziu de 210 para 140. Mantendo pip-tazo. Diurese preservada. Solicitar nova TC de tórax amanhã. Suspender cateter vesical.';
   await processFileText(sampleText, 'gravação_evolução');
-  document.getElementById('evol-transcription-box').style.display = 'none';
-  document.getElementById('evol-transcription-actions').style.display = 'none';
+  (document.getElementById('evol-transcription-box')?.style ?? {}).display = 'none';
+  (document.getElementById('evol-transcription-actions')?.style ?? {}).display = 'none';
 }
 function clearEvolTranscription() {
-  document.getElementById('evol-transcription-box').style.display = 'none';
-  document.getElementById('evol-transcription-actions').style.display = 'none';
+  (document.getElementById('evol-transcription-box')?.style ?? {}).display = 'none';
+  (document.getElementById('evol-transcription-actions')?.style ?? {}).display = 'none';
   document.getElementById('evol-rec-status').textContent = 'Pressione e dite a evolução ou trechos clínicos';
   document.getElementById('evol-rec-time').textContent = '00:00';
 }
@@ -5563,9 +5572,9 @@ function startSumRec() {
   const area = document.getElementById('sum-recorder-area');
   btn.textContent = '⏹️'; btn.classList.add('recording'); area.classList.add('recording');
   document.getElementById('sum-rec-status').textContent = 'Gravando... dite informações para o sumário';
-  document.getElementById('sum-transcription-box').style.display = 'block';
+  (document.getElementById('sum-transcription-box')?.style ?? {}).display = 'block';
   document.getElementById('sum-transcription-box').innerHTML = '<span class="cursor"></span>';
-  document.getElementById('sum-transcription-actions').style.display = 'flex';
+  (document.getElementById('sum-transcription-actions')?.style ?? {}).display = 'flex';
   sumRecState.timer = setInterval(() => {
     sumRecState.seconds++;
     const m = Math.floor(sumRecState.seconds/60).toString().padStart(2,'0');
@@ -5608,8 +5617,8 @@ async function processSumTranscription() {
   } catch(e) { container.innerHTML = `<div style="color:var(--danger);padding:20px;">❌ ${escapeHtml(e.message)}</div>`; }
 }
 function clearSumTranscription() {
-  document.getElementById('sum-transcription-box').style.display = 'none';
-  document.getElementById('sum-transcription-actions').style.display = 'none';
+  (document.getElementById('sum-transcription-box')?.style ?? {}).display = 'none';
+  (document.getElementById('sum-transcription-actions')?.style ?? {}).display = 'none';
   document.getElementById('sum-rec-status').textContent = 'Pressione para ditar informações adicionais';
   document.getElementById('sum-rec-time').textContent = '00:00';
 }
@@ -5628,9 +5637,9 @@ function startLabRec() {
   const area = document.getElementById('lab-recorder-area');
   btn.textContent = '⏹️'; btn.classList.add('recording'); area.classList.add('recording');
   document.getElementById('lab-rec-status').textContent = 'Gravando... dite os resultados';
-  document.getElementById('lab-transcription-box').style.display = 'block';
+  (document.getElementById('lab-transcription-box')?.style ?? {}).display = 'block';
   document.getElementById('lab-transcription-box').innerHTML = '<span class="cursor"></span>';
-  document.getElementById('lab-transcription-actions').style.display = 'flex';
+  (document.getElementById('lab-transcription-actions')?.style ?? {}).display = 'flex';
   labRecState.timer = setInterval(() => {
     labRecState.seconds++;
     const m = Math.floor(labRecState.seconds/60).toString().padStart(2,'0');
@@ -5669,8 +5678,8 @@ async function processLabTranscription() {
   }
 }
 function clearLabTranscription() {
-  document.getElementById('lab-transcription-box').style.display = 'none';
-  document.getElementById('lab-transcription-actions').style.display = 'none';
+  (document.getElementById('lab-transcription-box')?.style ?? {}).display = 'none';
+  (document.getElementById('lab-transcription-actions')?.style ?? {}).display = 'none';
   document.getElementById('lab-rec-status').textContent = 'Ex: "Hemoglobina 10,2, leucócitos 18 mil, PCR 210"';
   document.getElementById('lab-rec-time').textContent = '00:00';
 }
@@ -5714,11 +5723,11 @@ function startEvolTabRec() {
   btn.textContent = '⏹️'; btn.classList.add('recording');
   area.classList.add('recording');
   document.getElementById('evol-tab-rec-status').textContent = 'Gravando — dite exames, condutas, observações clínicas...';
-  document.getElementById('evol-tab-transcription-box').style.display = 'block';
+  (document.getElementById('evol-tab-transcription-box')?.style ?? {}).display = 'block';
   document.getElementById('evol-tab-transcription-box').innerHTML = '<span class="cursor"></span>';
-  document.getElementById('evol-tab-transcription-actions').style.display = 'none';
-  document.getElementById('evol-tab-pause-btn').style.display = 'inline-flex';
-  document.getElementById('evol-tab-clear-btn').style.display = 'inline-flex';
+  (document.getElementById('evol-tab-transcription-actions')?.style ?? {}).display = 'none';
+  (document.getElementById('evol-tab-pause-btn')?.style ?? {}).display = 'inline-flex';
+  (document.getElementById('evol-tab-clear-btn')?.style ?? {}).display = 'inline-flex';
   evolTabRecState.timer = setInterval(() => {
     evolTabRecState.seconds++;
     const m = Math.floor(evolTabRecState.seconds/60).toString().padStart(2,'0');
@@ -5734,13 +5743,13 @@ function stopEvolTabRec() {
   const area = document.getElementById('evol-tab-recorder-area');
   btn.textContent = '🎙️'; btn.classList.remove('recording');
   area.classList.remove('recording');
-  document.getElementById('evol-tab-pause-btn').style.display = 'none';
+  (document.getElementById('evol-tab-pause-btn')?.style ?? {}).display = 'none';
   const m = Math.floor(evolTabRecState.seconds/60).toString().padStart(2,'0');
   const s = (evolTabRecState.seconds%60).toString().padStart(2,'0');
   document.getElementById('evol-tab-rec-status').textContent = `Áudio ${m}:${s} — clique em "Processar"`;
   document.getElementById('evol-tab-transcription-box').innerHTML =
     `<em style="color:var(--text-muted);">Áudio de ${m}:${s} capturado. A IA irá transcrever, atualizar a evolução e o espelho de exames automaticamente.</em>`;
-  document.getElementById('evol-tab-transcription-actions').style.display = 'flex';
+  (document.getElementById('evol-tab-transcription-actions')?.style ?? {}).display = 'flex';
   showToast(`✅ Áudio ${m}:${s} capturado — clique em "Processar"`,'success');
 }
 function clearEvolTabRecording() {
@@ -5752,10 +5761,10 @@ function clearEvolTabRecording() {
   area.classList.remove('recording');
   document.getElementById('evol-tab-rec-status').textContent = 'Grave e dite informações — a IA atualiza a evolução e o espelho de exames automaticamente';
   document.getElementById('evol-tab-rec-time').textContent = '00:00';
-  document.getElementById('evol-tab-transcription-box').style.display = 'none';
-  document.getElementById('evol-tab-transcription-actions').style.display = 'none';
-  document.getElementById('evol-tab-pause-btn').style.display = 'none';
-  document.getElementById('evol-tab-clear-btn').style.display = 'none';
+  (document.getElementById('evol-tab-transcription-box')?.style ?? {}).display = 'none';
+  (document.getElementById('evol-tab-transcription-actions')?.style ?? {}).display = 'none';
+  (document.getElementById('evol-tab-pause-btn')?.style ?? {}).display = 'none';
+  (document.getElementById('evol-tab-clear-btn')?.style ?? {}).display = 'none';
 }
 
 async function processEvolTabAudio() {
@@ -5770,7 +5779,7 @@ async function processEvolTabAudio() {
 
   document.getElementById('evol-tab-transcription-box').innerHTML =
     '<div class="ai-loading" style="padding:0;"><div class="ai-spinner"></div> Reconhecendo comando e atualizando evolução...</div>';
-  document.getElementById('evol-tab-transcription-actions').style.display = 'none';
+  (document.getElementById('evol-tab-transcription-actions')?.style ?? {}).display = 'none';
 
   const data = getData();
   let patient = null; let ward = null; let pidx = -1;
@@ -5902,13 +5911,13 @@ Retorne o estado COMPLETO atualizado de todos os campos, mesmo os não modificad
 
     document.getElementById('evol-tab-transcription-box').innerHTML =
       `<div style="color:var(--success);font-size:13px;line-height:1.6;">✅ Comando reconhecido e aplicado com precisão.<br><span style="font-size:11px;color:var(--text-muted);">Dados anteriores preservados. Apenas as informações mencionadas foram alteradas.</span></div>`;
-    document.getElementById('evol-tab-clear-btn').style.display = 'inline-flex';
+    (document.getElementById('evol-tab-clear-btn')?.style ?? {}).display = 'inline-flex';
     showToast('✅ Evolução atualizada com precisão', 'success');
 
   } catch(e) {
     document.getElementById('evol-tab-transcription-box').innerHTML =
       `<div style="color:var(--danger);font-size:13px;">❌ Erro: ${escapeHtml(e.message)}</div>`;
-    document.getElementById('evol-tab-transcription-actions').style.display = 'flex';
+    (document.getElementById('evol-tab-transcription-actions')?.style ?? {}).display = 'flex';
     showToast('❌ Erro: ' + e.message, 'error');
   }
 }
@@ -7574,10 +7583,10 @@ async function tfPushSupabase() {
   try {
     await sb.client.from('tardefixa').upsert({ id: key, ward: TF.ward, date: TF.date, data: TF.data, updated_at: new Date().toISOString() });
     document.getElementById('tf-sync-status').textContent = '✅ Sincronizado';
-    document.getElementById('tf-sync-status').style.color = 'var(--success)';
+    (document.getElementById('tf-sync-status')?.style ?? {}).color = 'var(--success)';
   } catch(e) {
     document.getElementById('tf-sync-status').textContent = '⚠️ Sem nuvem';
-    document.getElementById('tf-sync-status').style.color = 'var(--warning)';
+    (document.getElementById('tf-sync-status')?.style ?? {}).color = 'var(--warning)';
   }
 }
 
@@ -7604,10 +7613,10 @@ function tfSubscribe() {
       tfSaveLocal();
       renderTFCards();
       document.getElementById('tf-sync-status').textContent = '🔄 Atualizado';
-      document.getElementById('tf-sync-status').style.color = 'var(--blue-400)';
+      (document.getElementById('tf-sync-status')?.style ?? {}).color = 'var(--blue-400)';
       setTimeout(() => {
         document.getElementById('tf-sync-status').textContent = '✅ Sincronizado';
-        document.getElementById('tf-sync-status').style.color = 'var(--success)';
+        (document.getElementById('tf-sync-status')?.style ?? {}).color = 'var(--success)';
       }, 1500);
     })
     .subscribe();
@@ -9069,7 +9078,7 @@ async function gerarSumario_v2(patientId) {
   }
   if (!patient) return;
 
-  document.getElementById('sumario-loading').style.display = 'flex';
+  (document.getElementById('sumario-loading')?.style ?? {}).display = 'flex';
   document.getElementById('btn-gerar-sumario').disabled = true;
 
   const today = new Date().toLocaleDateString('pt-BR');
@@ -9137,7 +9146,7 @@ Seja completo, formal, clínico e escreva em texto corrido organizado.`;
     }
 
     // Show editor
-    document.getElementById('sumario-loading').style.display = 'none';
+    (document.getElementById('sumario-loading')?.style ?? {}).display = 'none';
     const editor  = document.getElementById('sumario-editor');
     const textarea = document.getElementById('sumario-text');
     const exportBtn = document.getElementById('btn-export-sumario');
@@ -9148,7 +9157,7 @@ Seja completo, formal, clínico e escreva em texto corrido organizado.`;
     showToast('✅ Sumário gerado — edite conforme necessário', 'success');
 
   } catch(e) {
-    document.getElementById('sumario-loading').style.display = 'none';
+    (document.getElementById('sumario-loading')?.style ?? {}).display = 'none';
     document.getElementById('btn-gerar-sumario').disabled = false;
     showToast('❌ Erro ao gerar sumário: ' + (e.message||e), 'error');
   }
@@ -10211,13 +10220,7 @@ function setupDragDrop() {
   });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  autoSyncAllLabs();
-  migrateCondutaFromRawText();
-  updateCounts();
-  renderDashboard();
-  setupDragDrop();
-});
+// ── end of init ──
 </script>
 </body>
 </html>
