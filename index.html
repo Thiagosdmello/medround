@@ -1163,7 +1163,7 @@ input, textarea, select { font-family: inherit; }
         <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;">
           <button class="btn btn-ghost btn-sm" onclick="openCondutas()">📋 Resumo Condutas</button>
           <button class="btn btn-ghost btn-sm" onclick="verificarAltasManual()">🏠 Verificar Altas</button>
-          <button class="btn btn-ghost btn-sm" onclick="toggleDeleteMode()" id="delete-mode-btn" style="color:var(--danger);border-color:var(--danger);">🗑️ Excluir</button>
+          <button class="btn btn-ghost btn-sm" onclick="onDeleteBtnClick()" id="delete-mode-btn" style="color:var(--danger);border-color:var(--danger);">🗑️ Excluir</button>
           <div style="position:relative;display:inline-block;" id="sort-dropdown-wrap">
             <button class="btn btn-ghost btn-sm" onclick="toggleSortDropdown()">⇅ Filtrar</button>
             <div id="sort-dropdown" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:6px;min-width:160px;z-index:50;box-shadow:var(--shadow-lg);">
@@ -1769,8 +1769,8 @@ const sb = {
   channel: null,
   // ══════════════════════════════════════════════
   //  COLE SUAS CREDENCIAIS DO SUPABASE AQUI:
-  url: 'https://sxtihlavbggfpplhlbsm.supabase.co',        // ex: https://abcdefgh.supabase.co
-  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4dGlobGF2YmdnZnBwbGhsYnNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5ODQwMDMsImV4cCI6MjA5NDU2MDAwM30.Rjwx6xbk27oM3_j-7FPRU57cmikbXi-x71NXcplI5RU',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  url: 'COLE_AQUI_A_PROJECT_URL',        // ex: https://abcdefgh.supabase.co
+  key: 'COLE_AQUI_A_ANON_KEY',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   // ══════════════════════════════════════════════
   isSyncing: false
 };
@@ -2699,65 +2699,40 @@ function formatConduta(raw) {
 // ══════════════════════════════════════════════════════════════════
 async function extractWithAI(text, filename) {
   const id = extractIdentityFromText(text, filename);
+
   const cutRx = /(?:ESSA PARTE AQUI NÃO IRÁ|NÃO VAI PRO SISTEMA|ESPELHO DE EXAMES|_{10,}|-{30,})/i;
   const cutIdx = text.search(cutRx);
   const cleanText = cutIdx > 100 ? text.substring(0, cutIdx).trim() : text.trim();
-  const textForAI = cleanText.length > 3500 ? cleanText.substring(0, 3500) + '\n[... truncado]' : cleanText;
+  const textForAI = cleanText.length > 3500 ? cleanText.substring(0, 3500) + '\n[...]' : cleanText;
 
-  const prompt = `Você é um médico clínico especialista em evoluções hospitalares brasileiras.
+  const prompt = 'Você é um médico clínico. Extraia dados desta evolução hospitalar em JSON.\nARQUIVO: '+filename+'\n\nTEXTO:\n'+textForAI+'\n\nRetorne SOMENTE o JSON (sem markdown):\n{"name":"NOME EM MAIÚSCULAS","age":"idade","pront":"prontuário só dígitos","leito":"número leito","dt":"YYYY-MM-DD","mih":"motivo internação","allergy":"alergias","problems":"problemas com # prefix por linha","resumo":"resumo clínico","24h":"relato 24h","devices":"dispositivos","abx":"antibióticos","labs":"exames laboratoriais","image":"exames imagem","pareceres":"pareceres","impressao":"impressão clínica","conduta":"conduta >> TEMA\\n- item"}';
 
-Analise esta evolução clínica e extraia as informações no formato JSON.
-ARQUIVO: ${filename}
+  const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout 15s')), 15000));
+  let raw;
+  try { raw = await Promise.race([callClaude(prompt, 1500), timeout]); }
+  catch(e) { throw new Error('AI: ' + e.message); }
 
-EVOLUÇÃO:
-${textForAI}
-
-Retorne APENAS este JSON (sem markdown, sem texto extra):
-{
-  "name": "NOME COMPLETO EM MAIÚSCULAS",
-  "age": "idade em anos",
-  "pront": "prontuário (somente dígitos)",
-  "leito": "número do leito",
-  "dt": "data internação YYYY-MM-DD",
-  "mih": "motivo de internação completo",
-  "allergy": "alergias",
-  "problems": "problemas ativos, um por linha começando com #",
-  "resumo": "resumo clínico do caso",
-  "24h": "relato das últimas 24h — subjetivo e exame físico",
-  "devices": "dispositivos em uso",
-  "abx": "antibióticos com doses",
-  "labs": "exames laboratoriais com datas e valores",
-  "image": "exames de imagem com datas e laudos",
-  "pareceres": "pareceres de especialidades",
-  "impressao": "impressão clínica",
-  "conduta": "plano de conduta (>> TEMA:\\n- item)"
-}`;
-
-  const raw = await callClaude(prompt, 1500);
-  const clean = raw.replace(/\`\`\`json\s*/gi,'').replace(/\`\`\`\s*/g,'').trim();
-  let parsed;
-  try {
-    parsed = JSON.parse(clean);
-  } catch(e) {
-    const jsonMatch = clean.match(/\{[\s\S]+\}/);
-    if (!jsonMatch) throw new Error('IA não retornou JSON válido: ' + clean.substring(0,100));
-    parsed = JSON.parse(jsonMatch[0]);
+  let parsed = null;
+  for (const fn of [
+    () => JSON.parse(raw),
+    () => JSON.parse(raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim()),
+    () => { const m = raw.match(/\{[\s\S]+\}/); return m ? JSON.parse(m[0]) : null; },
+  ]) {
+    try { parsed = fn(); if (parsed) break; } catch {}
   }
+  if (!parsed) throw new Error('JSON inválido da IA');
 
   return {
     name:      cleanPatientName(parsed.name || id.name || ''),
-    age:       parsed.age       || id.age   || '',
-    pront:     (parsed.pront || id.pront || '').replace(/\D/g,''),
-    leito:     parsed.leito    || id.leito  || '',
-    dt:        parsed.dt       || id.dt     || new Date().toISOString().split('T')[0],
+    age:       parsed.age      || id.age   || '',
+    pront:     String(parsed.pront || id.pront || '').replace(/\D/g,''),
+    leito:     parsed.leito    || id.leito || '',
+    dt:        parsed.dt       || id.dt    || new Date().toISOString().split('T')[0],
     status:    'stable',
-    mih:       parsed.mih      || id.mih    || '',
+    mih:       parsed.mih      || id.mih   || '',
     allergy:   parsed.allergy  || '',
     problems:  parsed.problems || '',
-    diag:      (parsed.problems || '').split('\n')
-                 .filter(l => l.trim().startsWith('#'))
-                 .map(l => l.replace(/^#\s*/,'').trim())
-                 .filter(Boolean).slice(0,3).join('; '),
+    diag:      (parsed.problems||'').split('\n').filter(l=>l.trim().startsWith('#')).map(l=>l.replace(/^#\s*/,'')).filter(Boolean).slice(0,3).join('; '),
     resumo:    parsed.resumo    || '',
     '24h':     parsed['24h']    || '',
     devices:   parsed.devices   || '',
@@ -3065,9 +3040,18 @@ function extractRawSection(text, keywords) {
 function extractIdentityFromText(text, filename) {
   const lines = text.split('\n');
 
-  // ── Leito: ALWAYS from filename ──────────────────────────────────
-  const leitoRaw = filename.match(/LT[_\s-]*(?:CM\s*)?(\d+(?:[.,]\d+)?[A-Za-z]?)/i)?.[1] || '';
-  const leito    = leitoRaw.replace(',', '.');
+  // ── Leito: search anywhere in filename, then fallback to text ──────
+  const leitoRaw = (
+    filename.match(/LT[_\s-]*(?:CM\s*)?(\d+(?:[.,]\d+)?[A-Za-z]?)/i)?.[1] ||
+    filename.match(/\bLT\s*[-_]?\s*(\d+(?:[.,]\d+)?)/i)?.[1] ||
+    // Search anywhere, not just start
+    filename.replace(/^Co_pia_de_/i,'').match(/LT[_\s-]*(?:CM\s*)?(\d+(?:[.,]\d+)?[A-Za-z]?)/i)?.[1] ||
+    // Fall back to text: look for "LT XX" or "Leito XX" near the top
+    text.split('\n').slice(0,15).join('\n').match(/(?:^|\s)LT\s*(\d+(?:[.,]\d+)?[A-Za-z]?)(?:\s|$)/im)?.[1] ||
+    text.match(/(?:^|\n)LT\s+(\d+(?:[.,]\d+)?[A-Za-z]?)/i)?.[1] ||
+    ''
+  );
+  const leito = leitoRaw.replace(',', '.');
 
   // ── Name: try filename FIRST (most reliable) ─────────────────────
   // "LT_07_-_Edmundo_13_05.docx"       → "Edmundo"
@@ -3158,7 +3142,7 @@ function extractIdentityFromText(text, filename) {
   }
 
   return {
-    name:  name.replace(/\s+/g,' ').trim(),
+    name:  cleanPatientName(name),
     age, pront, leito, dt,
     ih:  ihLine  ? `IH: ${ihLine}` : '',
     mih: mihLine || '',
@@ -4917,12 +4901,28 @@ function toggleDeleteMode() {
   _deleteModeActive = !_deleteModeActive;
   const btn = document.getElementById('delete-mode-btn');
   if (btn) {
-    btn.textContent = _deleteModeActive ? '✅ Confirmar Exclusão' : '🗑️ Excluir';
-    btn.style.background = _deleteModeActive ? '#dc2626' : '';
-    btn.style.color = _deleteModeActive ? '#fff' : 'var(--danger)';
-    btn.onclick = _deleteModeActive ? confirmDeleteSelected : toggleDeleteMode;
+    if (_deleteModeActive) {
+      btn.textContent = '✅ Confirmar Exclusão';
+      btn.style.background = '#dc2626';
+      btn.style.color = '#fff';
+      btn.setAttribute('data-mode','confirm');
+    } else {
+      btn.textContent = '🗑️ Excluir';
+      btn.style.background = '';
+      btn.style.color = 'var(--danger)';
+      btn.removeAttribute('data-mode');
+    }
   }
-  renderPatients(); // re-render with checkboxes
+  renderPatients();
+}
+
+// Called from delete-mode-btn onclick — routes based on mode
+function onDeleteBtnClick() {
+  if (_deleteModeActive) {
+    confirmDeleteSelected();
+  } else {
+    toggleDeleteMode();
+  }
 }
 
 function confirmDeleteSelected() {
@@ -4967,17 +4967,17 @@ function deletePatients(ids) {
     removed += before - data[w].length;
   }
   saveData(data);
-  // Exit delete mode
-  _deleteModeActive = false;
+  _deleteModeActive = false; // reset BEFORE renderPatients
+  updateCounts();
+  renderPatients();
+  // After render, restore button appearance
   const btn = document.getElementById('delete-mode-btn');
   if (btn) {
     btn.textContent = '🗑️ Excluir';
     btn.style.background = '';
     btn.style.color = 'var(--danger)';
-    btn.onclick = toggleDeleteMode;
+    btn.removeAttribute('data-mode');
   }
-  updateCounts();
-  renderPatients();
   showToast(`🗑️ ${removed} paciente(s) excluído(s)`, 'success');
 }
 
@@ -7064,14 +7064,17 @@ const PASSAGEM_WARD_FULL = {
 function cleanPatientName(name) {
   if (!name) return '';
   return name
-    .replace(/\s*\(\s*\d{1,2}[\s/_-]\d{1,2}(?:[/_-]\d{2,4})?\s*\)\s*/g, '') // "(11 05)" "(09/05)"
-    .replace(/\s+\d{2}\s+\d{2}(?:\s+\d{2,4})?\s*$/,'')   // trailing "11 05 2026"
-    .replace(/\s+\d{8}\s*$/, '')                              // trailing "11052026"
-    .replace(/\s+\d{6}\s*$/, '')                              // trailing "110526"
-    .replace(/\s*[-_]\s*\d{2}[-_]\d{2}.*$/, '')             // "- 09_05"
+    .replace(/^#?\s*ID[:\s]+/i, '')                              // "ID: " or "# ID: " prefix
+    .replace(/\s*\|.*$/, '')                                     // everything after pipe
+    .replace(/,\s*\d{2,3}\s*anos.*/i, '')                       // ", 72 anos..."
+    .replace(/\s*\(\s*\d{1,2}[\s/_-]\d{1,2}(?:[/_-]\d{2,4})?\s*\)\s*/g, '') // "(11 05)"
+    .replace(/\s+\d{2}\s+\d{2}(?:\s+\d{2,4})?\s*$/,'')
+    .replace(/\s+\d{8}\s*$/, '')
+    .replace(/\s+\d{6}\s*$/, '')
+    .replace(/\s*[-_]\s*\d{2}[-_]\d{2}.*$/, '')
     .replace(/\s{2,}/g, ' ')
     .trim()
-    .toUpperCase();                                            // sempre maiúsculas
+    .toUpperCase();
 }
 
 function renderPassagem() {
