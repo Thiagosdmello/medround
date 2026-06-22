@@ -1211,8 +1211,11 @@ input, textarea, select { font-family: inherit; }
           <button class="btn btn-ghost btn-sm active-ward" onclick="selectPassagemWard('cmm')" id="passagem-tab-cmm">CMM</button>
           <button class="btn btn-ghost btn-sm" onclick="selectPassagemWard('cmf1')" id="passagem-tab-cmf1">CMF1</button>
           <button class="btn btn-ghost btn-sm" onclick="selectPassagemWard('cmf2')" id="passagem-tab-cmf2">CMF2</button>
-          <button class="btn btn-primary btn-sm" onclick="exportPassagem()">📥 Exportar</button>
-          <button class="btn btn-ghost btn-sm" onclick="togglePassagemEdit()" id="passagem-edit-btn">✏️ Editar</button>
+          <label class="btn btn-primary btn-sm" style="cursor:pointer;margin-left:8px;" title="Importar arquivo de passagem (.docx)">
+            📄 Importar Passagem
+            <input type="file" accept=".docx,.pdf,.txt" style="display:none;" onchange="importPassagemFile(this.files[0])">
+          </label>
+          <button class="btn btn-ghost btn-sm" onclick="exportPassagem()">📥 Exportar</button>
         </div>
       </div>
       <div id="passagem-table-wrap"></div>
@@ -1769,8 +1772,8 @@ const sb = {
   channel: null,
   // ══════════════════════════════════════════════
   //  COLE SUAS CREDENCIAIS DO SUPABASE AQUI:
-  url: 'https://sxtihlavbggfpplhlbsm.supabase.co',        // ex: https://abcdefgh.supabase.co
-  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4dGlobGF2YmdnZnBwbGhsYnNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5ODQwMDMsImV4cCI6MjA5NDU2MDAwM30.Rjwx6xbk27oM3_j-7FPRU57cmikbXi-x71NXcplI5RU',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  url: 'COLE_AQUI_A_PROJECT_URL',        // ex: https://abcdefgh.supabase.co
+  key: 'COLE_AQUI_A_ANON_KEY',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   // ══════════════════════════════════════════════
   isSyncing: false
 };
@@ -2381,7 +2384,7 @@ async function _confirmImport() {
     if (!data.cmm)  data.cmm  = [];
     if (!data.cmf1) data.cmf1 = [];
     if (!data.cmf2) data.cmf2 = [];
-    let updated = 0, created = 0, tfSaved = 0;
+    let updated = 0, created = 0, tfSaved = 0, autoAltaCount = 0;
 
     // ── 1. Tarde Fixa — save after patients are created ──
     // (TF matching happens AFTER evolutions are processed so new patients exist)
@@ -2455,33 +2458,21 @@ async function _confirmImport() {
       const r = _batchImportData[idx];
       try {
         const ex       = r.extracted || {};
-        const leitoNum = parseInt(String(ex.leito || ''), 10) || 0;
-        const pront    = String(ex.pront || '').replace(/\D/g,'');
-
-        // Name: extracted OR from filename
-        let name = (ex.name || '').trim();
-        if (!name && r.filename) {
-          const nm = r.filename
-            .replace(/\.(docx?|pdf|txt)$/i,'')
-            .replace(/^LT[_\s-]*\d+[A-Za-z]?[_\s\u2013\u2014-]+/i,'')
-            .replace(/[\s_]?\(?\d{2}[_\/]\d{2}\)?$/,'')
-            .replace(/[_-]+/g,' ').trim();
-          if (nm.length > 1) name = nm;
-        }
-        name = (name || '').replace(/\s+/g,' ').trim().toUpperCase();
-
-        // Find existing patient — match by pront OR leito (string comparison for 02.1 support)
+        // Find existing patient — match by pront OR leito (handles "01"=="1", "6"=="06")
         let patient = null, ward = null;
         const leitoStr = String(ex.leito || '').trim();
+        const leitoNum = parseFloat(leitoStr) || 0;
         outer: for (const w of ['cmm','cmf1','cmf2']) {
           for (const p of (data[w]||[])) {
             const pp = String(p.pront||'').replace(/\D/g,'');
             const pl = String(p.leito||'').trim();
-            const prontMatch = pront.length>=4 && pp.length>=4 && pp===pront;
-            const leitoMatch = leitoStr && pl && (pl===leitoStr ||
-              // also compare as numbers for backward compat (02 == 2)
-              (parseFloat(pl)>0 && parseFloat(pl)===parseFloat(leitoStr)));
-            if (prontMatch || leitoMatch) { patient=p; ward=w; break outer; }
+            const plNum = parseFloat(pl) || 0;
+            const prontMatch = pront.length >= 4 && pp.length >= 4 && pp === pront;
+            const leitoMatch = leitoNum > 0 && plNum > 0 && plNum === leitoNum;
+            const leitoStrMatch = leitoStr && pl && (pl === leitoStr);
+            if (prontMatch || leitoMatch || leitoStrMatch) {
+              patient = p; ward = w; break outer;
+            }
           }
         }
 
@@ -2505,15 +2496,26 @@ async function _confirmImport() {
 
         if (patient) {
           if (!patient.evolutions) patient.evolutions = [];
-          const ti = patient.evolutions.findIndex(ev => ev.date === today);
-          if (ti >= 0) patient.evolutions[ti] = newEvol;
-          else         patient.evolutions.push(newEvol);
-          if (ex.problems?.trim()) patient.problems = ex.problems;
-          if (ex.abx?.trim())      patient.abx      = ex.abx;
-          if (ex.devices?.trim())  patient.devices  = ex.devices;
-          if (ex.diag?.trim())     patient.diag     = ex.diag;
-          if (ex.mih?.trim())      patient.mih      = ex.mih;
-          if (name && !patient.name?.trim()) patient.name = name;
+          // Match by date — use the date from the extracted data, not just today
+          const evolDate = ex.dt ? new Date(ex.dt).toLocaleDateString('pt-BR') : today;
+          const ti = patient.evolutions.findIndex(ev => ev.date === evolDate || ev.date === today);
+          if (ti >= 0) patient.evolutions[ti] = { ...patient.evolutions[ti], ...newEvol, date: evolDate };
+          else         patient.evolutions.push({ ...newEvol, date: evolDate });
+
+          // Update ALL patient fields with fresh data from file
+          if (ex.problems?.trim())  patient.problems  = ex.problems;
+          if (ex.abx?.trim())       patient.abx       = ex.abx;
+          if (ex.devices?.trim())   patient.devices   = ex.devices;
+          if (ex.diag?.trim())      patient.diag      = ex.diag;
+          if (ex.mih?.trim())       patient.mih       = ex.mih;
+          if (ex.labs?.trim())      patient.labs      = ex.labs;
+          if (ex.image?.trim())     patient.image     = ex.image;
+          if (ex.resumo?.trim())    patient.resumo    = ex.resumo;
+          if (ex.pareceres?.trim()) patient.pareceres = ex.pareceres;
+          if (ex.impressao?.trim()) patient.impressao = ex.impressao;
+          if (ex.allergy?.trim())   patient.allergy   = ex.allergy;
+          if (ex.age?.trim())       patient.age       = ex.age;
+          if (name && name.length > 3) patient.name   = name;
           updated++;
         } else if (name) {
           const tw = leitoWardMap[leitoNum] || importWard;
@@ -2540,7 +2542,37 @@ async function _confirmImport() {
     // ── 4. Apply Tarde Fixa AFTER patients/evolutions exist ──
     applyTardeFixas();
 
-    // ── 5. Save ──
+    // ── 5. Auto-alta: pacientes ATIVOS não presentes nos arquivos → mover para alta ──
+    // Only applies when importing a meaningful set of files (≥3 evolution files)
+    const evolutionFilesCount = _batchImportData.length;
+    if (evolutionFilesCount >= 3) {
+      // Build set of leitos that are present in this import
+      const importedLeitos = new Set(
+        _batchImportData
+          .map(r => String((r.extracted||{}).leito||'').trim())
+          .filter(l => l && l !== '0')
+      );
+      let autoAltaCount = 0;
+      for (const w of ['cmm','cmf1','cmf2']) {
+        for (const p of (data[w]||[])) {
+          if (p.status === 'alta') continue;          // already discharged
+          const pl = String(p.leito||'').trim();
+          if (!pl) continue;
+          if (!importedLeitos.has(pl)) {
+            // Not in this batch → presumed discharged
+            p.status    = 'alta';
+            p.altaDate  = today;
+            p.altaReason = 'Alta automática — ausente nos arquivos importados';
+            autoAltaCount++;
+          }
+        }
+      }
+      if (autoAltaCount > 0) {
+        console.log(`[import] Auto-alta: ${autoAltaCount} paciente(s) não presentes nos arquivos`);
+      }
+    }
+
+    // ── 6. Save ──
     saveData(data);
     console.log('[import] SAVED. updated:', updated, 'created:', created, 'ward:', importWard);
     console.log('[import] Ward data after save:', (data[importWard]||[]).map(p=>`LT${p.leito} ${p.name}`));
@@ -2582,9 +2614,10 @@ async function _confirmImport() {
     const freshData = getData();
     const total = (freshData[importWard]||[]).filter(p=>p.status!=='alta').length;
     const parts = [
-      updated  && `${updated} evolução(ões) atualizada(s)`,
-      created  && `${created} paciente(s) criado(s)`,
-      tfSaved  && `${tfSaved} tarde(s) fixa(s)`,
+      updated        && `${updated} evolução(ões) atualizada(s)`,
+      created        && `${created} paciente(s) criado(s)`,
+      tfSaved        && `${tfSaved} tarde(s) fixa(s)`,
+      autoAltaCount  && `${autoAltaCount} alta(s) automática(s)`,
     ].filter(Boolean);
     showToast(`✅ ${parts.length ? parts.join(' · ') : 'Importado'} — ${total} internados em ${importWard.toUpperCase()}`, 'success');
 
@@ -7077,56 +7110,374 @@ function cleanPatientName(name) {
     .toUpperCase();
 }
 
-function renderPassagem() {
-  const today = new Date().toLocaleDateString('pt-BR');
-  (document.getElementById('passagem-title')||{}).textContent = PASSAGEM_WARD_FULL[passagemWard];
-  (document.getElementById('passagem-date')||{}).textContent = today;
+// ══════════════════════════════════════════════════════════════════
+//  PASSAGEM — IMPORT & PARSE
+// ══════════════════════════════════════════════════════════════════
 
-  const data = [...getData()[passagemWard]].sort(sortByBed);
-  const tbody = document.getElementById('passagem-tbody');
+// Stored passagem data per ward (session only)
+const _passagemData = { cmm: null, cmf1: null, cmf2: null };
+
+// Parse a passagem .docx text into structured patient array
+function parsePassagemFile(text) {
+  const lines = text.split('\n');
+  const patients = [];
+  let cur = null;
+  let section = null;
+
+  const append = (field, val) => {
+    cur[field] = cur[field] ? cur[field] + '\n' + val : val;
+  };
+
+  // Sub-headers that belong INSIDE labs (do NOT switch section)
+  const LABS_SUBSECTIONS = /^#\s*(?:Sorolog|LCR|Hematoscop|Cinética|Metabolismo|Imunofixação|Imunoglobul|Profilaxia de TEV|Procedimentos|VIRA DO CTI)/i;
+
+  // Sub-headers that belong INSIDE imagem (do NOT switch section)
+  const IMAGEM_SUBSECTIONS = /^#\s*(?:Histopatológ|Procediment)/i;
+
+  for (let li = 0; li < lines.length; li++) {
+    const raw = lines[li];
+    const t   = raw.trim();
+    if (!t) continue;
+
+    if (/^MODELO\b/i.test(t)) break;
+
+    // New patient block: "LT XX" alone on a line
+    const ltm = t.match(/^LT\s+(\d+(?:\.\d+)?[A-Za-z]?)\s*$/i);
+    if (ltm) {
+      if (cur) patients.push(cur);
+      cur = {
+        leito:'', nome:'', idade:'', dn:'', pront:'', dih:'', mi:'',
+        problemas:[], resumo:'', dispositivos:'', atb:'', tev:'',
+        labs:'', imagem:'', pareceres:'', programacao:[],
+      };
+      cur.leito = ltm[1].trim();
+      section = null;
+      continue;
+    }
+    if (!cur) continue;
+
+    // ── Identity fields ──
+    if (/^Nome\s*:/i.test(t)) {
+      cur.nome = t.replace(/^Nome\s*:\s*/i,'').trim();
+      while (li+1 < lines.length) {
+        const nx = lines[li+1].trim();
+        if (!nx || /^(?:Idade|DN|P:|MI:|DIH:|#|LT\s)/i.test(nx)) break;
+        cur.nome += ' ' + nx; li++;
+      }
+      continue;
+    }
+    if (/^Idade\s*:/i.test(t))         { cur.idade = t.replace(/^Idade\s*:\s*/i,'').trim(); continue; }
+    if (/^DN\s*:/i.test(t))            { cur.dn    = t.replace(/^DN\s*:\s*/i,'').trim();    continue; }
+    if (/^P\s*:/i.test(t))             { cur.pront = t.replace(/^P\s*:\s*/i,'').trim();     continue; }
+    if (/^Prontuário\s*:/i.test(t))    { cur.pront = t.replace(/^Prontuário\s*:\s*/i,'').trim(); continue; }
+    if (/^#\s*(?:DIH|IH)\s*:/i.test(t)) { cur.dih = t.replace(/^#?\s*(?:DIH|IH)\s*:\s*/i,'').trim(); continue; }
+    if (/^MI\s*(?:\([^)]*\))?\s*:/i.test(t)) { cur.mi = t.replace(/^MI\s*(?:\([^)]*\))?\s*:\s*/i,'').trim(); continue; }
+
+    // ── Section headers (main) ──
+    if (/^#\s*(?:Lista de\s*)?[Pp]roblemas/i.test(t)) { section='problemas';   continue; }
+    if (/^#\s*Resumo do caso/i.test(t))               { section='resumo';      continue; }
+    if (/^#\s*Dispositivos/i.test(t))                 { section='dispositivos'; continue; }
+    if (/^#\s*ATB\s*e\s*Culturas/i.test(t))           { section='atb';         continue; }
+    if (/^#\s*Profilaxia de TEV/i.test(t) && section !== 'labs') { section='tev'; continue; }
+    if (/^#\s*Exames\s+laborat/i.test(t))             { section='labs';        continue; }
+    if (/^#\s*Exames\s+de\s+imagem/i.test(t))         { section='imagem';      continue; }
+    if (/^#\s*Pareceres?/i.test(t))                   { section='pareceres';   continue; }
+    if (/^#\s*Condutas?/i.test(t))                    { section='programacao'; continue; }
+    if (/^#\s*Tarde\s*fixa/i.test(t))                 { section='programacao'; continue; }
+
+    // ── Sub-section headers: stay within parent section ──
+    if (/^#/.test(t)) {
+      if (section === 'labs' && LABS_SUBSECTIONS.test(t)) {
+        // Add as a label inside labs, don't switch section
+        const label = t.replace(/^#+\s*/, '');
+        append('labs', '\n' + label + ':');
+        continue;
+      }
+      if (section === 'imagem' && IMAGEM_SUBSECTIONS.test(t)) {
+        const label = t.replace(/^#+\s*/, '');
+        append('imagem', '\n' + label + ':');
+        continue;
+      }
+      if (section === 'problemas') {
+        cur.problemas.push(t.replace(/^#+\s*/, '').trim());
+        continue;
+      }
+      // Unknown # line after identity but no clear section = programação header
+      if (cur.problemas.length || cur.resumo) {
+        // skip unknown headers, don't push to programacao
+      }
+      continue;
+    }
+
+    // ── Content by section ──
+    switch(section) {
+      case 'problemas':
+        if (/^-/.test(t)) cur.problemas.push(t.replace(/^-\s*/, '').trim());
+        else append('resumo', t);
+        break;
+      case 'resumo':      append('resumo', t);      break;
+      case 'dispositivos':append('dispositivos', t); break;
+      case 'atb':         append('atb', t);          break;
+      case 'tev':         append('tev', t);          break;
+      case 'labs':        append('labs', t);         break;
+      case 'imagem':      append('imagem', t);       break;
+      case 'pareceres':   append('pareceres', t);    break;
+      case 'programacao': cur.programacao.push(t);   break;
+      default:
+        if (cur.problemas.length || cur.resumo) {
+          if (!/^(?:Identificação|Lista de|Dispositivos|Exames)/i.test(t)) {
+            cur.programacao.push(t);
+          }
+        }
+        break;
+    }
+  }
+  if (cur) patients.push(cur);
+  return patients.filter(p => p.nome || p.leito);
+}
+
+async function importPassagemFile(file) {
+  if (!file) return;
+  const wrap = document.getElementById('passagem-table-wrap');
+  if (wrap) wrap.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted);">⏳ Lendo arquivo...</div>';
+
+  try {
+    const text = await readFileAsText(file);
+    if (!text?.trim()) throw new Error('Arquivo vazio ou ilegível');
+
+    const patients = parsePassagemFile(text);
+    if (!patients.length) throw new Error('Nenhum paciente encontrado');
+
+    // Store in session
+    _passagemData[passagemWard] = { patients, filename: file.name, date: new Date().toLocaleDateString('pt-BR') };
+
+    // Also update/create patients in app storage
+    const data = getData();
+    for (const p of patients) {
+      const leitoStr = String(p.leito||'').trim();
+      const prontClean = p.pront.replace(/\D/g,'');
+      let found = null, foundWard = null;
+      for (const w of ['cmm','cmf1','cmf2']) {
+        found = (data[w]||[]).find(x => {
+          const pl = String(x.leito||'').trim();
+          const pp = String(x.pront||'').replace(/\D/g,'');
+          return pl === leitoStr || (prontClean.length >= 4 && pp === prontClean);
+        });
+        if (found) { foundWard = w; break; }
+      }
+      if (found) {
+        // Update with fresh data from file
+        if (p.nome)      found.name     = cleanPatientName(p.nome);
+        if (p.problemas.length) found.problems = p.problemas.map(x=>'# '+x).join('\n');
+        if (p.resumo)    found.resumo   = p.resumo;
+        if (p.dispositivos) found.devices = p.dispositivos;
+        if (p.atb)       found.abx      = p.atb;
+        if (p.labs)      found.labs     = p.labs;
+        if (p.imagem)    found.image    = p.imagem;
+        if (p.pareceres) found.pareceres = p.pareceres;
+        if (p.mi)        found.mih      = p.mi;
+        if (p.dih)       found.dih      = p.dih;
+      } else if (p.nome) {
+        // Create new patient
+        data[passagemWard].push({
+          id: 'p' + Date.now() + '_' + p.leito,
+          name: cleanPatientName(p.nome), leito: leitoStr,
+          age: p.idade?.replace(/\D.*$/,'') || '', dn: p.dn || '',
+          pront: prontClean || p.pront || '',
+          dt: new Date().toISOString().split('T')[0],
+          status: 'stable', mih: p.mi || '', dih: p.dih || '',
+          problems: p.problemas.map(x=>'# '+x).join('\n'),
+          resumo: p.resumo || '', devices: p.dispositivos || '',
+          abx: p.atb || '', labs: p.labs || '', image: p.imagem || '',
+          pareceres: p.pareceres || '', evolutions: [], files: [],
+        });
+      }
+    }
+    saveData(data);
+    updateCounts();
+
+    renderPassagem();
+    showToast(`✅ ${patients.length} pacientes carregados de "${file.name}"`, 'success');
+  } catch(e) {
+    if (wrap) wrap.innerHTML = `<div style="color:var(--danger);padding:20px;">❌ ${escapeHtml(e.message)}</div>`;
+    showToast('❌ Erro ao importar: ' + e.message, 'error');
+  }
+}
+
+function renderPassagem() {
+  const wrap = document.getElementById('passagem-table-wrap');
+  if (!wrap) return;
+
+  // Use imported passagem data if available, else fall back to stored patients
+  const imported = _passagemData[passagemWard];
+  if (imported?.patients?.length) {
+    renderPassagemFromFile(imported);
+  } else {
+    renderPassagemFromStorage();
+  }
+}
+
+function renderPassagemFromFile(imported) {
+  const wrap = document.getElementById('passagem-table-wrap');
+  if (!wrap) return;
+
+  const patients = imported.patients;
+  const date = imported.date || new Date().toLocaleDateString('pt-BR');
+
+  // Build the same 5-column table as the original document
+  wrap.innerHTML = `
+    <div style="margin-bottom:12px;font-size:12px;color:var(--text-muted);">
+      📄 Importado: <strong>${escapeHtml(imported.filename||'')}</strong> — ${escapeHtml(date)}
+      <button class="btn btn-ghost btn-sm" style="margin-left:10px;" onclick="_passagemData[passagemWard]=null;renderPassagem();">🔄 Usar dados do sistema</button>
+    </div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:800px;">
+      <thead>
+        <tr style="background:var(--blue-800);">
+          <th style="padding:10px 12px;text-align:left;color:var(--blue-200);font-size:11px;text-transform:uppercase;letter-spacing:.5px;width:16%;border:1px solid var(--border);">Identificação</th>
+          <th style="padding:10px 12px;text-align:left;color:var(--blue-200);font-size:11px;text-transform:uppercase;letter-spacing:.5px;width:24%;border:1px solid var(--border);">Lista de Problemas</th>
+          <th style="padding:10px 12px;text-align:left;color:var(--blue-200);font-size:11px;text-transform:uppercase;letter-spacing:.5px;width:16%;border:1px solid var(--border);">Dispositivos | ATB e Culturas</th>
+          <th style="padding:10px 12px;text-align:left;color:var(--blue-200);font-size:11px;text-transform:uppercase;letter-spacing:.5px;width:28%;border:1px solid var(--border);">Exames e Pareceres Relevantes</th>
+          <th style="padding:10px 12px;text-align:left;color:var(--blue-200);font-size:11px;text-transform:uppercase;letter-spacing:.5px;width:16%;border:1px solid var(--border);">Programação</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${patients.map((p, idx) => renderPassagemRow(p, idx)).join('')}
+      </tbody>
+    </table>
+    </div>`;
+}
+
+function renderPassagemRow(p, idx) {
+  const bg = idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-hover)';
+  const td = (content, extra='') =>
+    `<td style="padding:10px 12px;vertical-align:top;border:1px solid var(--border);background:${bg};${extra}">${content}</td>`;
+
+  // COL 1: Identificação
+  const dih = p.dih || '';
+  const idHtml = `
+    <div style="font-size:13px;font-weight:800;color:var(--blue-300);margin-bottom:4px;">LT ${escapeHtml(p.leito)}</div>
+    <div style="font-size:12.5px;font-weight:700;color:var(--text-primary);margin-bottom:6px;line-height:1.3;">${escapeHtml(cleanPatientName(p.nome))}</div>
+    <div style="font-size:11.5px;color:var(--text-muted);line-height:1.7;">
+      ${p.idade ? `Idade: ${escapeHtml(p.idade)}<br>` : ''}
+      ${p.dn    ? `DN: ${escapeHtml(p.dn)}<br>` : ''}
+      ${p.pront ? `P: ${escapeHtml(p.pront)}<br>` : ''}
+      ${dih     ? `<span style="color:var(--text-secondary);">DIH: ${escapeHtml(dih)}</span><br>` : ''}
+      ${p.mi    ? `<span style="color:var(--warning);font-size:11px;font-weight:600;">MI: ${escapeHtml(p.mi)}</span>` : ''}
+    </div>`;
+
+  // COL 2: Lista de Problemas + Resumo
+  const probHtml = p.problemas.length
+    ? p.problemas.map(pr => `<div style="padding:2px 0 2px 8px;border-left:2px solid var(--blue-600);margin-bottom:3px;font-size:12px;font-weight:600;color:var(--text-primary);">${escapeHtml(pr)}</div>`).join('')
+    : '';
+  const resumoHtml = p.resumo
+    ? `<div style="margin-top:8px;font-size:11.5px;color:var(--text-secondary);line-height:1.65;">${escapeHtml(p.resumo).replace(/\n/g,'<br>')}</div>`
+    : '';
+
+  // COL 3: Dispositivos + ATB
+  const dispoHtml = p.dispositivos
+    ? `<div style="margin-bottom:8px;"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--blue-400);margin-bottom:3px;">Dispositivos</div><div style="font-size:12px;color:var(--text-secondary);">${escapeHtml(p.dispositivos).replace(/\n/g,'<br>')}</div></div>`
+    : '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Sem dispositivos</div>';
+
+  const atbHtml = p.atb
+    ? `<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--warning);margin-bottom:3px;">ATB e Culturas</div><div style="font-size:12px;color:var(--text-secondary);">${escapeHtml(p.atb).replace(/\n/g,'<br>')}</div></div>`
+    : '<div style="font-size:11px;color:var(--text-muted);">Sem ATB</div>';
+
+  const tevHtml = p.tev
+    ? `<div style="margin-top:6px;"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:2px;">TEV</div><div style="font-size:11.5px;color:var(--text-secondary);">${escapeHtml(p.tev).replace(/\n/g,'<br>')}</div></div>`
+    : '';
+
+  // COL 4: Exames + Pareceres
+  const labsHtml = p.labs
+    ? `<div style="margin-bottom:8px;"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--blue-400);margin-bottom:3px;">Exames Laboratoriais</div><div style="font-size:11.5px;color:var(--text-secondary);line-height:1.6;">${escapeHtml(p.labs).replace(/\n/g,'<br>')}</div></div>`
+    : '';
+  const imgHtml = p.imagem
+    ? `<div style="margin-bottom:8px;"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--blue-400);margin-bottom:3px;">Exames de Imagem</div><div style="font-size:11.5px;color:var(--text-secondary);line-height:1.6;">${escapeHtml(p.imagem).replace(/\n/g,'<br>')}</div></div>`
+    : '';
+  const parHtml = p.pareceres
+    ? `<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--warning);margin-bottom:3px;">Pareceres</div><div style="font-size:11.5px;color:var(--text-secondary);line-height:1.6;">${escapeHtml(p.pareceres).replace(/\n/g,'<br>')}</div></div>`
+    : '';
+
+  // COL 5: Programação (bullet list)
+  const progHtml = p.programacao.length
+    ? p.programacao.map(item => {
+        const isDone = /^(?:☑|✅|✓|FEITO)/i.test(item);
+        const cleaned = item.replace(/^(?:☑|☐|□|●|•|-)\s*/,'').trim();
+        return `<div style="display:flex;gap:6px;align-items:flex-start;padding:3px 0;border-bottom:1px solid var(--border);">
+          <span style="color:${isDone?'var(--success)':'var(--blue-400)'};font-size:13px;flex-shrink:0;">${isDone?'☑':'☐'}</span>
+          <span style="font-size:12px;color:${isDone?'var(--text-muted)':'var(--text-primary)'};${isDone?'text-decoration:line-through;':''}">${escapeHtml(cleaned)}</span>
+        </div>`;
+      }).join('')
+    : '<div style="font-size:11px;color:var(--text-muted);">Sem programação</div>';
+
+  return `<tr>
+    ${td(idHtml)}
+    ${td(probHtml + resumoHtml)}
+    ${td(dispoHtml + atbHtml + tevHtml)}
+    ${td(labsHtml + imgHtml + parHtml)}
+    ${td(progHtml)}
+  </tr>`;
+}
+
+function renderPassagemFromStorage() {
+  const wrap = document.getElementById('passagem-table-wrap');
+  if (!wrap) return;
+
+  const data = [...(getData()[passagemWard]||[])].sort(sortByBed);
+  const today = new Date().toLocaleDateString('pt-BR');
 
   if (!data.length) {
-    tbody.innerHTML = `<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--text-muted);">Nenhum paciente nesta enfermaria</td></tr>`;
+    wrap.innerHTML = `
+      <div style="text-align:center;padding:60px 20px;">
+        <div style="font-size:48px;margin-bottom:14px;">📋</div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:8px;">Nenhum paciente na enfermaria</div>
+        <div style="font-size:13px;color:var(--text-muted);">Importe um arquivo de passagem (.docx) ou adicione pacientes.</div>
+      </div>`;
     return;
   }
 
-  tbody.innerHTML = data.map((p, idx) => {
-    const lastEvol = p.evolutions && p.evolutions.length ? p.evolutions[p.evolutions.length-1] : null;
-    const daysSince = p.dt ? Math.floor((new Date()-new Date(p.dt))/86400000) : '?';
-    const rowBg = idx % 2 === 0 ? '' : 'style="background:var(--bg-hover);"';
-
-    // ── COL 1: Identificação ──
-    const idCell = `
-      <div class="passagem-id-leito">LT ${p.leito}</div>
-      <div class="passagem-id-name">${escapeHtml(cleanPatientName(p.name))}</div>
-      <div class="passagem-id-meta">
-        Idade: ${p.age || '?'} anos<br>
-        P: ${p.pront}<br>
-        D${daysSince} de internação<br>
-        ${p.allergy && p.allergy.trim() ? `<span style="color:var(--warning);">⚠️ ${escapeHtml(p.allergy)}</span>` : 'Nega alergias'}
-      </div>`;
-
-    // ── COL 2: Lista de Problemas + Resumo ──
-    const problems = buildPassagemProblems(p, lastEvol);
-
-    // ── COL 3: Dispositivos | ATB e Culturas ──
-    const atbCell = buildPassagemATB(p, lastEvol);
-
-    // ── COL 4: Exames e Pareceres ──
-    const examsCell = buildPassagemExams(p, lastEvol);
-
-    // ── COL 5: Programação (condutas temáticas) ──
-    const programCell = buildPassagemProgram(p, lastEvol);
-
-    return `<tr class="passagem-row" data-pid="${p.id}" ${rowBg}>
-      <td class="passagem-cell" style="background:${idx%2===0?'var(--bg-card)':'var(--bg-hover)'};">${idCell}</td>
-      <td class="passagem-cell">${problems}</td>
-      <td class="passagem-cell">${atbCell}</td>
-      <td class="passagem-cell">${examsCell}</td>
-      <td class="passagem-cell passagem-program-cell">${programCell}</td>
-    </tr>`;
-  }).join('');
+  wrap.innerHTML = `
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:800px;">
+      <thead>
+        <tr style="background:var(--blue-800);">
+          <th style="padding:10px 12px;text-align:left;color:var(--blue-200);font-size:11px;text-transform:uppercase;letter-spacing:.5px;width:16%;border:1px solid var(--border);">Identificação</th>
+          <th style="padding:10px 12px;text-align:left;color:var(--blue-200);font-size:11px;text-transform:uppercase;letter-spacing:.5px;width:24%;border:1px solid var(--border);">Lista de Problemas</th>
+          <th style="padding:10px 12px;text-align:left;color:var(--blue-200);font-size:11px;text-transform:uppercase;letter-spacing:.5px;width:16%;border:1px solid var(--border);">Dispositivos | ATB e Culturas</th>
+          <th style="padding:10px 12px;text-align:left;color:var(--blue-200);font-size:11px;text-transform:uppercase;letter-spacing:.5px;width:28%;border:1px solid var(--border);">Exames e Pareceres Relevantes</th>
+          <th style="padding:10px 12px;text-align:left;color:var(--blue-200);font-size:11px;text-transform:uppercase;letter-spacing:.5px;width:16%;border:1px solid var(--border);">Programação</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.map((p, idx) => {
+          const lastEvol = p.evolutions?.length ? p.evolutions[p.evolutions.length-1] : null;
+          const daysSince = p.dt ? Math.floor((new Date()-new Date(p.dt))/86400000) : '?';
+          // Convert stored patient to passagem row format
+          const parsed = {
+            leito: p.leito,
+            nome: p.name,
+            idade: p.age ? p.age + ' anos' : '',
+            dn: '', pront: p.pront || '',
+            dih: p.dih || (p.dt ? new Date(p.dt).toLocaleDateString('pt-BR') : ''),
+            mi: p.mih || p.diag || '',
+            problemas: (lastEvol?.problems || p.problems || '').split('\n').filter(l=>l.trim().startsWith('#')).map(l=>l.replace(/^#+\s*/,'')),
+            resumo: lastEvol?.resumo || p.resumo || '',
+            dispositivos: lastEvol?.devices || p.devices || '',
+            atb: lastEvol?.abx || p.abx || '',
+            tev: '', labs: lastEvol?.labs || p.labs || '',
+            imagem: lastEvol?.image || p.image || '',
+            pareceres: lastEvol?.pareceres || p.pareceres || '',
+            programacao: (lastEvol?.conduta || '').split('\n').filter(l=>l.trim()).slice(0,6),
+          };
+          return renderPassagemRow(parsed, idx);
+        }).join('')}
+      </tbody>
+    </table>
+    </div>`;
 }
+
+
+
 
 function buildPassagemProblems(p, lastEvol) {
   // Source: latest evolution > patient top-level
@@ -9361,31 +9712,137 @@ function setUploadTab(type, el) {
 function renderPatientDetail(patient) {
   if (!patient) return;
   const days = patient.dt ? Math.floor((new Date() - new Date(patient.dt)) / 86400000) : '?';
-  const lastEvol = patient.evolutions?.length ? patient.evolutions[patient.evolutions.length - 1] : null;
-
   const header = document.getElementById('detail-header');
-  if (header) {
-    header.innerHTML = `
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 0;">
-        <div>
-          <div style="font-family:Syne,sans-serif;font-weight:800;font-size:11px;color:var(--blue-400);letter-spacing:.8px;text-transform:uppercase;">LT ${escapeHtml(String(patient.leito))} · D${days} · Pt ${escapeHtml(patient.pront||'—')}</div>
-          <div style="font-weight:800;font-size:19px;color:var(--text-primary);margin-top:3px;">${escapeHtml(cleanPatientName(patient.name))}</div>
-          <div style="font-size:12.5px;color:var(--text-muted);margin-top:2px;">${escapeHtml(patient.age||'?')}a · ${escapeHtml(patient.diag||'Sem diagnóstico registrado')}</div>
-          ${patient.allergy ? `<div style="font-size:11px;color:var(--danger);margin-top:4px;">⚠️ Alergia: ${escapeHtml(patient.allergy)}</div>` : ''}
+  if (header) renderPatientHeader(header, patient, days);
+  switchTab('evolucao');
+}
+
+function renderPatientHeader(header, patient, days) {
+  const d = (days !== undefined && days !== null) ? days
+    : (patient.dt ? Math.floor((new Date() - new Date(patient.dt)) / 86400000) : '?');
+  header.innerHTML = `
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:14px 0;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:11px;font-weight:800;color:var(--blue-400);letter-spacing:.8px;text-transform:uppercase;margin-bottom:2px;">
+          LT ${escapeHtml(String(patient.leito||'—'))} · D${d} · Pt ${escapeHtml(patient.pront||'—')}
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-ghost btn-sm" onclick="openNewEvolution()">+ Nova Evolução IA</button>
-          <button class="btn btn-ghost btn-sm" onclick="openManualEvolution()">✏️ Evolução Manual</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="confirmDeletePatient()">🗑️</button>
+        <div style="font-weight:800;font-size:19px;color:var(--text-primary);margin-bottom:2px;line-height:1.2;">${escapeHtml(cleanPatientName(patient.name))}</div>
+        <div style="font-size:12.5px;color:var(--text-muted);">${escapeHtml(patient.age||'?')}a · ${escapeHtml(patient.mih||patient.diag||'Sem diagnóstico')}</div>
+        ${patient.allergy ? `<div style="font-size:11px;color:var(--danger);margin-top:3px;">⚠️ Alergia: ${escapeHtml(patient.allergy)}</div>` : ''}
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" onclick="editPatientHeader('${patient.id}')" style="font-size:12px;">✏️ Editar</button>
+        <button class="btn btn-ghost btn-sm" onclick="openNewEvolution()" style="font-size:12px;">🤖 Evol. IA</button>
+        <button class="btn btn-ghost btn-sm" onclick="openManualEvolution()" style="font-size:12px;">📝 Manual</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--danger);font-size:12px;" onclick="confirmDeletePatient()">🗑️</button>
+      </div>
+    </div>
+    ${patient.abx     ? `<div style="font-size:12px;color:#ef4444;background:rgba(239,68,68,.07);border-radius:8px;padding:7px 12px;margin-bottom:4px;">💊 <strong>ATB:</strong> ${escapeHtml(patient.abx)}</div>` : ''}
+    ${patient.devices ? `<div style="font-size:12px;color:var(--blue-300);background:var(--bg-hover);border-radius:8px;padding:7px 12px;margin-bottom:4px;">🔌 <strong>Dispositivos:</strong> ${escapeHtml(patient.devices)}</div>` : ''}`;
+}
+
+function editPatientHeader(patientId) {
+  const data = getData();
+  let patient = null, ward = null;
+  for (const w of ['cmm','cmf1','cmf2']) {
+    patient = (data[w]||[]).find(p => p.id === patientId);
+    if (patient) { ward = w; break; }
+  }
+  if (!patient) return;
+  const header = document.getElementById('detail-header');
+  if (!header) return;
+
+  header.innerHTML = `
+    <div style="background:var(--bg-card);border:1px solid var(--blue-500);border-radius:12px;padding:18px 20px;">
+      <div style="font-size:12px;font-weight:700;color:var(--blue-400);margin-bottom:14px;text-transform:uppercase;letter-spacing:.5px;">✏️ Editar dados</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div>
+          <label style="font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px;">Nome completo</label>
+          <input id="edit-name" class="form-input" value="${escapeHtml(patient.name||'')}" style="width:100%;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px;">Leito</label>
+          <input id="edit-leito" class="form-input" value="${escapeHtml(String(patient.leito||''))}" style="width:100%;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px;">Prontuário</label>
+          <input id="edit-pront" class="form-input" value="${escapeHtml(patient.pront||'')}" style="width:100%;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px;">Idade (anos)</label>
+          <input id="edit-age" class="form-input" value="${escapeHtml(patient.age||'')}" style="width:100%;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px;">Data internação</label>
+          <input id="edit-dt" class="form-input" type="date" value="${patient.dt||''}" style="width:100%;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px;">Status</label>
+          <select id="edit-status" class="form-input" style="width:100%;box-sizing:border-box;">
+            <option value="stable" ${patient.status==='stable'?'selected':''}>🟢 Estável</option>
+            <option value="attention" ${patient.status==='attention'?'selected':''}>🟡 Atenção</option>
+            <option value="critical" ${patient.status==='critical'?'selected':''}>🔴 Crítico</option>
+            <option value="alta" ${patient.status==='alta'?'selected':''}>🏠 Alta</option>
+          </select>
         </div>
       </div>
-      ${patient.mih ? `<div style="font-size:12px;color:var(--text-secondary);background:var(--bg-hover);border-radius:8px;padding:10px 14px;margin-bottom:4px;"><strong>MIH:</strong> ${escapeHtml(patient.mih)}</div>` : ''}
-      ${patient.abx  ? `<div style="font-size:12px;color:#ef4444;background:rgba(239,68,68,.07);border-radius:8px;padding:8px 14px;margin-bottom:4px;">💊 <strong>ATB:</strong> ${escapeHtml(patient.abx)}</div>` : ''}
-      ${patient.devices ? `<div style="font-size:12px;color:var(--blue-300);background:var(--bg-hover);border-radius:8px;padding:8px 14px;margin-bottom:4px;">🔌 <strong>Dispositivos:</strong> ${escapeHtml(patient.devices)}</div>` : ''}`;
-  }
+      <div style="margin-bottom:10px;">
+        <label style="font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px;">Motivo de internação (MIH)</label>
+        <input id="edit-mih" class="form-input" value="${escapeHtml(patient.mih||patient.diag||'')}" style="width:100%;box-sizing:border-box;">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div>
+          <label style="font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px;">Dispositivos</label>
+          <textarea id="edit-devices" class="form-input" rows="2" style="width:100%;box-sizing:border-box;resize:vertical;">${escapeHtml(patient.devices||'')}</textarea>
+        </div>
+        <div>
+          <label style="font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px;">ATB em uso</label>
+          <textarea id="edit-abx" class="form-input" rows="2" style="width:100%;box-sizing:border-box;resize:vertical;">${escapeHtml(patient.abx||'')}</textarea>
+        </div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:10.5px;font-weight:700;color:var(--danger);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px;">⚠️ Alergias</label>
+        <input id="edit-allergy" class="form-input" value="${escapeHtml(patient.allergy||'')}" style="width:100%;box-sizing:border-box;" placeholder="Deixe vazio se não houver">
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary btn-sm" onclick="savePatientHeader('${patientId}','${ward}')">💾 Salvar</button>
+        <button class="btn btn-ghost btn-sm" onclick="cancelEditPatientHeader('${patientId}')">Cancelar</button>
+      </div>
+    </div>`;
+}
 
-  // Open evolucao tab — renderEvolucaoCompleta is called by switchTab
-  switchTab('evolucao');
+function savePatientHeader(patientId, ward) {
+  const data = getData();
+  const patient = (data[ward]||[]).find(p => p.id === patientId);
+  if (!patient) return;
+  const g = id => document.getElementById(id)?.value?.trim() || '';
+  patient.name    = cleanPatientName(g('edit-name'))  || patient.name;
+  patient.leito   = g('edit-leito')   || patient.leito;
+  patient.pront   = g('edit-pront')   || patient.pront;
+  patient.age     = g('edit-age')     || patient.age;
+  patient.dt      = g('edit-dt')      || patient.dt;
+  patient.status  = g('edit-status')  || patient.status;
+  patient.mih     = g('edit-mih')     || patient.mih;
+  patient.diag    = g('edit-mih')     || patient.diag;
+  patient.devices = document.getElementById('edit-devices')?.value?.trim() ?? patient.devices;
+  patient.abx     = document.getElementById('edit-abx')?.value?.trim()     ?? patient.abx;
+  patient.allergy = document.getElementById('edit-allergy')?.value?.trim() ?? patient.allergy;
+  saveData(data);
+  updateCounts();
+  const header = document.getElementById('detail-header');
+  if (header) renderPatientHeader(header, patient);
+  showToast('✅ Dados atualizados', 'success');
+}
+
+function cancelEditPatientHeader(patientId) {
+  const data = getData();
+  let patient = null;
+  for (const w of ['cmm','cmf1','cmf2']) {
+    patient = (data[w]||[]).find(p => p.id === patientId);
+    if (patient) break;
+  }
+  const header = document.getElementById('detail-header');
+  if (header && patient) renderPatientHeader(header, patient);
 }
 
 // ══════════════════════════════════════════════════════════
