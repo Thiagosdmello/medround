@@ -1076,6 +1076,10 @@ input, textarea, select { font-family: inherit; }
       <div class="ward-tab-left"><div class="ward-dot dot-cmm"></div>CMM</div>
       <span id="cnt-cmm" class="ward-count">0 pac.</span>
     </div>
+    <div class="ward-tab" onclick="selectWard('ccm')" id="tab-ccm">
+      <div class="ward-tab-left"><div class="ward-dot dot-ccm"></div>CCM</div>
+      <span id="cnt-ccm" class="ward-count">0 pac.</span>
+    </div>
     <div class="ward-tab" onclick="selectWard('cmf1')" id="tab-cmf1">
       <div class="ward-tab-left"><div class="ward-dot dot-cmf1"></div>CMF1</div>
       <span id="cnt-cmf1" class="ward-count">0 pac.</span>
@@ -1088,7 +1092,7 @@ input, textarea, select { font-family: inherit; }
   <nav class="sidebar-nav">
     <div class="nav-section-label">Principal</div>
     <div class="nav-item active" onclick="showView('dashboard')" id="nav-dashboard"><span class="nav-icon">🏠</span> Dashboard</div>
-    <div class="nav-item" onclick="showView('patients')" id="nav-patients"><span class="nav-icon">🛏️</span> Pacientes<span class="badge" id="badge-patients"></span></div>
+    <div class="nav-item" onclick="showView('patients')" id="nav-patients"><span class="nav-icon">🛏️</span> Pacientes</div>
     <div class="nav-section-label">Documentos</div>
     <div class="nav-item" onclick="showView('passagem')" id="nav-passagem"><span class="nav-icon">📋</span> Passagem</div>
     <div class="nav-item" onclick="showView('condutas')" id="nav-condutas"><span class="nav-icon">📄</span> Resumo Condutas</div>
@@ -1136,6 +1140,7 @@ input, textarea, select { font-family: inherit; }
         <div class="stat-card"><div class="stat-icon">🛏️</div><div class="stat-label">CMM</div><div class="stat-value" id="stat-cmm">0</div><div class="stat-sub">Clínica Masculina</div></div>
         <div class="stat-card"><div class="stat-icon">🛏️</div><div class="stat-label">CMF1</div><div class="stat-value" id="stat-cmf1">0</div><div class="stat-sub">Clínica Feminina 1</div></div>
         <div class="stat-card"><div class="stat-icon">🛏️</div><div class="stat-label">CMF2</div><div class="stat-value" id="stat-cmf2">0</div><div class="stat-sub">Clínica Feminina 2</div></div>
+        <div class="stat-card"><div class="stat-icon">🛏️</div><div class="stat-label">CCM</div><div class="stat-value" id="stat-ccm">0</div><div class="stat-sub">CCM</div></div>
         <div class="stat-card"><div class="stat-icon">🚨</div><div class="stat-label">Críticos</div><div class="stat-value" id="stat-critical" style="color:var(--danger)">0</div><div class="stat-sub">status crítico</div></div>
         <div class="stat-card"><div class="stat-icon">💊</div><div class="stat-label">Em ATB</div><div class="stat-value" id="stat-atb" style="color:var(--warning)">0</div><div class="stat-sub">antibióticos ativos</div></div>
       </div>
@@ -1211,6 +1216,7 @@ input, textarea, select { font-family: inherit; }
           <button class="btn btn-ghost btn-sm active-ward" onclick="selectPassagemWard('cmm')" id="passagem-tab-cmm">CMM</button>
           <button class="btn btn-ghost btn-sm" onclick="selectPassagemWard('cmf1')" id="passagem-tab-cmf1">CMF1</button>
           <button class="btn btn-ghost btn-sm" onclick="selectPassagemWard('cmf2')" id="passagem-tab-cmf2">CMF2</button>
+          <button class="btn btn-ghost btn-sm" onclick="selectPassagemWard('ccm')" id="passagem-tab-ccm">CCM</button>
           <label class="btn btn-primary btn-sm" style="cursor:pointer;margin-left:8px;" title="Importar arquivo de passagem (.docx)">
             📄 Importar Passagem
             <input type="file" accept=".docx,.pdf,.txt" style="display:none;" onchange="importPassagemFile(this.files[0])">
@@ -1256,6 +1262,7 @@ input, textarea, select { font-family: inherit; }
         <button class="btn btn-ghost btn-sm active-ward" onclick="tfSetWard('cmm')" id="tf-tab-cmm">CMM</button>
         <button class="btn btn-ghost btn-sm" onclick="tfSetWard('cmf1')" id="tf-tab-cmf1">CMF1</button>
         <button class="btn btn-ghost btn-sm" onclick="tfSetWard('cmf2')" id="tf-tab-cmf2">CMF2</button>
+        <button class="btn btn-ghost btn-sm" onclick="tfSetWard('ccm')" id="tf-tab-ccm">CCM</button>
       </div>
       <div id="tf-date-label" style="font-size:12px;color:var(--text-muted);margin-bottom:10px;"></div>
       <div id="tf-cards-container"></div>
@@ -1384,6 +1391,7 @@ input, textarea, select { font-family: inherit; }
           <option value="cmm">CMM — Clínica Médica Masculina</option>
           <option value="cmf1">CMF1 — Clínica Médica Feminina 1</option>
           <option value="cmf2">CMF2 — Clínica Médica Feminina 2</option>
+          <option value="ccm">CCM</option>
         </select>
       </div>
 
@@ -1569,98 +1577,34 @@ let patientSortMode    = 'leito';   // 'leito' | 'gravidade' | 'custom'
 let patientCustomOrder = {};        // ward → [id, ...]
 let _deleteModeActive  = false;
 
-const WARD_LABELS = { cmm: 'CMM', cmf1: 'CMF1', cmf2: 'CMF2' };
-const WARD_FULL = { cmm: 'Clínica Médica Masculina', cmf1: 'Clínica Médica Feminina 1', cmf2: 'Clínica Médica Feminina 2' };
+const WARD_LABELS = { cmm: 'CMM', cmf1: 'CMF1', cmf2: 'CMF2', ccm: 'CCM' };
+const WARD_FULL = { cmm: 'Clínica Médica Masculina', cmf1: 'Clínica Médica Feminina 1', cmf2: 'Clínica Médica Feminina 2', ccm: 'CCM' };
 
 // Init data — runs if localStorage is empty OR has no patients
 (function initData() {
-  const existing = localStorage.getItem('medroundData');
+  // Check localStorage first
+  const existing = localStorage.getItem(DATA_KEY);
   if (existing) {
     try {
       const d = JSON.parse(existing);
-      const total = (d.cmm||[]).length + (d.cmf1||[]).length + (d.cmf2||[]).length;
+      const total = (d.cmm||[]).length+(d.cmf1||[]).length+(d.cmf2||[]).length+(d.ccm||[]).length;
       if (total > 0) return; // Has real data — skip
     } catch {}
   }
   // Also check backup
-  const bk = localStorage.getItem('medroundData_backup');
+  const bk = localStorage.getItem(DATA_KEY+'_backup');
   if (bk) {
     try {
       const bd = JSON.parse(bk);
-      const bt = (bd.cmm||[]).length + (bd.cmf1||[]).length + (bd.cmf2||[]).length;
+      const bt = (bd.cmm||[]).length+(bd.cmf1||[]).length+(bd.cmf2||[]).length+(bd.ccm||[]).length;
       if (bt > 0) {
-        localStorage.setItem('medroundData', bk);
+        try { localStorage.setItem(DATA_KEY, bk); } catch {}
         console.log('[MedRound] Restored from backup:', bt, 'patients');
         return;
       }
     } catch {}
   }
-  // No real data anywhere — load demo
-  if (false) { // replaced by block below
-  const demo = {
-    cmm: [
-      {
-        id: 'p1', name: 'José Carlos Ferreira', pront: '12345', leito: '01', dt: '2025-04-20',
-        age: 67, status: 'critical',
-        diag: 'Sepse de foco pulmonar, PAC grave, DM2, HAS',
-        problems: '# Sepse de foco pulmonar (critérios de disfunção orgânica)\n# PAC grave\n# DM2 descompensada\n# HAS, DLP',
-        abx: 'Piperacilina-tazobactam 4,5g/6h (D5); Azitromicina 500mg/24h (D5)',
-        devices: 'AVC periférico D, O2 por máscara de Venturi 40%, cateter vesical',
-        evolutions: [
-          {
-            id: 'ev1', date: '2025-04-24', doctor: 'Dr. Thiago',
-            ih: 'D5 de internação', mih: 'Febre, dispneia e hipoxemia — PAC grave',
-            problems: '# Sepse de foco pulmonar (critérios SOFA: disfunção renal + respiratória)\n# PAC grave (PSI V)\n# DM2 descompensada\n# HAS, DLP',
-            resumo: 'Paciente de 67 anos, masculino, internado há 5 dias por PAC grave com evolução para sepse. Iniciou ATB empírico com pip-tazo + azitromicina. Apresentando melhora clínica lenta.',
-            abx: 'Piperacilina-tazobactam 4,5g/6h EV (D5 - início 19/04)\nAzitromicina 500mg/24h EV (D5)\nHemoculturas: aguardando D2',
-            devices: 'AVC periférico D\nO2 por máscara Venturi 40% (FiO2 0,4)\nCateter vesical',
-            '24h': 'Paciente em regular estado geral, febril (38,2°C), SpO2 92% em O2 40%. PA 110/70mmHg, FC 98bpm. Diurese preservada. Sem rebaixamento de nível de consciência.',
-            image: 'RX Tórax 20/04: Infiltrado alveolar extenso em campo inferior direito, sugestivo de consolidação.',
-            labs: '24/04: Leuco 18.500 (neutro 85%) / PCR 210 / Cr 1,8 / Ur 65\n24/04: Hb 10,2 / Plaq 180k\n24/04: Glicemia 280 / HbA1c 10,5%',
-            pareceres: 'Endocrinologia 24/04: Otimização de insulinoterapia — insulina NPH 20U/manhã + correção com regular',
-            impressao: 'Sepse de foco pulmonar por PAC grave, com disfunção renal aguda e DM2 descompensada. Melhora lenta mas progressiva com ATB atual.',
-            conduta: '>> MANEJO INFECCIOSO\n- Manter pip-tazo + azitromicina — reavaliar com resultado de hemocultura\n- Hidratação EV criterioso (oligúria + Cr elevada)\n>> CONTROLE GLICÊMICO\n- Insulina NPH 20U/manhã + correção com regular conforme escala\n- Meta glicêmica 140-180 mg/dL\n>> SUPORTE RESPIRATÓRIO\n- Fisioterapia respiratória 2x/dia\n- Solicitar TC de tórax se não houver melhora em 48h\n>> FUNÇÃO RENAL\n- Monitorizar Cr e diurese\n- Acionar nefrologista se piora'
-          }
-        ],
-        labs: {
-          dates: ['20/04', '22/04', '24/04'],
-          rows: [
-            { name: 'Hb', values: ['11.2', '10.8', '10.2'], flag: ['normal','normal','low'] },
-            { name: 'Leuco', values: ['22.500', '19.200', '18.500'], flag: ['high','high','high'] },
-            { name: 'Plaquetas', values: ['210k', '195k', '180k'], flag: ['normal','normal','normal'] },
-            { name: 'Ureia', values: ['55', '60', '65'], flag: ['high','high','high'] },
-            { name: 'Creatinina', values: ['1.4', '1.6', '1.8'], flag: ['high','high','high'] },
-            { name: 'Na', values: ['137', '138', '139'], flag: ['normal','normal','normal'] },
-            { name: 'K', values: ['3.8', '3.9', '4.1'], flag: ['normal','normal','normal'] },
-            { name: 'PCR', values: ['310', '250', '210'], flag: ['high','high','high'] },
-            { name: 'Glicemia', values: ['320', '298', '280'], flag: ['high','high','high'] }
-          ]
-        },
-        sumario: null,
-        files: []
-      }
-    ],
-    cmf1: [
-      {
-        id: 'p2', name: 'Maria Aparecida Santos', pront: '54321', leito: '03', dt: '2025-04-22',
-        age: 72, status: 'attention',
-        diag: 'Insuficiência cardíaca descompensada, FA permanente, HAS, DRC G3',
-        problems: '1. IC descompensada (NYHA III→IV)\n2. FA permanente (frequência descontrolada)\n3. DRC G3 (Cr basal 1,9)\nHAS, DLP, ex-tabagista',
-        abx: '', devices: 'AVC periférico E, O2 por CN 3L/min',
-        evolutions: [], labs: { dates: ['22/04','24/04'], rows: [
-          { name: 'Hb', values: ['10.5','10.2'], flag: ['low','low'] },
-          { name: 'Ureia', values: ['80','85'], flag: ['high','high'] },
-          { name: 'Creatinina', values: ['2.1','2.3'], flag: ['high','high'] },
-          { name: 'BNP', values: ['1850','1420'], flag: ['high','high'] },
-          { name: 'Na', values: ['134','135'], flag: ['low','low'] },
-          { name: 'K', values: ['3.5','3.7'], flag: ['normal','normal'] }
-        ] }, sumario: null, files: []
-      }
-    ],
-    cmf2: []
-  };
-  localStorage.setItem('medroundData', JSON.stringify(demo));
-  } // end if(false)
+  // IDB will be checked asynchronously by syncIDBtoLocal() on DOMContentLoaded
 })(); // end initData
 
 function getData() {
@@ -1678,11 +1622,12 @@ function getData() {
       }
     }
 
-    if (!raw) return { cmm:[], cmf1:[], cmf2:[] };
+    if (!raw) return { cmm:[], cmf1:[], cmf2:[], ccm:[] };
     const d = JSON.parse(raw);
     if (!d.cmm)  d.cmm  = [];
     if (!d.cmf1) d.cmf1 = [];
     if (!d.cmf2) d.cmf2 = [];
+    if (!d.ccm)  d.ccm  = [];
 
     // If all wards empty, try backup
     const total = d.cmm.length + d.cmf1.length + d.cmf2.length;
@@ -1695,7 +1640,7 @@ function getData() {
           if (bt > 0) {
             console.warn('[MedRound] Empty data — restoring from backup');
             localStorage.setItem('medroundData', backup);
-            return { cmm: bd.cmm||[], cmf1: bd.cmf1||[], cmf2: bd.cmf2||[] };
+            return { cmm: bd.cmm||[], cmf1: bd.cmf1||[], cmf2: bd.cmf2||[], ccm: bd.ccm||[] };
           }
         } catch {}
       }
@@ -1709,24 +1654,183 @@ function getData() {
       const backup = localStorage.getItem('medroundData_backup');
       if (backup) return JSON.parse(backup);
     } catch {}
-    return { cmm:[], cmf1:[], cmf2:[] };
+    return { cmm:[], cmf1:[], cmf2:[], ccm:[] };
   }
 }
 
+// ══════════════════════════════════════════════════════════════════
+//  PERSISTENCE — IndexedDB (primary) + localStorage (fallback)
+//  IndexedDB: quota de GBs no iOS, persiste entre sessões PWA
+//  localStorage: fallback + backup rápido (max ~5MB no iOS)
+// ══════════════════════════════════════════════════════════════════
+
+const DB_NAME    = 'MedRoundDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'data';
+const DATA_KEY   = 'medroundData';
+
+let _idb = null; // IndexedDB instance (null until opened)
+
+function openIDB() {
+  if (_idb) return Promise.resolve(_idb);
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) { resolve(null); return; }
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      e.target.result.createObjectStore(STORE_NAME);
+    };
+    req.onsuccess = e => { _idb = e.target.result; resolve(_idb); };
+    req.onerror   = ()  => { console.warn('[IDB] open failed'); resolve(null); };
+  });
+}
+
+function idbGet(key) {
+  return openIDB().then(db => {
+    if (!db) return null;
+    return new Promise((resolve, reject) => {
+      const tx  = db.transaction(STORE_NAME, 'readonly');
+      const req = tx.objectStore(STORE_NAME).get(key);
+      req.onsuccess = () => resolve(req.result ?? null);
+      req.onerror   = () => resolve(null);
+    });
+  });
+}
+
+function idbSet(key, value) {
+  return openIDB().then(db => {
+    if (!db) return false;
+    return new Promise((resolve) => {
+      const tx  = db.transaction(STORE_NAME, 'readwrite');
+      const req = tx.objectStore(STORE_NAME).put(value, key);
+      req.onsuccess = () => resolve(true);
+      req.onerror   = () => resolve(false);
+    });
+  });
+}
+
+// ── Sync write: localStorage only (for immediate reads) ──
+// Full async write goes to IDB (called from saveData)
 function saveData(d) {
   const json = JSON.stringify(d);
-  localStorage.setItem('medroundData', json);
 
-  // ── Keep a backup copy (written after every save) ──
-  const total = (d.cmm||[]).length + (d.cmf1||[]).length + (d.cmf2||[]).length;
-  if (total > 0) {
-    localStorage.setItem('medroundData_backup', json);
-    localStorage.setItem('medroundData_backup_ts', new Date().toISOString());
+  // 1. localStorage — fast, synchronous (may fail on iOS quota)
+  try {
+    localStorage.setItem(DATA_KEY, json);
+    const total = (d.cmm||[]).length+(d.cmf1||[]).length+(d.cmf2||[]).length+(d.ccm||[]).length;
+    if (total > 0) {
+      localStorage.setItem(DATA_KEY+'_backup', json);
+      localStorage.setItem(DATA_KEY+'_backup_ts', new Date().toISOString());
+    }
+  } catch(e) {
+    console.warn('[MedRound] localStorage write failed (quota?):', e.message);
   }
 
-  // Push to Supabase async (non-blocking)
+  // 2. IndexedDB — async, large quota, primary store for iOS PWA
+  idbSet(DATA_KEY, json).then(ok => {
+    if (!ok) console.warn('[MedRound] IDB write failed');
+  });
+
+  // 3. Supabase sync (non-blocking)
   if (sb.client) sbPush(d).catch(() => {});
 }
+
+// ── Async read: IDB first, localStorage fallback ──
+async function getDataAsync() {
+  // Try IDB first (most reliable on iOS)
+  let raw = await idbGet(DATA_KEY);
+
+  // Fallback: localStorage
+  if (!raw) raw = localStorage.getItem(DATA_KEY);
+
+  // Fallback: backup
+  if (!raw || raw === '{}' || raw === 'null') {
+    raw = await idbGet(DATA_KEY+'_backup') || localStorage.getItem(DATA_KEY+'_backup');
+    if (raw && raw.length > 100) {
+      console.warn('[MedRound] Restoring from backup');
+      try { saveData(JSON.parse(raw)); } catch {}
+    }
+  }
+
+  if (!raw) return { cmm:[], cmf1:[], cmf2:[], ccm:[] };
+  try {
+    const d = JSON.parse(raw);
+    if (!d.cmm)  d.cmm  = [];
+    if (!d.cmf1) d.cmf1 = [];
+    if (!d.cmf2) d.cmf2 = [];
+    if (!d.ccm)  d.ccm  = [];
+    return d;
+  } catch(e) {
+    console.error('[MedRound] parse error:', e);
+    return { cmm:[], cmf1:[], cmf2:[], ccm:[] };
+  }
+}
+
+// ── Sync read (backwards compat — called everywhere synchronously) ──
+// Reads from localStorage synchronously; IDB is kept in sync by saveData
+function getData() {
+  try {
+    let raw = localStorage.getItem(DATA_KEY);
+
+    if (!raw || raw === '{}' || raw === 'null') {
+      const backup = localStorage.getItem(DATA_KEY+'_backup');
+      if (backup && backup.length > 100) {
+        console.warn('[MedRound] Main data missing — restoring from backup');
+        raw = backup;
+        try { localStorage.setItem(DATA_KEY, raw); } catch {}
+        showToast && showToast('⚠️ Dados restaurados do backup automático', 'success');
+      }
+    }
+
+    if (!raw) return { cmm:[], cmf1:[], cmf2:[], ccm:[] };
+    const d = JSON.parse(raw);
+    if (!d.cmm)  d.cmm  = [];
+    if (!d.cmf1) d.cmf1 = [];
+    if (!d.cmf2) d.cmf2 = [];
+    if (!d.ccm)  d.ccm  = [];
+
+    const total = d.cmm.length+d.cmf1.length+d.cmf2.length+d.ccm.length;
+    if (total === 0) {
+      const backup = localStorage.getItem(DATA_KEY+'_backup');
+      if (backup && backup.length > 100) {
+        try {
+          const bd = JSON.parse(backup);
+          const bt = (bd.cmm||[]).length+(bd.cmf1||[]).length+(bd.cmf2||[]).length+(bd.ccm||[]).length;
+          if (bt > 0) {
+            console.warn('[MedRound] Empty data — restoring from backup, bt:', bt);
+            try { localStorage.setItem(DATA_KEY, backup); } catch {}
+            return { cmm:bd.cmm||[], cmf1:bd.cmf1||[], cmf2:bd.cmf2||[], ccm:bd.ccm||[] };
+          }
+        } catch {}
+      }
+    }
+    return d;
+  } catch(e) {
+    console.error('[MedRound] getData error:', e);
+    try {
+      const backup = localStorage.getItem(DATA_KEY+'_backup');
+      if (backup) return JSON.parse(backup);
+    } catch {}
+    return { cmm:[], cmf1:[], cmf2:[], ccm:[] };
+  }
+}
+
+// ── On boot: copy IDB → localStorage so sync reads work ──
+async function syncIDBtoLocal() {
+  try {
+    const idbRaw = await idbGet(DATA_KEY);
+    if (!idbRaw) return;
+    const lsRaw = localStorage.getItem(DATA_KEY);
+    // Use IDB version if localStorage is empty or smaller
+    if (!lsRaw || lsRaw === '{}' || lsRaw.length < idbRaw.length) {
+      localStorage.setItem(DATA_KEY, idbRaw);
+      localStorage.setItem(DATA_KEY+'_backup', idbRaw);
+      console.log('[MedRound] Synced IDB → localStorage');
+    }
+  } catch(e) {
+    console.warn('[MedRound] syncIDBtoLocal error:', e);
+  }
+}
+
 function getApiKey() { return localStorage.getItem('medroundApiKey') || ''; }
 
 function updateApiKeyStatus() {
@@ -1772,8 +1876,8 @@ const sb = {
   channel: null,
   // ══════════════════════════════════════════════
   //  COLE SUAS CREDENCIAIS DO SUPABASE AQUI:
-  url: 'https://sxtihlavbggfpplhlbsm.supabase.co',        // ex: https://abcdefgh.supabase.co
-  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4dGlobGF2YmdnZnBwbGhsYnNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5ODQwMDMsImV4cCI6MjA5NDU2MDAwM30.Rjwx6xbk27oM3_j-7FPRU57cmikbXi-x71NXcplI5RU',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  url: 'COLE_AQUI_A_PROJECT_URL',        // ex: https://abcdefgh.supabase.co
+  key: 'COLE_AQUI_A_ANON_KEY',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   // ══════════════════════════════════════════════
   isSyncing: false
 };
@@ -2370,15 +2474,10 @@ async function _confirmImport() {
     return;
   }
 
-  // DEBUG: show what we have
-  console.log('[import] batch:', _batchImportData.length, 'files');
-  _batchImportData.forEach((r,i) => {
-    const ex = r.extracted || {};
-    console.log(`[import] [${i}] file:${r.filename} leito:${ex.leito} name:${ex.name} pront:${ex.pront}`);
-  });
+  console.log('[import] batch:', _batchImportData.length, 'evolution files,', _batchTardesData.length, 'tardes');
 
   try {
-    const data     = getData();
+    const data = await getDataAsync(); // IDB-first for reliability
     const today    = new Date().toLocaleDateString('pt-BR');
     const importWard = document.getElementById('import-ward-select')?.value || state.currentWard || 'cmm';
     if (!data.cmm)  data.cmm  = [];
@@ -2386,123 +2485,110 @@ async function _confirmImport() {
     if (!data.cmf2) data.cmf2 = [];
     let updated = 0, created = 0, tfSaved = 0, autoAltaCount = 0;
 
-    // ── 1. Tarde Fixa — save after patients are created ──
-    // (TF matching happens AFTER evolutions are processed so new patients exist)
-    const applyTardeFixas = () => {
-      for (const r of _batchTardesData) {
-        try {
-          const td = r.tardeData || r;
-          const leitoStr = String(r.leito || td.leito || '').replace(',','.');
-          if (!leitoStr) continue;
-
-          for (const w of ['cmm','cmf1','cmf2']) {
-            const p = (data[w]||[]).find(x => {
-              const pl = String(x.leito||'').replace(',','.');
-              return pl === leitoStr || parseFloat(pl) === parseFloat(leitoStr);
-            });
-            if (!p) continue;
-
-            // Save tardeFixa to patient
-            p.tardeFixa = {
-              date:       td.date || today,
-              observacoes: td.observacoes || [],
-              pendencias: (td.pendencias||[]).map(i => typeof i==='string' ? {text:i,done:false} : {text:i.text||'',done:!!i.done}),
-              dieta:   { valor: td.dieta?.valor   || '', flag: td.dieta?.flag   || false },
-              clexane: { valor: td.clexane?.valor || '', flag: td.clexane?.flag || false },
-              atb:     { valor: td.atb?.valor     || '', flag: td.atb?.flag     || false },
-              risco:   { valor: td.risco?.valor   || '', flag: td.risco?.flag   || false },
-              labs:    td.labs || '',
-            };
-
-            // Inject AI-parsed findings into today's evolution
-            const extraConduta = r.condutaAdicional || td.condutaAdicional || '';
-            const extraExames  = r.examesResultados || td.examesResultados || '';
-            if (extraConduta || extraExames) {
-              if (!p.evolutions) p.evolutions = [];
-              const todayEvol = p.evolutions.find(ev => ev.date === today);
-              if (todayEvol) {
-                if (extraExames) todayEvol.labs = (todayEvol.labs ? todayEvol.labs + '\n' : '') + '🌅 Tarde Fixa: ' + extraExames;
-                if (extraConduta) todayEvol.conduta = (todayEvol.conduta ? todayEvol.conduta + '\n' : '') + '>> Tarde Fixa:\n- ' + extraConduta;
-              } else {
-                p.evolutions.push({
-                  id: 'ev-tf-' + Date.now(),
-                  date: today,
-                  doctor: 'Dr. Thiago',
-                  ward: w,
-                  resumo: '',
-                  conduta: extraConduta ? ('>> Tarde Fixa:\n- ' + extraConduta) : '',
-                  labs: extraExames || '',
-                  rawText: '',
-                  '24h':'', problems:'', abx:'', devices:'', image:'', pareceres:'', impressao:'',
-                });
-              }
-            }
-            tfSaved++;
-            break;
-          }
-        } catch(e) { console.warn('[TF apply]', e); }
+    // ── Helper: parse date from filename ──
+    const fileDateFromName = (filename) => {
+      if (!filename) return today;
+      // Match dates like "_13_05_", "-13-05", "_13_05." anywhere in filename
+      // Handles: "LT_01_-_Reinaldo__13_05_.docx", "LT_06_-_Clemildo_13_05.docx"
+      const fm = filename.match(/[_\-]+(\d{2})[_\-]+(\d{2})[_\-]?(?:\.|$|\d)/);
+      if (fm) {
+        const day = parseInt(fm[1]), mon = parseInt(fm[2]);
+        if (day >= 1 && day <= 31 && mon >= 1 && mon <= 12) {
+          const yr = new Date().getFullYear();
+          return `${String(day).padStart(2,'0')}/${String(mon).padStart(2,'0')}/${yr}`;
+        }
       }
+      return today;
     };
 
-    // ── 2. Build leito→ward map ──
+    // ── Helper: get leito from filename as fallback ──
+    const leitoFromFilename = (filename) => {
+      if (!filename) return '';
+      const m = filename.replace(/^Co_pia_de_/i,'')
+        .match(/LT[_\s-]*(?:CM\s*)?(\d+(?:[.,]\d+)?[A-Za-z]?)/i);
+      return m ? m[1].replace(',','.') : '';
+    };
+
+    // ── 1. Build leito→ward map from existing patients ──
     const leitoWardMap = {};
-    for (const w of ['cmm','cmf1','cmf2']) {
+    for (const w of ['cmm','cmf1','cmf2','ccm']) {
       for (const p of (data[w]||[])) {
-        const ln = parseInt(String(p.leito||''),10);
+        const ln = parseFloat(String(p.leito||'')) || 0;
         if (ln > 0) leitoWardMap[ln] = w;
       }
     }
 
-    // ── 3. Evoluções ──
+    // ── 2. Process each evolution file ──
     for (let idx = 0; idx < _batchImportData.length; idx++) {
-      const r = _batchImportData[idx];
-      try {
-        const ex       = r.extracted || {};
-        // Find existing patient — match by pront OR leito (handles "01"=="1", "6"=="06")
-        let patient = null, ward = null;
-        const leitoStr = String(ex.leito || '').trim();
-        const leitoNum = parseFloat(leitoStr) || 0;
-        outer: for (const w of ['cmm','cmf1','cmf2']) {
-          for (const p of (data[w]||[])) {
-            const pp = String(p.pront||'').replace(/\D/g,'');
-            const pl = String(p.leito||'').trim();
-            const plNum = parseFloat(pl) || 0;
-            const prontMatch = pront.length >= 4 && pp.length >= 4 && pp === pront;
-            const leitoMatch = leitoNum > 0 && plNum > 0 && plNum === leitoNum;
-            const leitoStrMatch = leitoStr && pl && (pl === leitoStr);
-            if (prontMatch || leitoMatch || leitoStrMatch) {
-              patient = p; ward = w; break outer;
-            }
-          }
+      const r   = _batchImportData[idx];
+      const ex  = r.extracted || {};
+
+      // Name
+      let name = cleanPatientName(ex.name || '');
+      if (!name && r.filename) {
+        let nm = r.filename
+          .replace(/\.(docx?|pdf|txt)$/i, '')
+          .replace(/^Co_pia_de_/i, '')
+          .replace(/LT[_\s-]*\d+(?:[.,]\d+)?[A-Za-z]?[_\s\u2013\u2014-]+/i, '')
+          .replace(/[_\s]?\(?\d{2}[_\/]\d{2}\)?[\s_]*$/, '')
+          .replace(/[_]+/g, ' ').trim();
+        if (nm.length > 2) name = cleanPatientName(nm);
+      }
+
+      // Prontuário
+      const pront = String(ex.pront || '').replace(/\D/g, '');
+
+      // Leito — AI extracted OR from filename
+      const leitoStr = (String(ex.leito || '').trim()) || leitoFromFilename(r.filename);
+      const leitoNum = parseFloat(leitoStr) || 0;
+
+      // Date of this file (from filename, e.g. "13_05" → "13/05/2026")
+      const fileDate = fileDateFromName(r.filename);
+
+      console.log(`[import][${idx}] file="${r.filename}" leito="${leitoStr}" name="${name}" pront="${pront}" date="${fileDate}"`);
+
+      // Find existing patient: pront > leito number > leito string
+      let patient = null, ward = null;
+      outer: for (const w of ['cmm','cmf1','cmf2','ccm']) {
+        for (const p of (data[w]||[])) {
+          const pp    = String(p.pront||'').replace(/\D/g,'');
+          const pl    = String(p.leito||'').trim();
+          const plNum = parseFloat(pl) || 0;
+          const byPront  = pront.length >= 4 && pp.length >= 4 && pp === pront;
+          const byLeitoN = leitoNum > 0 && plNum > 0 && plNum === leitoNum;
+          const byLeitoS = leitoStr.length > 0 && pl === leitoStr;
+          if (byPront || byLeitoN || byLeitoS) { patient = p; ward = w; break outer; }
         }
+      }
 
-        const newEvol = {
-          id:        'ev' + Date.now() + '_' + idx,
-          date:      today,
-          doctor:    'Dr. Thiago',
-          ward:      ward || importWard,
-          rawText:   ex.rawText || r.rawText || '',
-          resumo:    ex.resumo    || '',
-          '24h':     ex['24h']    || '',
-          problems:  ex.problems  || '',
-          abx:       ex.abx       || '',
-          devices:   ex.devices   || '',
-          labs:      ex.labs      || '',
-          image:     ex.image     || '',
-          pareceres: ex.pareceres || '',
-          impressao: ex.impressao || '',
-          conduta:   ex.conduta   || '',
-        };
+      // Build evolution
+      const newEvol = {
+        id:        'ev' + Date.now() + '_' + idx,
+        date:      fileDate,
+        doctor:    'Dr. Thiago',
+        ward:      ward || importWard,
+        rawText:   ex.rawText  || r.rawText  || '',
+        resumo:    ex.resumo   || '',
+        '24h':     ex['24h']   || '',
+        problems:  ex.problems || '',
+        abx:       ex.abx      || '',
+        devices:   ex.devices  || '',
+        labs:      ex.labs     || '',
+        image:     ex.image    || '',
+        pareceres: ex.pareceres|| '',
+        impressao: ex.impressao|| '',
+        conduta:   ex.conduta  || '',
+      };
 
+      try {
         if (patient) {
+          // UPDATE existing patient
           if (!patient.evolutions) patient.evolutions = [];
-          // Match by date — use the date from the extracted data, not just today
-          const evolDate = ex.dt ? new Date(ex.dt).toLocaleDateString('pt-BR') : today;
-          const ti = patient.evolutions.findIndex(ev => ev.date === evolDate || ev.date === today);
-          if (ti >= 0) patient.evolutions[ti] = { ...patient.evolutions[ti], ...newEvol, date: evolDate };
-          else         patient.evolutions.push({ ...newEvol, date: evolDate });
+          const ti = patient.evolutions.findIndex(ev => ev.date === fileDate);
+          if (ti >= 0) patient.evolutions[ti] = { ...patient.evolutions[ti], ...newEvol };
+          else         patient.evolutions.push(newEvol);
 
-          // Update ALL patient fields with fresh data from file
+          // Update all top-level fields
           if (ex.problems?.trim())  patient.problems  = ex.problems;
           if (ex.abx?.trim())       patient.abx       = ex.abx;
           if (ex.devices?.trim())   patient.devices   = ex.devices;
@@ -2516,50 +2602,100 @@ async function _confirmImport() {
           if (ex.allergy?.trim())   patient.allergy   = ex.allergy;
           if (ex.age?.trim())       patient.age       = ex.age;
           if (name && name.length > 3) patient.name   = name;
+          if (patient.status === 'alta') patient.status = 'stable';
           updated++;
+          console.log(`[import] UPDATED LT${leitoStr} ${name}`);
+
         } else if (name) {
+          // CREATE new patient
           const tw = leitoWardMap[leitoNum] || importWard;
           const newPt = {
-            id: 'p' + Date.now() + '_' + idx,
-            name, pront: pront || '',
-            leito: String(leitoNum || ex.leito || ''),
-            age: ex.age || '', dt: ex.dt || new Date().toISOString().split('T')[0],
-            status: 'stable',
-            diag: ex.diag || ex.mih || '', mih: ex.mih || '',
-            problems: ex.problems || '', abx: ex.abx || '',
-            devices: ex.devices || '', allergy: ex.allergy || '',
-            ih: ex.ih || '', evolutions: [newEvol], files: [],
+            id:        'p' + Date.now() + '_' + idx,
+            name,
+            pront:     pront || '',
+            leito:     leitoStr || String(leitoNum || ''),
+            age:       ex.age  || '',
+            dt:        ex.dt   || new Date().toISOString().split('T')[0],
+            status:    'stable',
+            diag:      ex.diag || ex.mih || '',
+            mih:       ex.mih  || '',
+            problems:  ex.problems || '',
+            abx:       ex.abx     || '',
+            devices:   ex.devices || '',
+            allergy:   ex.allergy || '',
+            ih:        ex.ih      || '',
+            labs:      ex.labs    || '',
+            image:     ex.image   || '',
+            resumo:    ex.resumo  || '',
+            pareceres: ex.pareceres || '',
+            evolutions: [newEvol],
+            files:     [],
           };
           data[tw].push(newPt);
           leitoWardMap[leitoNum] = tw;
           created++;
+          console.log(`[import] CREATED LT${leitoStr} ${name} in ${tw}`);
+
         } else {
-          console.warn('[import] no name for', r.filename, 'leito:', leitoNum);
+          console.warn(`[import] SKIPPED "${r.filename}" — no name. leito="${leitoStr}" pront="${pront}"`);
         }
-      } catch(e) { console.error('[import item]', idx, r?.filename, e); }
+      } catch (itemErr) {
+        console.error('[import item error]', idx, r?.filename, itemErr.message, itemErr);
+      }
     }
 
-    // ── 4. Apply Tarde Fixa AFTER patients/evolutions exist ──
-    applyTardeFixas();
+    // ── 3. Apply Tarde Fixa (AFTER patients exist) ──
+    for (const r of _batchTardesData) {
+      try {
+        const td       = r.tardeData || r;
+        const leitoStr = String(r.leito || td.leito || '').replace(',','.');
+        if (!leitoStr) continue;
+        for (const w of ['cmm','cmf1','cmf2','ccm']) {
+          const p = (data[w]||[]).find(x => {
+            const pl = String(x.leito||'').replace(',','.');
+            return pl === leitoStr || parseFloat(pl) === parseFloat(leitoStr);
+          });
+          if (!p) continue;
+          p.tardeFixa = {
+            date:       td.date || today,
+            observacoes:td.observacoes || [],
+            pendencias: (td.pendencias||[]).map(i => typeof i==='string' ? {text:i,done:false} : {text:i.text||'',done:!!i.done}),
+            dieta:   { valor: td.dieta?.valor   || '', flag: !!td.dieta?.flag   },
+            clexane: { valor: td.clexane?.valor || '', flag: !!td.clexane?.flag },
+            atb:     { valor: td.atb?.valor     || '', flag: !!td.atb?.flag     },
+            risco:   { valor: td.risco?.valor   || '', flag: !!td.risco?.flag   },
+            labs:    td.labs || '',
+          };
+          const extraConduta = r.condutaAdicional || td.condutaAdicional || '';
+          const extraExames  = r.examesResultados || td.examesResultados || '';
+          if (extraConduta || extraExames) {
+            if (!p.evolutions) p.evolutions = [];
+            const todayEvol = p.evolutions.find(ev => ev.date === today);
+            if (todayEvol) {
+              if (extraExames)  todayEvol.labs    = (todayEvol.labs    ? todayEvol.labs    + '\n' : '') + '🌅 TF: ' + extraExames;
+              if (extraConduta) todayEvol.conduta = (todayEvol.conduta ? todayEvol.conduta + '\n' : '') + '>> Tarde Fixa:\n- ' + extraConduta;
+            }
+          }
+          tfSaved++; break;
+        }
+      } catch(e) { console.warn('[TF apply]', e); }
+    }
 
-    // ── 5. Auto-alta: pacientes ATIVOS não presentes nos arquivos → mover para alta ──
-    // Only applies when importing a meaningful set of files (≥3 evolution files)
-    const evolutionFilesCount = _batchImportData.length;
-    if (evolutionFilesCount >= 3) {
-      // Build set of leitos that are present in this import
-      const importedLeitos = new Set(
-        _batchImportData
-          .map(r => String((r.extracted||{}).leito||'').trim())
-          .filter(l => l && l !== '0')
+    // ── 4. Auto-alta: pacientes não presentes nos arquivos enviados ──
+    if (_batchImportData.length >= 3) {
+      const presentLeitos = new Set(
+        _batchImportData.map(r => {
+          const l = String((r.extracted||{}).leito||'').trim();
+          return parseFloat(l) || l;
+        }).filter(Boolean)
       );
-      let autoAltaCount = 0;
-      for (const w of ['cmm','cmf1','cmf2']) {
+      for (const w of ['cmm','cmf1','cmf2','ccm']) {
         for (const p of (data[w]||[])) {
-          if (p.status === 'alta') continue;          // already discharged
-          const pl = String(p.leito||'').trim();
-          if (!pl) continue;
-          if (!importedLeitos.has(pl)) {
-            // Not in this batch → presumed discharged
+          if (p.status === 'alta') continue;
+          const pl    = String(p.leito||'').trim();
+          const plNum = parseFloat(pl) || 0;
+          const inBatch = presentLeitos.has(plNum) || presentLeitos.has(pl);
+          if (!inBatch) {
             p.status    = 'alta';
             p.altaDate  = today;
             p.altaReason = 'Alta automática — ausente nos arquivos importados';
@@ -2567,17 +2703,16 @@ async function _confirmImport() {
           }
         }
       }
-      if (autoAltaCount > 0) {
-        console.log(`[import] Auto-alta: ${autoAltaCount} paciente(s) não presentes nos arquivos`);
-      }
+      if (autoAltaCount > 0) console.log(`[import] Auto-alta: ${autoAltaCount} paciente(s)`);
     }
 
-    // ── 6. Save ──
+    // ── 5. Save ──
     saveData(data);
-    console.log('[import] SAVED. updated:', updated, 'created:', created, 'ward:', importWard);
-    console.log('[import] Ward data after save:', (data[importWard]||[]).map(p=>`LT${p.leito} ${p.name}`));
+    const saved = getData();
+    console.log('[import] SAVED — updated:', updated, 'created:', created, 'alta:', autoAltaCount);
+    console.log('[import] Ward', importWard, ':', (saved[importWard]||[]).map(p=>`LT${p.leito} ${p.name} [${p.status}]`).join(', '));
 
-    // ── 5. Close modal & reset ──
+    // ── 6. Close modal & UI reset ──
     closeModal('modal-import');
     ['import-filelist','import-preview','import-save-btn'].forEach(id => {
       const el = document.getElementById(id); if (el) el.style.display = 'none';
@@ -2586,44 +2721,27 @@ async function _confirmImport() {
     const fo = document.getElementById('import-folder-input'); if (fo) fo.value = '';
     if (confirmBtn) { confirmBtn.style.display = 'none'; confirmBtn.disabled = false; }
 
-    // ── 6. Collect imported leitos BEFORE finally clears _batchImportData ──
-    const importedLeitos = new Set(
-      _batchImportData
-        .map(r => parseInt(String((r.extracted||{}).leito||''), 10))
-        .filter(n => n > 0)
-    );
-    const hadEnoughForAltaCheck = _batchImportData.length >= 2;
-
-    // ── 7. Switch ward & navigate to patients view ──
+    // ── 7. Navigate & refresh ──
     state.currentWard = importWard;
-    // Update sidebar ward tabs
     document.querySelectorAll('.ward-tab').forEach(t => t.classList.remove('active'));
     const wt = document.getElementById('tab-' + importWard);
     if (wt) wt.classList.add('active');
-    // Navigate to patients view and render everything
     migrateCondutaFromRawText();
     autoSyncAllLabs();
     updateCounts();
-    // showView navigates to patients AND renders patients grid
     showView('patients');
-    // Also refresh passagem and dashboard in background
     renderDashboard();
-    renderPassagem();
 
     // ── 8. Toast ──
     const freshData = getData();
-    const total = (freshData[importWard]||[]).filter(p=>p.status!=='alta').length;
+    const total = (freshData[importWard]||[]).filter(p => p.status !== 'alta').length;
     const parts = [
-      updated        && `${updated} evolução(ões) atualizada(s)`,
-      created        && `${created} paciente(s) criado(s)`,
-      tfSaved        && `${tfSaved} tarde(s) fixa(s)`,
-      autoAltaCount  && `${autoAltaCount} alta(s) automática(s)`,
+      updated       && `${updated} atualizado(s)`,
+      created       && `${created} criado(s)`,
+      tfSaved       && `${tfSaved} tarde(s) fixa(s)`,
+      autoAltaCount && `${autoAltaCount} alta(s) automática(s)`,
     ].filter(Boolean);
     showToast(`✅ ${parts.length ? parts.join(' · ') : 'Importado'} — ${total} internados em ${importWard.toUpperCase()}`, 'success');
-
-    // ── 9. Alta check: only if user explicitly requests it ──
-    // (autoAltaCheck removed from automatic firing to prevent accidental data loss)
-    // User can run it manually via the patients view
 
   } catch(e) {
     console.error('[_confirmImport]', e);
@@ -2644,7 +2762,7 @@ async function applyTardeFixaResults(results){
   for(const r of results){
     if(!r.matchedPatientId) continue;
     const td=r.tardeData;
-    for(const w of['cmm','cmf1','cmf2']){
+    for(const w of['cmm','cmf1','cmf2','ccm']){
       const p=allData[w]?.find(x=>x.id===r.matchedPatientId);
       if(!p) continue;
       p.tardeFixa={
@@ -2698,7 +2816,7 @@ function checkDischargedPatients(importedLeitos){
   const list=missing.map(p=>'LT '+p.leito+' — '+p.name).join('\n');
   if(confirm('Pacientes não encontrados nos arquivos:\n\n'+list+'\n\nMarcar como alta?')){
     const d=getData();
-    missing.forEach(p=>{for(const w of['cmm','cmf1','cmf2']){const f=d[w]?.find(x=>x.id===p.id);if(f){f.status='alta';break;}}});
+    missing.forEach(p=>{for(const w of['cmm','cmf1','cmf2','ccm']){const f=d[w]?.find(x=>x.id===p.id);if(f){f.status='alta';break;}}});
     saveData(d);renderPatients();updateCounts();
   }
 }
@@ -3380,7 +3498,7 @@ function saveBatchResults() {
       if (r.action === 'tarde_alta' || r.action === 'tarde_no_match') return;
       if (r.action !== 'tarde_update' || !r.matchedPatientId) return;
 
-      for (const w of ['cmm','cmf1','cmf2']) {
+      for (const w of ['cmm','cmf1','cmf2','ccm']) {
         const idx = data[w].findIndex(p => p.id === r.matchedPatientId);
         if (idx < 0) continue;
         const p = data[w][idx];
@@ -3446,7 +3564,7 @@ function saveBatchResults() {
 
     if (r.action === 'add_evol' && r.matchedPatientId) {
       importedPatientIds.add(r.matchedPatientId);
-      for (const w of ['cmm','cmf1','cmf2']) {
+      for (const w of ['cmm','cmf1','cmf2','ccm']) {
         const idx = data[w].findIndex(p => p.id === r.matchedPatientId);
         if (idx < 0) continue;
         const p = data[w][idx];
@@ -3560,7 +3678,7 @@ function confirmDischarge(patientIds, btn) {
     const cb = document.getElementById(`discharge-${id}`);
     if (!cb || !cb.checked) return;
     // Remove from all wards
-    ['cmm','cmf1','cmf2'].forEach(w => {
+    ['cmm','cmf1','cmf2','ccm'].forEach(w => {
       const idx = data[w].findIndex(p => p.id === id);
       if (idx >= 0) { data[w].splice(idx, 1); discharged++; }
     });
@@ -3634,7 +3752,7 @@ function autoSyncAllLabs() {
   try {
     const data = getData();
     let synced = 0;
-    for (const w of ['cmm','cmf1','cmf2']) {
+    for (const w of ['cmm','cmf1','cmf2','ccm']) {
       (data[w]||[]).forEach(p => {
         (p.evolutions||[]).forEach(ev => {
           if (ev.labs && ev.labs.trim()) {
@@ -3677,7 +3795,7 @@ function migrateCondutaFromRawText() {
         .split('\n').map(l => l.trim()).filter(Boolean).join('\n');
     };
 
-    for (const w of ['cmm','cmf1','cmf2']) {
+    for (const w of ['cmm','cmf1','cmf2','ccm']) {
       (data[w]||[]).forEach(p => {
         (p.evolutions||[]).forEach(ev => {
           if (!ev.rawText) return;
@@ -3828,7 +3946,7 @@ ${text.substring(0, 3000)}`);
     const labsVal = f2('LABORATORIO', result);
     if (labsVal && labsVal.trim() && labsVal !== '—' && state.currentPatientId) {
       const data3 = getData();
-      for (const w3 of ['cmm','cmf1','cmf2']) {
+      for (const w3 of ['cmm','cmf1','cmf2','ccm']) {
         const i3 = data3[w3].findIndex(p => p.id === state.currentPatientId);
         if (i3 >= 0) {
           syncLabsFromEvolution(data3[w3][i3], labsVal, new Date().toLocaleDateString('pt-BR'));
@@ -3850,7 +3968,7 @@ ${text.substring(0, 3000)}`);
 
 function attachFileRecord(f) {
   const data = getData();
-  ['cmm','cmf1','cmf2'].forEach(w => {
+  ['cmm','cmf1','cmf2','ccm'].forEach(w => {
     const idx = data[w].findIndex(p => p.id === state.currentPatientId);
     if (idx >= 0) {
       if (!data[w][idx].files) data[w][idx].files = [];
@@ -3905,7 +4023,7 @@ ${text.substring(0, 3000)}`);
     const labsText = f('LABORATORIO', result);
     if (labsText && labsText.trim() && state.currentPatientId) {
       const data2 = getData();
-      const wards2 = ['cmm','cmf1','cmf2'];
+      const wards2 = ['cmm','cmf1','cmf2','ccm'];
       for (const w2 of wards2) {
         const idx2 = data2[w2].findIndex(p => p.id === state.currentPatientId);
         if (idx2 >= 0) {
@@ -4252,7 +4370,7 @@ O sumário deve ser completo, profissional, em linguagem médica formal, pronto 
       </div>
     </div>`;
     // Save sumario
-    ['cmm','cmf1','cmf2'].forEach(w => {
+    ['cmm','cmf1','cmf2','ccm'].forEach(w => {
       const idx = data[w].findIndex(x => x.id === state.currentPatientId);
       if (idx >= 0) { data[w][idx].sumario = res; saveData(data); }
     });
@@ -4309,7 +4427,7 @@ function editField(patientId, fieldPath, displayElementId) {
   if (!displayEl) return;
   const data = getData();
   let patient = null, ward = null;
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     patient = (data[w]||[]).find(p => p.id === patientId);
     if (patient) { ward = w; break; }
   }
@@ -4344,7 +4462,7 @@ function saveField(patientId, ward, fieldPath, displayElementId) {
   const newVal = ed.value;
   const data = getData();
   let patient = null;
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     patient = (data[w]||[]).find(p => p.id === patientId);
     if (patient) break;
   }
@@ -4391,7 +4509,7 @@ function gerarCondutasDireto() {
   if (!selected.length) { showToast('⚠️ Selecione ao menos um paciente','error'); return; }
   const container = document.getElementById('condutas-result');
   const today = new Date().toLocaleDateString('pt-BR');
-  const wardNames = {cmm:'MASCULINA',cmf1:'FEMININA 1',cmf2:'FEMININA 2'};
+  const wardNames = {cmm:'MASCULINA',cmf1:'FEMININA 1',cmf2:'FEMININA 2',ccm:'CCM'};
 
   let html = `<div style="margin-bottom:16px;"><div style="font-family:Syne,sans-serif;font-size:15px;font-weight:700;">RESUMO DE CONDUTAS</div>
     <div style="font-size:12px;color:var(--text-muted);">CLÍNICA MÉDICA ${wardNames[state.currentWard]} — ${today} · ${selected.length} paciente(s)</div></div>`;
@@ -4446,7 +4564,7 @@ async function generateCondutas() {
   container.style.display = 'block';
 
   const today = new Date().toLocaleDateString('pt-BR');
-  const wardNames = {cmm:'MASCULINA',cmf1:'FEMININA 1',cmf2:'FEMININA 2'};
+  const wardNames = {cmm:'MASCULINA',cmf1:'FEMININA 1',cmf2:'FEMININA 2',ccm:'CCM'};
   let html = `<div style="margin-bottom:16px;"><div style="font-family:Syne,sans-serif;font-size:15px;font-weight:700;">RESUMO DE CONDUTAS — IA</div>
     <div style="font-size:12px;color:var(--text-muted);">CLÍNICA MÉDICA ${wardNames[state.currentWard]} — ${today} · ${selected.length} paciente(s)</div></div>`;
 
@@ -4564,7 +4682,7 @@ function setAIQuery(q) { (document.getElementById('ai-query')||{}).value = q; }
 // ══════════════════════════════════════════════
 function addTimelineEvent(patientId, event, details) {
   const data = getData();
-  ['cmm','cmf1','cmf2'].forEach(w => {
+  ['cmm','cmf1','cmf2','ccm'].forEach(w => {
     const idx = data[w].findIndex(p => p.id === patientId);
     if (idx >= 0) {
       if (!data[w][idx].timeline) data[w][idx].timeline = [];
@@ -4875,19 +4993,28 @@ function closeSidebar() {
 //  CORE RENDER FUNCTIONS (reconstructed)
 // ════════════════════════════════════════════════
 
-function recoverFromBackup() {
-  const bk = localStorage.getItem('medroundData_backup');
+async function recoverFromBackup() {
+  // Try IDB first (has data even after localStorage cleared on iOS)
+  let bk = await idbGet(DATA_KEY) || await idbGet(DATA_KEY+'_backup');
+  if (!bk) bk = localStorage.getItem(DATA_KEY+'_backup') || localStorage.getItem(DATA_KEY);
   if (!bk) { showToast('⚠️ Nenhum backup encontrado', 'error'); return; }
-  localStorage.setItem('medroundData', bk);
-  document.getElementById('recovery-banner')?.remove();
-  updateCounts(); renderDashboard();
-  showToast('✅ Pacientes restaurados!', 'success');
+  try {
+    const d = JSON.parse(bk);
+    const total = (d.cmm||[]).length+(d.cmf1||[]).length+(d.cmf2||[]).length+(d.ccm||[]).length;
+    if (total === 0) { showToast('⚠️ Backup está vazio', 'error'); return; }
+    saveData(d); // writes to both IDB and localStorage
+    document.getElementById('recovery-banner')?.remove();
+    updateCounts(); renderDashboard();
+    showToast(`✅ ${total} paciente(s) restaurados!`, 'success');
+  } catch(e) {
+    showToast('❌ Erro ao restaurar: ' + e.message, 'error');
+  }
 }
 
 function updateCounts() {
   const data = getData();
   let total=0, critical=0, abx=0;
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     const active = (data[w]||[]).filter(p => p.status !== 'alta');
     total    += active.length;
     critical += active.filter(p => p.status === 'critical').length;
@@ -4898,31 +5025,45 @@ function updateCounts() {
   const elT = document.getElementById('stat-total');    if (elT) elT.textContent = total;
   const elC = document.getElementById('stat-critical'); if (elC) elC.textContent = critical;
   const elA = document.getElementById('stat-abx');      if (elA) elA.textContent = abx;
-  const elB = document.getElementById('badge-patients');if (elB) elB.textContent = total;
+  // badge-patients removed
 
-  // Recovery banner
+  // Recovery banner — also checks IDB asynchronously
   const existing = document.getElementById('recovery-banner');
-  if (total === 0) {
-    const bk = localStorage.getItem('medroundData_backup');
-    if (bk && !existing) {
+  if (total === 0 && !existing) {
+    // Check localStorage backup first (fast)
+    const bk = localStorage.getItem(DATA_KEY+'_backup');
+    if (bk) {
       try {
         const bd = JSON.parse(bk);
-        const bt = (bd.cmm||[]).length + (bd.cmf1||[]).length + (bd.cmf2||[]).length;
-        if (bt > 0) {
-          const banner = document.createElement('div');
-          banner.id = 'recovery-banner';
-          banner.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:9999;background:#1e3a6e;color:white;padding:14px 22px;border-radius:10px;display:flex;align-items:center;gap:14px;box-shadow:0 4px 24px rgba(0,0,0,.5);font-size:13.5px;max-width:500px;';
-          banner.innerHTML = '<span style="font-size:24px;">⚠️</span><div style="flex:1;"><strong>Dados não encontrados nesta sessão</strong><br><span style="font-size:12px;opacity:.85;">Backup disponível com ' + bt + ' paciente(s).</span></div><button onclick="recoverFromBackup()" style="background:#10b981;color:white;border:none;padding:8px 18px;border-radius:7px;cursor:pointer;font-weight:700;font-size:13px;">🔄 Restaurar</button><button onclick="this.parentElement.remove()" style="background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:20px;padding:0 4px;">×</button>';
-          document.body.appendChild(banner);
-        }
-      } catch(e) {}
+        const bt = (bd.cmm||[]).length+(bd.cmf1||[]).length+(bd.cmf2||[]).length+(bd.ccm||[]).length;
+        if (bt > 0) { showRecoveryBanner(bt); return; }
+      } catch {}
     }
-  } else if (existing) { existing.remove(); }
+    // Check IDB asynchronously (iOS PWA case)
+    idbGet(DATA_KEY).then(idbRaw => {
+      if (!idbRaw) return;
+      try {
+        const bd = JSON.parse(idbRaw);
+        const bt = (bd.cmm||[]).length+(bd.cmf1||[]).length+(bd.cmf2||[]).length+(bd.ccm||[]).length;
+        if (bt > 0 && !document.getElementById('recovery-banner')) {
+          showRecoveryBanner(bt);
+        }
+      } catch {}
+    });
+  } else if (existing && total > 0) { existing.remove(); }
+}
+
+function showRecoveryBanner(count) {
+  const banner = document.createElement('div');
+  banner.id = 'recovery-banner';
+  banner.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:9999;background:#1e3a6e;color:white;padding:14px 22px;border-radius:10px;display:flex;align-items:center;gap:14px;box-shadow:0 4px 24px rgba(0,0,0,.5);font-size:13.5px;max-width:90vw;';
+  banner.innerHTML = '<span style="font-size:24px;">⚠️</span><div style="flex:1;"><strong>Dados não encontrados nesta sessão</strong><br><span style="font-size:12px;opacity:.85;">Backup disponível com ' + count + ' paciente(s).</span></div><button onclick="recoverFromBackup()" style="background:#10b981;color:white;border:none;padding:8px 18px;border-radius:7px;cursor:pointer;font-weight:700;font-size:13px;white-space:nowrap;">🔄 Restaurar</button><button onclick="this.parentElement.remove()" style="background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:20px;padding:0 4px;">×</button>';
+  document.body.appendChild(banner);
 }
 
 function renderDashboard() {
   const data = getData();
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     const n = (data[w]||[]).filter(p => p.status !== 'alta').length;
     const el = document.getElementById('stat-'+w); if (el) el.textContent = n;
   }
@@ -4994,7 +5135,7 @@ function confirmDeleteSelected() {
 function deletePatients(ids) {
   const data = getData();
   let removed = 0;
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     const before = (data[w]||[]).length;
     data[w] = (data[w]||[]).filter(p => !ids.includes(p.id));
     removed += before - data[w].length;
@@ -5324,7 +5465,7 @@ function renderAltas() {
   if (!list) return;
   const data = getData();
   const altas = [];
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     (data[w]||[]).filter(p => p.status === 'alta').forEach(p => altas.push({...p, _ward:w}));
   }
   const badge = document.getElementById('badge-altas');
@@ -5355,7 +5496,7 @@ function renderAltas() {
 
 function reativarPaciente(id) {
   const data = getData();
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     const p = (data[w]||[]).find(x => x.id === id);
     if (p) { p.status = 'stable'; delete p.altaDate; saveData(data); renderAltas(); updateCounts(); showToast(`✅ ${cleanPatientName(p.name)} reativado`,'success'); return; }
   }
@@ -5366,7 +5507,7 @@ function dashSelectWard(ward) { state.currentWard = ward; showView('patients'); 
 function openPatient(id) {
   const data = getData();
   let patient = null;
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     patient = (data[w]||[]).find(p => p.id === id);
     if (patient) { state.currentWard = w; break; }
   }
@@ -5451,7 +5592,7 @@ function setupDragDrop() {
 
   tfList.forEach(function(tf) {
     var leitoNum = parseInt(tf.leito, 10);
-    for (var w of ['cmm','cmf1','cmf2']) {
+    for (var w of ['cmm','cmf1','cmf2','ccm']) {
       if (!data[w]) continue;
       for (var p of data[w]) {
         var pl = parseInt(String(p.leito||''), 10);
@@ -5479,7 +5620,10 @@ function setupDragDrop() {
   console.log('[MedRound] Tarde Fixa 15/05: ' + updated + ' pacientes atualizados');
 })();
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // ── Sync IDB → localStorage FIRST (critical for iOS PWA) ──
+  await syncIDBtoLocal();
+
   // Load saved Gemini URLs
   const savedAssist = localStorage.getItem('fnAiAssist');
   const savedSum    = localStorage.getItem('fnAiSummarize');
@@ -5679,7 +5823,7 @@ async function processSumTranscription() {
   try {
     const res = await callClaude(`Você é um médico. O sumário de alta existente é:\n\n${existingSumario || '(nenhum gerado ainda)'}\n\nO médico ditou a seguinte informação adicional:\n"${voiceText}"\n\nAtualize ou complemente o sumário incorporando essa informação. Retorne o sumário completo e atualizado no formato de texto médico profissional. Mantenha as seções originais e adicione/corrija o que for necessário.`);
     // Save updated sumario
-    ['cmm','cmf1','cmf2'].forEach(w => {
+    ['cmm','cmf1','cmf2','ccm'].forEach(w => {
       const idx = data[w].findIndex(x => x.id === state.currentPatientId);
       if (idx >= 0) { data[w][idx].sumario = res; saveData(data); }
     });
@@ -5735,7 +5879,7 @@ async function processLabTranscription() {
   if (!key) { openApiKeyModal(); return; }
   const sampleText = 'Hemoglobina 10,2, leucócitos 18 mil, PCR 210, creatinina 1,8, ureia 65, sódio 137, potássio 4,1, plaquetas 180 mil';
   const data = getData();
-  const wards = ['cmm','cmf1','cmf2'];
+  const wards = ['cmm','cmf1','cmf2','ccm'];
   for (const w of wards) {
     const idx = data[w].findIndex(p => p.id === state.currentPatientId);
     if (idx >= 0) {
@@ -5855,7 +5999,7 @@ async function processEvolTabAudio() {
 
   const data = getData();
   let patient = null; let ward = null; let pidx = -1;
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     const i = data[w].findIndex(p => p.id === state.currentPatientId);
     if (i >= 0) { patient = data[w][i]; ward = w; pidx = i; break; }
   }
@@ -6001,7 +6145,7 @@ function addLabDate() {
   const date = prompt('Data dos exames (dd/mm/aaaa):', new Date().toLocaleDateString('pt-BR'));
   if (!date) return;
   const data = getData();
-  const wards = ['cmm','cmf1','cmf2'];
+  const wards = ['cmm','cmf1','cmf2','ccm'];
   for (const w of wards) {
     const idx = data[w].findIndex(p => p.id === state.currentPatientId);
     if (idx >= 0) {
@@ -7257,7 +7401,7 @@ async function importPassagemFile(file) {
       const leitoStr = String(p.leito||'').trim();
       const prontClean = p.pront.replace(/\D/g,'');
       let found = null, foundWard = null;
-      for (const w of ['cmm','cmf1','cmf2']) {
+      for (const w of ['cmm','cmf1','cmf2','ccm']) {
         found = (data[w]||[]).find(x => {
           const pl = String(x.leito||'').trim();
           const pp = String(x.pront||'').replace(/\D/g,'');
@@ -7569,7 +7713,7 @@ function buildPassagemProgram(p, lastEvol) {
   // Always read fresh from storage
   const freshData = getData();
   let freshP = null;
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     freshP = (freshData[w]||[]).find(x => x.id === p.id);
     if (freshP) break;
   }
@@ -7794,7 +7938,7 @@ function emergencyReset() {
 function cleanAllCondutas() {
   const data = getData();
   let cleaned = 0;
-  ['cmm','cmf1','cmf2'].forEach(w => {
+  ['cmm','cmf1','cmf2','ccm'].forEach(w => {
     data[w].forEach(p => {
       if (!p.evolutions || !p.evolutions.length) return;
       // Clean ALL evolutions, not just last
@@ -7892,7 +8036,7 @@ function savePassagemEdits() {
     const val = ta.value.trim();
 
     let patient = null, ward = null;
-    for (const w of ['cmm','cmf1','cmf2']) {
+    for (const w of ['cmm','cmf1','cmf2','ccm']) {
       const found = data[w].find(p => p.id === pid);
       if (found) { patient = found; ward = w; break; }
     }
@@ -8018,7 +8162,7 @@ function tfSubscribe() {
 function tfSetWard(w) {
   TF.ward = w;
   // Update ward buttons
-  ['cmm','cmf1','cmf2'].forEach(ward => {
+  ['cmm','cmf1','cmf2','ccm'].forEach(ward => {
     const btn = document.getElementById('tf-ward-' + ward);
     if (btn) btn.style.background = ward === w ? 'var(--blue-600)' : '';
     if (btn) btn.style.color = ward === w ? 'white' : '';
@@ -8073,7 +8217,7 @@ function tfSyncToPassagem(pid) {
   // Find patient
   const allData = getData();
   let freshP = null;
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     freshP = allData[w].find(x => x.id === pid);
     if (freshP) break;
   }
@@ -8725,7 +8869,7 @@ function tfPassagemTogglePend(pid, idx, checked) {
   if (!pid) return;
   const allData = getData();
   let patient = null;
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     patient = allData[w].find(p => p.id === pid);
     if (patient) break;
   }
@@ -8773,7 +8917,7 @@ function switchTab(tab) {
   const pid = state.currentPatientId;
   const allData = getData();
   let patient = null;
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     patient = allData[w]?.find(p => p.id === pid);
     if (patient) break;
   }
@@ -8871,7 +9015,7 @@ function renderTardeFixaTab(patient) {
 
 function tfTogglePend(patientId, text, done) {
   const data = getData();
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     const p = (data[w]||[]).find(x=>x.id===patientId);
     if (p && p.tardeFixa?.pendencias) {
       const pend = p.tardeFixa.pendencias.find(pd=>pd.text===text);
@@ -9230,7 +9374,7 @@ function renderAISuggest(patient) {
 async function runAISuggestion(patientId) {
   const data = getData();
   let patient = null;
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     patient = (data[w] || []).find(p => p.id === patientId);
     if (patient) break;
   }
@@ -9394,7 +9538,7 @@ function renderSumarioContent(text, patientId) {
 async function gerarSumarioIA(patientId) {
   const data = getData();
   let patient = null, ward = null;
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     patient = (data[w] || []).find(p => p.id === patientId);
     if (patient) { ward = w; break; }
   }
@@ -9482,7 +9626,7 @@ Seja completo, preciso e formal.`;
 
     // Save
     const fresh = getData();
-    for (const w of ['cmm','cmf1','cmf2']) {
+    for (const w of ['cmm','cmf1','cmf2','ccm']) {
       const p = (fresh[w] || []).find(x => x.id === patientId);
       if (p) { p._sumario = text; saveData(fresh); break; }
     }
@@ -9505,7 +9649,7 @@ Seja completo, preciso e formal.`;
 function editarSumario(patientId) {
   const data = getData();
   let patient = null;
-  for (const w of ['cmm','cmf1','cmf2']) { patient = (data[w]||[]).find(p=>p.id===patientId); if(patient) break; }
+  for (const w of ['cmm','cmf1','cmf2','ccm']) { patient = (data[w]||[]).find(p=>p.id===patientId); if(patient) break; }
   if (!patient) return;
   const viewEl = document.getElementById('sumario-view-' + patientId);
   if (!viewEl) return;
@@ -9524,7 +9668,7 @@ function salvarSumario(patientId) {
   if (!editor) return;
   const newText = editor.value;
   const data = getData();
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     const p = (data[w]||[]).find(x=>x.id===patientId);
     if (p) { p._sumario = newText; saveData(data); break; }
   }
@@ -9536,7 +9680,7 @@ function salvarSumario(patientId) {
 function cancelarEditSumario(patientId) {
   const data = getData();
   let patient = null;
-  for (const w of ['cmm','cmf1','cmf2']) { patient = (data[w]||[]).find(p=>p.id===patientId); if(patient) break; }
+  for (const w of ['cmm','cmf1','cmf2','ccm']) { patient = (data[w]||[]).find(p=>p.id===patientId); if(patient) break; }
   if (!patient) return;
   const viewEl = document.getElementById('sumario-view-' + patientId);
   if (viewEl) viewEl.outerHTML = renderSumarioContent(patient._sumario || '', patientId);
@@ -9545,7 +9689,7 @@ function cancelarEditSumario(patientId) {
 function exportarSumario(patientId) {
   const data = getData();
   let patient = null;
-  for (const w of ['cmm','cmf1','cmf2']) { patient = (data[w]||[]).find(p=>p.id===patientId); if(patient) break; }
+  for (const w of ['cmm','cmf1','cmf2','ccm']) { patient = (data[w]||[]).find(p=>p.id===patientId); if(patient) break; }
   if (!patient?._sumario) { showToast('Gere o sumário primeiro', 'error'); return; }
   triggerDownload(
     new Blob([patient._sumario], {type:'text/plain;charset=utf-8'}),
@@ -9563,7 +9707,7 @@ function exportarSumario(patientId) {
 async function gerarSumario_v2(patientId) {
   const data = getData();
   let patient = null;
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     patient = (data[w]||[]).find(p => p.id === patientId);
     if (patient) break;
   }
@@ -9631,7 +9775,7 @@ Seja completo, formal, clínico e escreva em texto corrido organizado.`;
 
     // Save to patient
     const freshData = getData();
-    for (const w of ['cmm','cmf1','cmf2']) {
+    for (const w of ['cmm','cmf1','cmf2','ccm']) {
       const p = (freshData[w]||[]).find(x => x.id === patientId);
       if (p) { p._sumario = text; saveData(freshData); break; }
     }
@@ -9657,7 +9801,7 @@ Seja completo, formal, clínico e escreva em texto corrido organizado.`;
 function salvarSumario(patientId) {
   const text = document.getElementById('sumario-text')?.value || '';
   const data = getData();
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     const p = (data[w]||[]).find(x => x.id === patientId);
     if (p) { p._sumario = text; saveData(data); showToast('💾 Sumário salvo', 'success'); return; }
   }
@@ -9668,7 +9812,7 @@ function exportarSumario(patientId) {
   if (!text) { showToast('Gere o sumário primeiro', 'error'); return; }
   const data = getData();
   let pname = 'Paciente';
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     const p = (data[w]||[]).find(x => x.id === patientId);
     if (p) { pname = cleanPatientName(p.name); break; }
   }
@@ -9744,7 +9888,7 @@ function renderPatientHeader(header, patient, days) {
 function editPatientHeader(patientId) {
   const data = getData();
   let patient = null, ward = null;
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     patient = (data[w]||[]).find(p => p.id === patientId);
     if (patient) { ward = w; break; }
   }
@@ -9837,7 +9981,7 @@ function savePatientHeader(patientId, ward) {
 function cancelEditPatientHeader(patientId) {
   const data = getData();
   let patient = null;
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     patient = (data[w]||[]).find(p => p.id === patientId);
     if (patient) break;
   }
@@ -10023,7 +10167,7 @@ function verificarAltasManual() {
     const freshData = getData();
     let count = 0;
     for (const cb of checked) {
-      for (const w of ['cmm','cmf1','cmf2']) {
+      for (const w of ['cmm','cmf1','cmf2','ccm']) {
         const p = (freshData[w]||[]).find(x => x.id === cb.dataset.id);
         if (p) { p.status = 'alta'; p.altaDate = today; count++; break; }
       }
@@ -10040,7 +10184,7 @@ function verificarAltasManual() {
 function giveAltaConfirm(patientId) {
   const data=getData();
   const today=new Date().toLocaleDateString('pt-BR');
-  for(const w of['cmm','cmf1','cmf2']){
+  for(const w of['cmm','cmf1','cmf2','ccm']){
     const p=(data[w]||[]).find(x=>x.id===patientId);
     if(p){p.status='alta';p.altaDate=today;saveData(data);updateCounts();renderPatients();showToast('🏠 '+cleanPatientName(p.name)+' — alta registrada','success');return;}
   }
@@ -10195,7 +10339,7 @@ function addLabDate() {
   if (!d) return;
   const data = getData();
   let patient = null;
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     patient = data[w]?.find(p => p.id === state.currentPatientId);
     if (patient) break;
   }
@@ -10213,7 +10357,7 @@ function addLabRow() {
   if (!name) return;
   const data = getData();
   let patient = null;
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     patient = data[w]?.find(p => p.id === state.currentPatientId);
     if (patient) break;
   }
@@ -10229,7 +10373,7 @@ function openNewEvolution() {
   const pid = state.currentPatientId;
   const data = getData();
   let patient = null;
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     patient = data[w]?.find(p => p.id === pid);
     if (patient) break;
   }
@@ -10251,7 +10395,7 @@ function saveEvolution() {
   if (!pid) { showToast('Nenhum paciente selecionado', 'error'); return; }
   const data = getData();
   let patient = null, ward = null;
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     patient = data[w]?.find(p => p.id === pid);
     if (patient) { ward = w; break; }
   }
@@ -10289,7 +10433,7 @@ function savePatient() {
   const existing = state.editingPatientId;
   if (existing) {
     let patient = null;
-    for (const w of ['cmm','cmf1','cmf2']) {
+    for (const w of ['cmm','cmf1','cmf2','ccm']) {
       patient = data[w]?.find(p => p.id === existing);
       if (patient) break;
     }
@@ -10323,7 +10467,7 @@ function confirmDeletePatient() {
   if (!pid) return;
   if (!confirm('Remover este paciente permanentemente?')) return;
   const data = getData();
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     const idx = (data[w]||[]).findIndex(p => p.id === pid);
     if (idx >= 0) { data[w].splice(idx, 1); break; }
   }
@@ -10682,7 +10826,7 @@ function showDataStats() {
   if (!statsEl) return;
   let html = '';
   let total = 0, totalEvols = 0;
-  for (const w of ['cmm','cmf1','cmf2']) {
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
     const pts = data[w]||[];
     const active = pts.filter(p=>p.status!=='alta');
     const evols  = pts.reduce((n,p)=>n+(p.evolutions?.length||0),0);
