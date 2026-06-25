@@ -1887,8 +1887,8 @@ const sb = {
   channel: null,
   // ══════════════════════════════════════════════
   //  COLE SUAS CREDENCIAIS DO SUPABASE AQUI:
-  url: 'https://sxtihlavbggfpplhlbsm.supabase.co',        // ex: https://abcdefgh.supabase.co
-  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4dGlobGF2YmdnZnBwbGhsYnNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5ODQwMDMsImV4cCI6MjA5NDU2MDAwM30.Rjwx6xbk27oM3_j-7FPRU57cmikbXi-x71NXcplI5RU',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  url: 'COLE_AQUI_A_PROJECT_URL',        // ex: https://abcdefgh.supabase.co
+  key: 'COLE_AQUI_A_ANON_KEY',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   // ══════════════════════════════════════════════
   isSyncing: false
 };
@@ -2392,8 +2392,8 @@ async function _showImportPreview(results, errors) {
   _batchImportData = results.filter(r=>!r.isTardeFixa);
   _batchTardesData = results.filter(r=>r.isTardeFixa);
 
-  const allData=getData();
-  const allP=[...allData.cmm,...allData.cmf1,...allData.cmf2];
+  const allData = await getDataAsync();
+  const allP=[...allData.cmm,...allData.cmf1,...allData.cmf2,...(allData.ccm||[])];
 
   // Patient matching
   const findMatch=ex=>{
@@ -2451,7 +2451,7 @@ async function _showImportPreview(results, errors) {
       const condLines=(ex.conduta||'').split('\n').filter(l=>l.trim()).slice(0,5).map(l=>escapeHtml(l.trim()));
       html+=`<div class="import-card ${isUpdate?'import-card-update':'import-card-new'}">
         <div class="import-card-head">
-          <input type="checkbox" class="import-cb" id="imp-cb-${idx}" checked style="width:15px;height:15px;accent-color:var(--blue-500);cursor:pointer;flex-shrink:0;">
+          <input type="checkbox" class="import-cb" id="imp-cb-${idx}" data-idx="${idx}" checked style="width:15px;height:15px;accent-color:var(--blue-500);cursor:pointer;flex-shrink:0;">
           <span class="import-badge ${isUpdate?'badge-blue':'badge-ok'}">${isUpdate?'✏️ ATUALIZAR':'➕ NOVO'}</span>
           <strong>${escapeHtml(name)}</strong>
           <span style="background:var(--blue-700);color:white;font-size:10px;padding:1px 7px;border-radius:5px;font-weight:700;">LT ${escapeHtml(String(leito))}</span>
@@ -2583,8 +2583,20 @@ async function _confirmImport() {
       }
     }
 
-    // ── 2. Process each evolution file ──
+    // ── 2. Process each evolution file (only checked ones) ──
+    // Collect checked indices from the preview modal
+    const checkedSet = new Set();
+    document.querySelectorAll('.import-cb:checked').forEach(cb => {
+      checkedSet.add(parseInt(cb.dataset.idx ?? cb.id?.replace('imp-cb-','') ?? '-1'));
+    });
+    // If no checkboxes exist (modal already closed), import all
+    const hasCheckboxes = document.querySelectorAll('.import-cb').length > 0;
+
     for (let idx = 0; idx < _batchImportData.length; idx++) {
+      if (hasCheckboxes && !checkedSet.has(idx)) {
+        console.log(`[import] SKIP (unchecked) idx=${idx}`);
+        continue;
+      }
       const r   = _batchImportData[idx];
       const ex  = r.extracted || {};
 
@@ -2778,30 +2790,9 @@ async function _confirmImport() {
       } catch(e) { console.warn('[TF apply]', e); }
     }
 
-    // ── 4. Auto-alta: pacientes não presentes nos arquivos enviados ──
-    if (_batchImportData.length >= 3) {
-      const presentLeitos = new Set(
-        _batchImportData.map(r => {
-          const l = String((r.extracted||{}).leito||'').trim();
-          return parseFloat(l) || l;
-        }).filter(Boolean)
-      );
-      for (const w of ['cmm','cmf1','cmf2','ccm']) {
-        for (const p of (data[w]||[])) {
-          if (p.status === 'alta') continue;
-          const pl    = String(p.leito||'').trim();
-          const plNum = parseFloat(pl) || 0;
-          const inBatch = presentLeitos.has(plNum) || presentLeitos.has(pl);
-          if (!inBatch) {
-            p.status    = 'alta';
-            p.altaDate  = today;
-            p.altaReason = 'Alta automática — ausente nos arquivos importados';
-            autoAltaCount++;
-          }
-        }
-      }
-      if (autoAltaCount > 0) console.log(`[import] Auto-alta: ${autoAltaCount} paciente(s)`);
-    }
+    // ── 4. Auto-alta: DESATIVADO ──
+    // Não marca alta automática para não sobrescrever pacientes de outras enfermarias
+    // nem pacientes que simplesmente não estavam nesse lote de arquivos
 
     // ── 5. Save ──
     saveData(data);
@@ -2809,7 +2800,10 @@ async function _confirmImport() {
     console.log('[import] SAVED — updated:', updated, 'created:', created, 'alta:', autoAltaCount);
     console.log('[import] Ward', importWard, ':', (saved[importWard]||[]).map(p=>`LT${p.leito} ${p.name} [${p.status}]`).join(', '));
 
-    // ── 6. Close modal & UI reset ──
+    // ── 6. Close modals & UI reset ──
+    // Close the preview modal (which is open at this point)
+    const previewModal = document.getElementById('modal-import-preview');
+    if (previewModal) previewModal.remove();
     closeModal('modal-import');
     ['import-filelist','import-preview','import-save-btn'].forEach(id => {
       const el = document.getElementById(id); if (el) el.style.display = 'none';
@@ -2827,10 +2821,11 @@ async function _confirmImport() {
     autoSyncAllLabs();
     updateCounts();
     showView('patients');
+    await renderPatients();
     renderDashboard();
 
     // ── 8. Toast ──
-    const freshData = getData();
+    const freshData = await getDataAsync();
     const total = (freshData[importWard]||[]).filter(p => p.status !== 'alta').length;
     const parts = [
       updated       && `${updated} atualizado(s)`,
@@ -5254,8 +5249,8 @@ function confirmDeleteSelected() {
   };
 }
 
-function deletePatients(ids) {
-  const data = getData();
+async function deletePatients(ids) {
+  const data = await getDataAsync();
   let removed = 0;
   for (const w of ['cmm','cmf1','cmf2','ccm']) {
     const before = (data[w]||[]).length;
@@ -5263,10 +5258,9 @@ function deletePatients(ids) {
     removed += before - data[w].length;
   }
   saveData(data);
-  _deleteModeActive = false; // reset BEFORE renderPatients
+  _deleteModeActive = false;
   updateCounts();
   renderPatients();
-  // After render, restore button appearance
   const btn = document.getElementById('delete-mode-btn');
   if (btn) {
     btn.textContent = '🗑️ Excluir';
@@ -11034,16 +11028,20 @@ function savePatient() {
   showToast('✅ '+cleanPatientName(name)+' adicionado', 'success');
 }
 
-function confirmDeletePatient() {
+async function confirmDeletePatient() {
   const pid = state.currentPatientId;
   if (!pid) return;
   if (!confirm('Remover este paciente permanentemente?')) return;
-  const data = getData();
+  const data = await getDataAsync();
   for (const w of ['cmm','cmf1','cmf2','ccm']) {
     const idx = (data[w]||[]).findIndex(p => p.id === pid);
     if (idx >= 0) { data[w].splice(idx, 1); break; }
   }
-  saveData(data); state.currentPatientId = null; showView('patients'); renderPatients(); updateCounts();
+  saveData(data);
+  state.currentPatientId = null;
+  showView('patients');
+  renderPatients();
+  updateCounts();
   showToast('✅ Paciente removido', 'success');
 }
 
