@@ -1887,8 +1887,8 @@ const sb = {
   channel: null,
   // ══════════════════════════════════════════════
   //  COLE SUAS CREDENCIAIS DO SUPABASE AQUI:
-  url: 'https://sxtihlavbggfpplhlbsm.supabase.co',        // ex: https://abcdefgh.supabase.co
-  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4dGlobGF2YmdnZnBwbGhsYnNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5ODQwMDMsImV4cCI6MjA5NDU2MDAwM30.Rjwx6xbk27oM3_j-7FPRU57cmikbXi-x71NXcplI5RU',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  url: 'COLE_AQUI_A_PROJECT_URL',        // ex: https://abcdefgh.supabase.co
+  key: 'COLE_AQUI_A_ANON_KEY',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   // ══════════════════════════════════════════════
   isSyncing: false
 };
@@ -8833,44 +8833,9 @@ async function parseTardeFixa(text, filename) {
   }
   if (cur) blocks.push(cur);
 
-  const useAI = !!getApiKey();
-
+  // Extração por regex — sem IA
   return Promise.all(blocks.map(async (block) => {
-    const blockText = block.lines.join('\n');
-    let tardeData = { date: dateFromFile };
-
-    if (useAI && blockText.trim()) {
-      try {
-        const prompt = 'Analise este bloco de Tarde Fixa hospitalar e extraia as informações em JSON.\n\nPACIENTE: LT '+block.leito+' - '+block.name+'\nCONTEÚDO:\n'+blockText+'\n\nRetorne APENAS este JSON:\n{\n  "observacoes": ["obs 1"],\n  "pendencias": [{"text": "tarefa", "done": false}],\n  "dieta": {"valor": "texto", "flag": false},\n  "clexane": {"valor": "texto", "flag": false},\n  "atb": {"valor": "texto", "flag": false},\n  "risco": {"valor": "texto", "flag": false},\n  "labs": "exames/resultados mencionados",\n  "conduta_adicional": "condutas e intercorrências relevantes para evolução",\n  "exames_resultados": "resultados de exames"\n}\n"flag"=true se valor for relevante (não for vazio/sem/não).';
-
-        const raw = await callClaude(prompt, 600);
-        const clean = raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
-        let parsed;
-        try { parsed = JSON.parse(clean); }
-        catch(e2) { const j = clean.match(/\{[\s\S]+\}/); if(j) parsed = JSON.parse(j[0]); }
-
-        if (parsed) {
-          tardeData = {
-            date: dateFromFile,
-            observacoes: Array.isArray(parsed.observacoes) ? parsed.observacoes.filter(Boolean) : [],
-            pendencias: (parsed.pendencias||[]).map(p => typeof p==='string' ? {text:p,done:false} : {text:p.text||'',done:!!p.done}),
-            dieta:   { valor: parsed.dieta?.valor   || '', flag: !!(parsed.dieta?.flag) },
-            clexane: { valor: parsed.clexane?.valor || '', flag: !!(parsed.clexane?.flag) },
-            atb:     { valor: parsed.atb?.valor     || '', flag: !!(parsed.atb?.flag) },
-            risco:   { valor: parsed.risco?.valor   || '', flag: !!(parsed.risco?.flag) },
-            labs:    parsed.labs || '',
-            condutaAdicional: parsed.conduta_adicional || '',
-            examesResultados: parsed.exames_resultados || '',
-          };
-        }
-      } catch(e) {
-        console.warn('[parseTardeFixa AI] LT'+block.leito, e.message);
-        tardeData = { ...parseTardeFixaBlock(block, dateFromFile), date: dateFromFile };
-      }
-    } else {
-      tardeData = { ...parseTardeFixaBlock(block, dateFromFile), date: dateFromFile };
-    }
-
+    const tardeData = { ...parseTardeFixaBlock(block, dateFromFile), date: dateFromFile };
     return {
       leito: block.leito,
       name:  block.name,
@@ -8887,81 +8852,105 @@ function parseTardeFixaBlock(block, fileDate) {
   const rawLines = block.lines.join('\n');
   const today = fileDate || new Date().toLocaleDateString('pt-BR');
 
-  // ── Normalise PDF line breaks ──
-  // PDF wraps long lines; join continuation lines to their parent
-  // A continuation line = does NOT start with ➔ → - • or a known field label
-  const fieldLabelRx = /^(?:Dieta zero|Clexane|Antibi[oó]tico|Risco de|Lab\s|Programa[çc][ãa]o|➔|→|-\s)/i;
-  const normalized = [];
+  // ── Reconstruir linhas (PDF fragmenta texto justificado) ──
+  const isStructural = t =>
+    /^[➔→●•◦□☐☑\-]\s/.test(t) ||
+    /^(?:Dieta\s+zero|Clexane|Enoxaparina|Antibi[oó]tico|Risco\s+de|Lab\s|\d{2}\/\d{2}|Programa[çc][ãa]o|OBS[:.]?)/i.test(t) ||
+    /^LT\s+\d/i.test(t);
+
+  const joined = [];
+  let buf = '';
   for (const raw of rawLines.split('\n')) {
     const t = raw.trim();
-    if (!t) { normalized.push(''); continue; }
-    const isNewItem = fieldLabelRx.test(t) || /^LT\s+\d/i.test(t);
-    if (!isNewItem && normalized.length && normalized[normalized.length - 1]) {
-      // Continuation — join to previous line
-      normalized[normalized.length - 1] += ' ' + t;
+    if (!t) { if (buf) { joined.push(buf); buf=''; } joined.push(''); continue; }
+    if (isStructural(t) || t.length > 80) {
+      if (buf) { joined.push(buf); buf=''; }
+      joined.push(t);
     } else {
-      normalized.push(t);
+      const endsClean = /[.!?:;]$/.test(t);
+      buf = buf ? buf + ' ' + t : t;
+      if (endsClean) { joined.push(buf); buf=''; }
     }
   }
-  const text = normalized.join('\n');
+  if (buf) joined.push(buf);
+  const text = joined.join('\n');
+  const lines = joined;
 
-  // ── ➔ Observações ──
+  // ── Observações: linhas com ➔ ou → ──
   const observacoes = [];
-  text.split('\n').forEach(line => {
+  for (const line of lines) {
     const t = line.trim();
-    if (t.startsWith('➔') || t.startsWith('→')) {
-      const obs = t.replace(/^[➔→]\s*/, '').trim();
-      if (obs) observacoes.push(obs);
-    }
-  });
+    if (/^[➔→]\s/.test(t)) observacoes.push(t.replace(/^[➔→]\s*/,'').trim());
+  }
 
-  // ── Programação / pendências ──
+  // ── Programação/Pendências: linhas com ☐, □, - após "Programação" ──
   const pendencias = [];
-  const pendRx = /Programa[çc][ãa]o\s*[\/]?\s*pend[êe]ncias?\s*:([\s\S]*?)(?=\nDieta zero|\nClexane|\nAntibi[oó]tico|\nRisco de|\nLab\s|\n\n|$)/i;
-  const pendM = text.match(pendRx);
-  if (pendM) {
-    const pendText = pendM[1].trim();
-    if (pendText && !/^sem\s*$/i.test(pendText)) {
-      pendText.split('\n').forEach(line => {
-        const t = line.trim().replace(/^[-•]\s*/, '').trim();
-        if (t && !/^sem\s*$/i.test(t)) {
-          pendencias.push({ text: t, done: false });
-        }
-      });
+  let inPend = false;
+  for (const line of lines) {
+    const t = line.trim();
+    if (/^Programa[çc][ãa]o/i.test(t)) { inPend = true; continue; }
+    if (inPend) {
+      if (!t || /^(?:Dieta|Clexane|Antibi|Risco|Lab\s)/i.test(t)) { inPend = false; continue; }
+      const clean = t.replace(/^[☐□\-●•◦]\s*/,'').trim();
+      if (clean && !/^sem\s*$/i.test(clean)) pendencias.push({ text: clean, done: /^[☑✅]/.test(t) });
     }
   }
 
-  // ── Structured fields ──
-  const getField = (pattern) => {
-    const rx = new RegExp(`${pattern}\\s*:\\s*(.+?)(?=\\n|$)`, 'im');
-    const m = text.match(rx);
+  // ── Campos estruturados: Dieta / Clexane / ATB / Risco ──
+  const getField = (rx) => {
+    const m = text.match(new RegExp(rx + '\\s*:?\\s*(.+?)(?=\\n|$)', 'im'));
     return m ? m[1].trim() : '';
   };
-  const dieta   = getField('Dieta zero');
-  const clexane = getField('Clexane');
-  const atb     = getField('Antibi[oó]tico');
-  const risco   = getField('Risco de deteriora[çc][ãa]o cl[íi]nica');
+  const dieta   = getField('Dieta\\s+zero');
+  const clexane = getField('(?:Clexane|Enoxaparina)');
+  const atb     = getField('Antibi[oó]tico(?:s)?(?:\\s+em\\s+uso)?');
+  const risco   = getField('Risco\\s+de(?:\\s+deteriora[çc][ãa]o)?(?:\\s+cl[íi]nica)?');
 
-  // ── Labs — always use fileDate (12/05), capture full single line ──
+  // ── Labs: linhas com padrões de exame ──
   let labs = '';
-  const labRx = /Lab\s+\d{2}\/\d{2}(?:\/\d{2,4})?\s*:\s*(.+?)(?=\n(?:LT\s+\d|$)|\n\n|$)/i;
-  const labM = text.match(labRx);
-  if (labM) {
-    const labVals = labM[1].replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
-    labs = `${today}: ${labVals}`;
+  const labLines = [];
+  for (const line of lines) {
+    const t = line.trim();
+    if (/(?:Hb|Ht|Leuco|Plaq|Ur\b|Cr\b|Na\b|K\b|PCR|TGO|TGP|BT|BD|BI|FA\b|GGT|Alb|TP\b|INR|Fe\b|Ferr|Mg\b|P\b|Ca\b|pH\b|pO2|pCO2|HCO3|BE\b|Lac\b|Glico)[\s:=\/]/i.test(t)
+     || /\d+[.,]\d+\s*(?:g\/dL|mg\/dL|mEq|mmol|mil|k|µ|U\/L|%)/i.test(t)) {
+      labLines.push(t);
+    }
   }
+  if (labLines.length) labs = `${today}: ${labLines.join(' / ')}`;
+
+  // ── Exames resultado: linhas com resultado/cultura/laudo ──
+  const examesResultados = lines
+    .map(l => l.trim())
+    .filter(t => /resultado|cultura|laudo|negativo|positivo|crescimento|BAAR|ufc\/ml|mg\/24h/i.test(t))
+    .join('\n');
+
+  // ── Conduta adicional: linhas com "mantido|suspenso|iniciado|aumentado|ajustado" ──
+  const condutaAdicional = lines
+    .map(l => l.trim())
+    .filter(t => /^(?:mantido|suspenso|iniciado|aumentado|ajustado|retirado|passagem|bolus|dripping|dieta zero|aporte)/i.test(t))
+    .join('\n');
+
+  // ── Flags clínicas ──
+  const obito    = /[oó]bito|DO\s+preenchido|faleceu/i.test(text);
+  const critical = /dripping\s+morfina|dripping\s+midazolam|fim\s+de\s+vida/i.test(text);
+
+  const flagVal = v => v && !/^n[ãa]o\s*[-–]?|^sem\s*$/i.test(v);
 
   return {
     leito: block.leito,
     name:  block.name,
     observacoes,
     pendencias,
-    dieta:   { valor: dieta,   flag: dieta   && !/^n[ãa]o\s*$|^sem\s*$/i.test(dieta) },
-    clexane: { valor: clexane, flag: clexane && !/^n[ãa]o\s*$|^sem\s*$/i.test(clexane) },
-    atb:     { valor: atb,     flag: atb     && !/^sem\s*$/i.test(atb) },
-    risco:   { valor: risco,   flag: risco   && !/^n[ãa]o\s*[-–]|^sem\s+risco|^n[ãa]o\s*[-–\s]/i.test(risco) },
+    dieta:   { valor: dieta,   flag: flagVal(dieta)   },
+    clexane: { valor: clexane, flag: flagVal(clexane) },
+    atb:     { valor: atb,     flag: flagVal(atb)     },
+    risco:   { valor: risco,   flag: flagVal(risco)   },
     labs,
-    isAlta: /alta no sistema|recebeu alta/i.test(text),
+    examesResultados,
+    condutaAdicional,
+    obito,
+    critical,
+    isAlta: /alta\s+no\s+sistema|recebeu\s+alta/i.test(text),
   };
 }
 
@@ -9108,24 +9097,12 @@ async function importTardeFixaReport(file) {
     const blocks = parseTardeFixaReport(text, file.name);
     if (!blocks.length) throw new Error('Nenhum paciente identificado no relatório');
 
-    // Use AI to enrich if key is available
-    const useAI = !!getApiKey();
     const date  = (() => {
       const m = text.match(/Tarde\s+Fixa[^\d]*(\d{2})[\/\-](\d{2})(?:[\/\-](\d{2,4}))?/i)
              || file.name.match(/[_\-\s](\d{2})[_\-\/](\d{2})/);
       if (m) return `${m[1]}/${m[2]}/${new Date().getFullYear()}`;
       return new Date().toLocaleDateString('pt-BR');
     })();
-
-    if (useAI) {
-      if (loadTxt) loadTxt.textContent = '🤖 IA extraindo atualizações...';
-      for (const block of blocks) {
-        try {
-          const enriched = await enrichBlockWithAI(block, date);
-          Object.assign(block, enriched);
-        } catch(e) { console.warn('[TF AI]', block.leito, e.message); }
-      }
-    }
 
     // Apply to patients
     const data = await getDataAsync();
@@ -11110,7 +11087,7 @@ async function importHandleFiles(fileList) {
 
   for (const f of files) {
     done++;
-    if (loadTxt) loadTxt.textContent = `${useAI?'🤖 IA':'📄'} ${done}/${files.length}: ${f.name.length>38?f.name.substring(0,38)+'…':f.name}`;
+    if (loadTxt) loadTxt.textContent = `📄 ${done}/${files.length}: ${f.name.length>38?f.name.substring(0,38)+'…':f.name}`;
 
     try {
       const text = await readFileAsText(f);
@@ -11126,29 +11103,12 @@ async function importHandleFiles(fileList) {
         continue;
       }
 
-      // Evolution file — always produce something
+      // Evolution file — extração por regex (sem IA)
       let ext = null;
 
-      // 1. Try AI
-      if (useAI && text?.trim()) {
-        try { ext = await extractWithAI(text, f.name); }
-        catch(aiErr) { console.warn('[import] AI fail:', f.name, aiErr.message); }
-      }
-
-      // 2. Regex fallback / gap-fill
-      if (!ext?.leito || !ext?.name) {
-        try {
-          const rx = text?.trim() ? await extractPatientDataFromText(text, f.name) : {};
-          if (!ext) { ext = rx; }
-          else {
-            if (!ext.name  && rx.name)  ext.name  = rx.name;
-            if (!ext.leito && rx.leito) ext.leito = rx.leito;
-            if (!ext.pront && rx.pront) ext.pront = rx.pront;
-            if (!ext.mih   && rx.mih)   ext.mih   = rx.mih;
-            if (!ext.labs  && rx.labs)   ext.labs  = rx.labs;
-          }
-        } catch(rxErr) { console.warn('[import] regex fail:', f.name, rxErr.message); if(!ext) ext={}; }
-      }
+      try {
+        ext = text?.trim() ? await extractPatientDataFromText(text, f.name) : {};
+      } catch(rxErr) { console.warn('[import] regex fail:', f.name, rxErr.message); ext = {}; }
 
       // 3. Absolute fallback from filename
       if (!ext) ext = {};
@@ -11191,9 +11151,7 @@ async function importHandleFiles(fileList) {
   // Preview
   if (previewEl) {
     let html2 = '';
-    if (useAI && _batchImportData.length) {
-      html2 += `<div style="font-size:11px;color:var(--success);margin-bottom:6px;padding:5px 10px;background:rgba(16,185,129,.08);border-radius:6px;">🤖 Extração com IA</div>`;
-    }
+
     if (_batchImportData.length) {
       html2 += `<div style="font-size:11px;font-weight:700;color:var(--blue-400);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">📋 ${_batchImportData.length} Evoluções</div>`;
       _batchImportData.forEach(r => {
