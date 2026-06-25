@@ -1190,6 +1190,7 @@ input, textarea, select { font-family: inherit; }
       <div class="detail-header" id="detail-header"></div>
       <div class="detail-tabs" id="detail-tabs" style="flex-wrap:wrap;gap:2px;">
         <div class="detail-tab active" onclick="switchTab('evolucao')">📝 Evolução Completa</div>
+        <div class="detail-tab" id="tab-btn-updates" onclick="switchTab('updates')" style="display:none;">📋 Atualizações</div>
         <div class="detail-tab" onclick="switchTab('exames')">🔬 Laboratório</div>
         <div class="detail-tab" onclick="switchTab('imagem')">🖼️ Exames de Imagem</div>
         <div class="detail-tab" onclick="switchTab('timeline')">📅 Timeline</div>
@@ -1199,6 +1200,7 @@ input, textarea, select { font-family: inherit; }
       </div>
       <div id="detail-body">
         <div id="tab-evolucao" class="tab-content"><div id="evolucao-completa-body"></div></div>
+        <div id="tab-updates" class="tab-content" style="display:none;padding:16px 0;"></div>
         <div id="tab-exames" class="tab-content" style="display:none;"></div>
         <div id="tab-imagem" class="tab-content" style="display:none;"></div>
         <div id="tab-timeline" class="tab-content" style="display:none;"></div>
@@ -1361,58 +1363,65 @@ input, textarea, select { font-family: inherit; }
 
 <!-- MODALS -->
 <div class="modal-overlay" id="modal-import">
-  <div class="modal" style="max-width:560px;width:95%;max-height:90vh;display:flex;flex-direction:column;">
+  <div class="modal" style="max-width:560px;width:95%;max-height:92vh;height:auto;display:flex;flex-direction:column;">
     <div class="modal-header" style="flex-shrink:0;">
       <div class="modal-title">📄 Importar Evoluções</div>
       <button class="modal-close" onclick="closeModal('modal-import')">×</button>
     </div>
-    <div class="modal-body" style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px;">
+    <div class="modal-body" style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px;min-height:0;">
 
       <!-- Upload zones -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <label class="upload-zone" style="padding:20px 14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;flex-shrink:0;">
+        <label class="upload-zone" style="padding:16px 10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;">
           <input type="file" id="import-file-input" multiple accept=".pdf,.docx,.doc,.txt" style="display:none" onchange="importHandleFiles(this.files)">
-          <div style="font-size:28px;">📄</div>
-          <div style="font-size:13px;font-weight:600;">Arquivos</div>
-          <div style="font-size:11px;color:var(--text-muted);text-align:center;">PDF, DOCX<br>múltiplos</div>
+          <div style="font-size:26px;">📄</div>
+          <div style="font-size:12px;font-weight:600;">Arquivos</div>
+          <div style="font-size:10px;color:var(--text-muted);text-align:center;">PDF, DOCX<br>múltiplos</div>
         </label>
-        <label class="upload-zone" style="padding:20px 14px;cursor:pointer;border-color:var(--blue-500);display:flex;flex-direction:column;align-items:center;gap:6px;">
+        <label class="upload-zone" style="padding:16px 10px;cursor:pointer;border-color:var(--blue-500);display:flex;flex-direction:column;align-items:center;gap:6px;">
           <input type="file" id="import-folder-input" webkitdirectory multiple style="display:none" onchange="importHandleFiles(this.files)">
-          <div style="font-size:28px;">📁</div>
-          <div style="font-size:13px;font-weight:600;">Pasta</div>
-          <div style="font-size:11px;color:var(--text-muted);text-align:center;">Pasta inteira<br>de uma vez</div>
+          <div style="font-size:26px;">📁</div>
+          <div style="font-size:12px;font-weight:600;">Pasta</div>
+          <div style="font-size:10px;color:var(--text-muted);text-align:center;">Pasta inteira<br>de uma vez</div>
+        </label>
+        <label class="upload-zone" style="padding:16px 10px;cursor:pointer;border-color:var(--warning);display:flex;flex-direction:column;align-items:center;gap:6px;" title="Relatório de Tarde Fixa com atualizações por paciente">
+          <input type="file" id="import-tardefixa-input" accept=".pdf,.docx,.doc,.txt" style="display:none" onchange="importTardeFixaReport(this.files[0])">
+          <div style="font-size:26px;">🌅</div>
+          <div style="font-size:12px;font-weight:600;color:var(--warning);">Tarde Fixa</div>
+          <div style="font-size:10px;color:var(--text-muted);text-align:center;">Relatório com<br>atualizações</div>
         </label>
       </div>
 
       <!-- Ward selector -->
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-hover);border-radius:8px;">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-hover);border-radius:8px;flex-shrink:0;">
         <div style="font-size:12px;font-weight:700;color:var(--text-muted);flex-shrink:0;">Importar para:</div>
         <select id="import-ward-select" style="flex:1;padding:6px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;font-family:inherit;">
           <option value="cmm">CMM — Clínica Médica Masculina</option>
+          <option value="ccm">CCM</option>
           <option value="cmf1">CMF1 — Clínica Médica Feminina 1</option>
           <option value="cmf2">CMF2 — Clínica Médica Feminina 2</option>
-          <option value="ccm">CCM</option>
         </select>
       </div>
 
-      <!-- File list selected -->
-      <div id="import-filelist" style="display:none;background:var(--bg-hover);border-radius:8px;padding:10px 14px;">
+      <!-- File list selected — scrollable, max 180px -->
+      <div id="import-filelist" style="display:none;background:var(--bg-hover);border-radius:8px;padding:10px 14px;flex-shrink:0;">
         <div style="font-size:11px;font-weight:700;color:var(--blue-400);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Arquivos selecionados:</div>
-        <div id="import-filelist-names" style="font-size:12px;color:var(--text-secondary);line-height:1.8;"></div>
+        <div id="import-filelist-names" style="font-size:12px;color:var(--text-secondary);line-height:1.8;max-height:160px;overflow-y:auto;"></div>
       </div>
 
       <!-- Loading -->
-      <div id="import-loading" style="display:none;align-items:center;gap:12px;padding:12px;background:var(--bg-hover);border-radius:8px;">
+      <div id="import-loading" style="display:none;align-items:center;gap:12px;padding:12px;background:var(--bg-hover);border-radius:8px;flex-shrink:0;">
         <div style="width:18px;height:18px;border:2px solid var(--blue-500);border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0;"></div>
         <span id="import-loading-text" style="font-size:12.5px;color:var(--text-muted);">Processando...</span>
       </div>
 
-      <!-- Preview area -->
+      <!-- Preview area — scrollable -->
       <div id="import-preview" style="display:none;"></div>
       <div id="import-save-btn" style="display:none;"></div>
     </div>
 
-    <div class="modal-footer" style="flex-shrink:0;gap:10px;">
+    <!-- Footer always visible at bottom -->
+    <div class="modal-footer" style="flex-shrink:0;gap:10px;border-top:1px solid var(--border);padding:14px 20px;">
       <button class="btn btn-ghost" onclick="closeModal('modal-import')">Cancelar</button>
       <button class="btn btn-primary" id="import-upload-btn" style="display:none;" onclick="_confirmImport()">✅ Confirmar Importação</button>
     </div>
@@ -1580,6 +1589,12 @@ let _deleteModeActive  = false;
 const WARD_LABELS = { cmm: 'CMM', cmf1: 'CMF1', cmf2: 'CMF2', ccm: 'CCM' };
 const WARD_FULL = { cmm: 'Clínica Médica Masculina', cmf1: 'Clínica Médica Feminina 1', cmf2: 'Clínica Médica Feminina 2', ccm: 'CCM' };
 
+// ── Storage constants — MUST be declared before initData() runs ──
+const DB_NAME    = 'MedRoundDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'data';
+const DATA_KEY   = 'medroundData';
+
 // Init data — runs if localStorage is empty OR has no patients
 (function initData() {
   // Check localStorage first
@@ -1664,11 +1679,7 @@ function getData() {
 //  localStorage: fallback + backup rápido (max ~5MB no iOS)
 // ══════════════════════════════════════════════════════════════════
 
-const DB_NAME    = 'MedRoundDB';
-const DB_VERSION = 1;
-const STORE_NAME = 'data';
-const DATA_KEY   = 'medroundData';
-
+// ── IndexedDB persistence layer ──
 let _idb = null; // IndexedDB instance (null until opened)
 
 function openIDB() {
@@ -1876,8 +1887,8 @@ const sb = {
   channel: null,
   // ══════════════════════════════════════════════
   //  COLE SUAS CREDENCIAIS DO SUPABASE AQUI:
-  url: 'https://sxtihlavbggfpplhlbsm.supabase.co',        // ex: https://abcdefgh.supabase.co
-  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4dGlobGF2YmdnZnBwbGhsYnNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5ODQwMDMsImV4cCI6MjA5NDU2MDAwM30.Rjwx6xbk27oM3_j-7FPRU57cmikbXi-x71NXcplI5RU',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  url: 'COLE_AQUI_A_PROJECT_URL',        // ex: https://abcdefgh.supabase.co
+  key: 'COLE_AQUI_A_ANON_KEY',           // ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   // ══════════════════════════════════════════════
   isSyncing: false
 };
@@ -2245,21 +2256,60 @@ function extractTextFromDocx(arrayBuffer) {
   } catch(e){console.error('[docx]',e);return '';}
 }
 
-// ── PDF: pdf.js ──
+// ── PDF: pdf.js — agrupa fragmentos por linha usando posição Y ──
 async function extractTextFromPdf(arrayBuffer) {
   try {
     if(typeof pdfjsLib==='undefined') return '';
     if(!pdfjsLib.GlobalWorkerOptions.workerSrc)
       pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    const pdf=await pdfjsLib.getDocument({data:arrayBuffer}).promise;
-    const lines=[];
-    for(let pg=1;pg<=pdf.numPages;pg++){
-      const page=await pdf.getPage(pg);
-      const content=await page.getTextContent();
-      content.items.forEach(item=>{if(item.str&&item.str.trim())lines.push(item.str);});
+    const pdf = await pdfjsLib.getDocument({data:arrayBuffer}).promise;
+    const pageTexts = [];
+
+    for(let pg = 1; pg <= pdf.numPages; pg++){
+      const page   = await pdf.getPage(pg);
+      const content= await page.getTextContent();
+
+      // Agrupar itens por linha (Y arredondado ao inteiro mais próximo)
+      const rowMap = new Map(); // y → [{x, str}]
+      for(const item of content.items){
+        if(!item.str) continue;
+        // transform[5] = y no espaço de página (origem inferior)
+        const y = Math.round(item.transform[5]);
+        const x = item.transform[4];
+        if(!rowMap.has(y)) rowMap.set(y, []);
+        rowMap.get(y).push({ x, str: item.str });
+      }
+
+      // Ordenar linhas de cima para baixo (Y maior = mais alto na página)
+      const sortedYs = [...rowMap.keys()].sort((a,b) => b - a);
+
+      for(const y of sortedYs){
+        // Ordenar fragmentos da linha da esquerda para direita
+        const frags = rowMap.get(y).sort((a,b) => a.x - b.x);
+
+        // Concatenar fragmentos, adicionando espaço quando necessário
+        let lineStr = '';
+        for(let i = 0; i < frags.length; i++){
+          const cur  = frags[i];
+          const prev = frags[i-1];
+          if(i === 0){
+            lineStr += cur.str;
+          } else {
+            // Se o fragmento anterior não terminou com espaço e o atual não começa com espaço,
+            // verificar gap X para decidir se coloca espaço
+            const gap = cur.x - (prev.x + (prev.str.length * 5)); // estimativa de largura
+            const needsSpace = !lineStr.endsWith(' ') && !cur.str.startsWith(' ');
+            lineStr += (needsSpace ? ' ' : '') + cur.str;
+          }
+        }
+        const trimmed = lineStr.trim();
+        if(trimmed) pageTexts.push(trimmed);
+      }
+      // Separador entre páginas
+      pageTexts.push('');
     }
-    return lines.join('\n');
-  } catch(e){console.error('[pdf]',e);return '';}
+    return pageTexts.join('\n');
+  } catch(e){ console.error('[pdf]',e); return ''; }
 }
 
 // ── Read any file ──
@@ -2485,6 +2535,21 @@ async function _confirmImport() {
     if (!data.cmf2) data.cmf2 = [];
     let updated = 0, created = 0, tfSaved = 0, autoAltaCount = 0;
 
+    // ── Helper: detect ward from filename ──
+    const wardFromFilename = (filename) => {
+      if (!filename) return null;
+      const fn = filename.toUpperCase();
+      // Explicit ward name in filename takes priority over the select
+      if (/\bCCM\b/.test(fn))  return 'ccm';
+      if (/\bCMF2\b/.test(fn)) return 'cmf2';
+      if (/\bCMF1\b/.test(fn)) return 'cmf1';
+      if (/\bCMM\b/.test(fn))  return 'cmm';
+      return null; // not detected — use importWard
+    };
+
+    // Definitive target ward: filename takes priority, then the modal select
+    const targetWardFor = (filename) => wardFromFilename(filename) || importWard;
+
     // ── Helper: parse date from filename ──
     const fileDateFromName = (filename) => {
       if (!filename) return today;
@@ -2547,17 +2612,40 @@ async function _confirmImport() {
 
       console.log(`[import][${idx}] file="${r.filename}" leito="${leitoStr}" name="${name}" pront="${pront}" date="${fileDate}"`);
 
-      // Find existing patient: pront > leito number > leito string
+      // Find existing patient — ward-aware matching
+      // Priority: 1) pront (unique)  2) leito within targetWard  3) leito in any ward
+      const targetWard = targetWardFor(r.filename);
       let patient = null, ward = null;
+
+      // Pass 1 — pront OR (leito + same ward as file)
       outer: for (const w of ['cmm','cmf1','cmf2','ccm']) {
         for (const p of (data[w]||[])) {
           const pp    = String(p.pront||'').replace(/\D/g,'');
           const pl    = String(p.leito||'').trim();
           const plNum = parseFloat(pl) || 0;
           const byPront  = pront.length >= 4 && pp.length >= 4 && pp === pront;
-          const byLeitoN = leitoNum > 0 && plNum > 0 && plNum === leitoNum;
-          const byLeitoS = leitoStr.length > 0 && pl === leitoStr;
+          const sameWard = w === targetWard;
+          const byLeitoN = sameWard && leitoNum > 0 && plNum > 0 && plNum === leitoNum;
+          const byLeitoS = sameWard && leitoStr.length > 0 && pl === leitoStr;
           if (byPront || byLeitoN || byLeitoS) { patient = p; ward = w; break outer; }
+        }
+      }
+
+      // Pass 2 — leito fallback when no ward detected from filename
+      // Always restrict to targetWard (= importWard when no CCM/CMM in filename)
+      // This prevents LT 2 in CMM from matching LT 2 in CCM
+      if (!patient) {
+        const searchWards = wardFromFilename(r.filename)
+          ? ['cmm','cmf1','cmf2','ccm']   // explicit ward: search all, sameWard guard handles it
+          : [targetWard];                  // no explicit ward: only search the selected ward
+        outer2: for (const w of searchWards) {
+          for (const p of (data[w]||[])) {
+            const pl    = String(p.leito||'').trim();
+            const plNum = parseFloat(pl) || 0;
+            const byLeitoN = leitoNum > 0 && plNum > 0 && plNum === leitoNum;
+            const byLeitoS = leitoStr.length > 0 && pl === leitoStr;
+            if (byLeitoN || byLeitoS) { patient = p; ward = w; break outer2; }
+          }
         }
       }
 
@@ -2603,12 +2691,21 @@ async function _confirmImport() {
           if (ex.age?.trim())       patient.age       = ex.age;
           if (name && name.length > 3) patient.name   = name;
           if (patient.status === 'alta') patient.status = 'stable';
+
+          // Move to target ward (filename overrides current location)
+          const targetWard = targetWardFor(r.filename);
+          if (targetWard !== ward) {
+            data[ward] = data[ward].filter(p => p.id !== patient.id);
+            data[targetWard].push(patient);
+            console.log(`[import] Moved LT${leitoStr} ${name} from ${ward} → ${targetWard}`);
+          }
+
           updated++;
           console.log(`[import] UPDATED LT${leitoStr} ${name}`);
 
         } else if (name) {
-          // CREATE new patient
-          const tw = leitoWardMap[leitoNum] || importWard;
+          // CREATE new patient — target ward from filename, then importWard
+          const tw = targetWardFor(r.filename);
           const newPt = {
             id:        'p' + Date.now() + '_' + idx,
             name,
@@ -3769,6 +3866,28 @@ function autoSyncAllLabs() {
 }
 
 // ── Migrate: extract conduta/problems from rawText for evolutions that have empty fields ──
+// Remove patients whose name is a placeholder ("Nome", "Nome:", etc.)
+function cleanupPlaceholderPatients() {
+  const data = getData();
+  let removed = 0;
+  const isPlaceholder = (name) => {
+    if (!name) return true;
+    const n = name.trim().toUpperCase();
+    // "NOME", "NOME:", "NOME DO PACIENTE", just whitespace, etc.
+    return /^NOME[:\s]*$/.test(n) || /^NOME\s+DO\s+PACIENTE/.test(n) || n.length === 0;
+  };
+  for (const w of ['cmm','cmf1','cmf2','ccm']) {
+    const before = (data[w]||[]).length;
+    data[w] = (data[w]||[]).filter(p => !isPlaceholder(p.name));
+    removed += before - (data[w]||[]).length;
+  }
+  if (removed > 0) {
+    saveData(data);
+    console.log(`[MedRound] Removed ${removed} placeholder patient(s) named "Nome"`);
+  }
+}
+
+
 function migrateCondutaFromRawText() {
   try {
     const data = getData();
@@ -4531,7 +4650,10 @@ function gerarCondutasDireto() {
     const tarde = p.tardeFixa;
 
     html += `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:14px;">
-      <div style="font-family:Syne,sans-serif;font-weight:800;font-size:13px;color:var(--blue-400);margin-bottom:2px;">LT ${escapeHtml(String(p.leito))} — ${escapeHtml(cleanPatientName(p.name))}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;">
+        <div style="font-family:Syne,sans-serif;font-weight:800;font-size:13px;color:var(--blue-400);">LT ${escapeHtml(String(p.leito))} — ${escapeHtml(cleanPatientName(p.name))}</div>
+        ${p.updates?.length ? `<span style="background:rgba(245,158,11,.2);color:var(--warning);font-size:9px;padding:1px 7px;border-radius:20px;font-weight:800;white-space:nowrap;flex-shrink:0;">📋 ${p.updates.length}</span>` : ''}
+      </div>
       ${lastEvol?`<div style="font-size:10.5px;color:var(--text-muted);margin-bottom:10px;">Evolução: ${escapeHtml(lastEvol.date||'—')}</div>`:''}
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--blue-400);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border);">Conduta</div>
       ${conduta ? conduta.split('\n').filter(l=>l.trim()).map(line=>{
@@ -4540,7 +4662,7 @@ function gerarCondutasDireto() {
         return `<div style="font-size:13px;color:var(--text-secondary);padding:2px 0 2px 12px;line-height:1.7;">- ${escapeHtml(t.replace(/^[-•]\s*/,''))}</div>`;
       }).join('') : '<div style="font-size:12px;color:var(--text-muted);">Sem conduta registrada.</div>'}
       ${tarde?`<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--warning);margin-bottom:6px;">🌅 Tarde Fixa (${escapeHtml(tarde.date||'')})</div>
+        <div style="font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--warning);margin:6px 0 4px;">🌅 Tarde Fixa (${escapeHtml(tarde.date||'')})</div>
         ${(tarde.observacoes||[]).map(o=>`<div style="font-size:13px;color:var(--text-secondary);padding:2px 0;">➔ ${escapeHtml(o)}</div>`).join('')}
         ${(tarde.pendencias||[]).filter(i=>i.text).map(i=>`<div style="font-size:12.5px;padding:3px 0;display:flex;gap:8px;"><span style="color:${i.done?'var(--success)':'var(--warning)'};">${i.done?'☑':'☐'}</span><span style="color:var(--text-secondary);">${escapeHtml(i.text)}</span></div>`).join('')}
         <div style="font-size:11.5px;color:var(--text-muted);margin-top:6px;">Dieta: <strong>${escapeHtml(tarde.dieta?.valor||'—')}</strong> · Clexane: <strong>${escapeHtml(tarde.clexane?.valor||'—')}</strong> · ATB: <strong>${escapeHtml(tarde.atb?.valor||'—')}</strong>${tarde.risco?.flag?` <span style="color:#ef4444;font-weight:700;">⚠️ ${escapeHtml(tarde.risco.valor)}</span>`:''}</div>
@@ -5632,6 +5754,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   autoSyncAllLabs();
   migrateCondutaFromRawText();
+  cleanupPlaceholderPatients(); // remove "Nome" placeholder patients
   updateCounts();
   renderDashboard();
   setupDragDrop();
@@ -7240,8 +7363,9 @@ const PASSAGEM_WARD_FULL = {
 // Clean patient name: remove dates, codes, numbers
 function cleanPatientName(name) {
   if (!name) return '';
-  return name
+  const cleaned = name
     .replace(/^#?\s*ID[:\s]+/i, '')                              // "ID: " or "# ID: " prefix
+    .replace(/^Nome\s*[:=]?\s*/i, '')                            // "Nome:" or "Nome " prefix
     .replace(/\s*\|.*$/, '')                                     // everything after pipe
     .replace(/,\s*\d{2,3}\s*anos.*/i, '')                       // ", 72 anos..."
     .replace(/\s*\(\s*\d{1,2}[\s/_-]\d{1,2}(?:[/_-]\d{2,4})?\s*\)\s*/g, '') // "(11 05)"
@@ -7252,6 +7376,14 @@ function cleanPatientName(name) {
     .replace(/\s{2,}/g, ' ')
     .trim()
     .toUpperCase();
+
+  // Reject placeholder names that contain only "NOME" or similar template text
+  if (!cleaned || cleaned.length === 0) return '';
+  if (/^NOME[:\s]*$/.test(cleaned)) return '';
+  if (/^NOME\s+DO\s+PACIENTE/.test(cleaned)) return '';
+  if (/^DO\s+PACIENTE/.test(cleaned)) return '';   // leftover after "Nome do paciente" strip
+
+  return cleaned;
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -7475,14 +7607,14 @@ function renderPassagemFromFile(imported) {
       <button class="btn btn-ghost btn-sm" style="margin-left:10px;" onclick="_passagemData[passagemWard]=null;renderPassagem();">🔄 Usar dados do sistema</button>
     </div>
     <div style="overflow-x:auto;">
-    <table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:800px;">
+    <table style="width:100%;border-collapse:collapse;font-size:11.5px;min-width:760px;">
       <thead>
         <tr style="background:var(--blue-800);">
-          <th style="padding:10px 12px;text-align:left;color:var(--blue-200);font-size:11px;text-transform:uppercase;letter-spacing:.5px;width:16%;border:1px solid var(--border);">Identificação</th>
-          <th style="padding:10px 12px;text-align:left;color:var(--blue-200);font-size:11px;text-transform:uppercase;letter-spacing:.5px;width:24%;border:1px solid var(--border);">Lista de Problemas</th>
-          <th style="padding:10px 12px;text-align:left;color:var(--blue-200);font-size:11px;text-transform:uppercase;letter-spacing:.5px;width:16%;border:1px solid var(--border);">Dispositivos | ATB e Culturas</th>
-          <th style="padding:10px 12px;text-align:left;color:var(--blue-200);font-size:11px;text-transform:uppercase;letter-spacing:.5px;width:28%;border:1px solid var(--border);">Exames e Pareceres Relevantes</th>
-          <th style="padding:10px 12px;text-align:left;color:var(--blue-200);font-size:11px;text-transform:uppercase;letter-spacing:.5px;width:16%;border:1px solid var(--border);">Programação</th>
+          <th style="padding:6px 10px;text-align:left;color:var(--blue-200);font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;width:13%;border:1px solid var(--border);">Paciente</th>
+          <th style="padding:6px 10px;text-align:left;color:var(--blue-200);font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;width:21%;border:1px solid var(--border);">Problemas / Resumo</th>
+          <th style="padding:6px 10px;text-align:left;color:var(--blue-200);font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;width:13%;border:1px solid var(--border);">Disp. · ATB · TEV</th>
+          <th style="padding:6px 10px;text-align:left;color:var(--blue-200);font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;width:30%;border:1px solid var(--border);">Exames · Imagem · Pareceres</th>
+          <th style="padding:6px 10px;text-align:left;color:var(--blue-200);font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;width:23%;border:1px solid var(--border);">Pendências / Programação</th>
         </tr>
       </thead>
       <tbody>
@@ -7493,75 +7625,84 @@ function renderPassagemFromFile(imported) {
 }
 
 function renderPassagemRow(p, idx) {
-  const bg = idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-hover)';
-  const td = (content, extra='') =>
-    `<td style="padding:10px 12px;vertical-align:top;border:1px solid var(--border);background:${bg};${extra}">${content}</td>`;
+  const bg  = idx % 2 === 0 ? 'var(--bg-card)' : 'rgba(255,255,255,0.022)';
+  const bdr = 'border:1px solid var(--border);';
 
-  // COL 1: Identificação
-  const dih = p.dih || '';
-  const idHtml = `
-    <div style="font-size:13px;font-weight:800;color:var(--blue-300);margin-bottom:4px;">LT ${escapeHtml(p.leito)}</div>
-    <div style="font-size:12.5px;font-weight:700;color:var(--text-primary);margin-bottom:6px;line-height:1.3;">${escapeHtml(cleanPatientName(p.nome))}</div>
-    <div style="font-size:11.5px;color:var(--text-muted);line-height:1.7;">
-      ${p.idade ? `Idade: ${escapeHtml(p.idade)}<br>` : ''}
-      ${p.dn    ? `DN: ${escapeHtml(p.dn)}<br>` : ''}
-      ${p.pront ? `P: ${escapeHtml(p.pront)}<br>` : ''}
-      ${dih     ? `<span style="color:var(--text-secondary);">DIH: ${escapeHtml(dih)}</span><br>` : ''}
-      ${p.mi    ? `<span style="color:var(--warning);font-size:11px;font-weight:600;">MI: ${escapeHtml(p.mi)}</span>` : ''}
-    </div>`;
+  const td = (content, w) =>
+    `<td style="padding:8px 10px;vertical-align:top;${bdr}background:${bg};${w?'width:'+w+';':''}">${content}</td>`;
 
-  // COL 2: Lista de Problemas + Resumo
-  const probHtml = p.problemas.length
-    ? p.problemas.map(pr => `<div style="padding:2px 0 2px 8px;border-left:2px solid var(--blue-600);margin-bottom:3px;font-size:12px;font-weight:600;color:var(--text-primary);">${escapeHtml(pr)}</div>`).join('')
-    : '';
-  const resumoHtml = p.resumo
-    ? `<div style="margin-top:8px;font-size:11.5px;color:var(--text-secondary);line-height:1.65;">${escapeHtml(p.resumo).replace(/\n/g,'<br>')}</div>`
-    : '';
+  /* micro label acima de cada bloco */
+  const lbl = (text, color = 'rgba(148,163,184,.65)') =>
+    `<div style="font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:${color};margin-top:8px;margin-bottom:3px;padding-bottom:2px;border-bottom:1px solid rgba(255,255,255,.06);">${text}</div>`;
 
-  // COL 3: Dispositivos + ATB
-  const dispoHtml = p.dispositivos
-    ? `<div style="margin-bottom:8px;"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--blue-400);margin-bottom:3px;">Dispositivos</div><div style="font-size:12px;color:var(--text-secondary);">${escapeHtml(p.dispositivos).replace(/\n/g,'<br>')}</div></div>`
-    : '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Sem dispositivos</div>';
+  /* linha de texto padrão */
+  const ln = (html, clr='var(--text-secondary)', sz='11px', bold=false, extra='') =>
+    `<div style="font-size:${sz};color:${clr};${bold?'font-weight:600;':''}line-height:1.52;padding:1px 0;${extra}">${html}</div>`;
 
-  const atbHtml = p.atb
-    ? `<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--warning);margin-bottom:3px;">ATB e Culturas</div><div style="font-size:12px;color:var(--text-secondary);">${escapeHtml(p.atb).replace(/\n/g,'<br>')}</div></div>`
-    : '<div style="font-size:11px;color:var(--text-muted);">Sem ATB</div>';
+  /* multiline field → array of divs */
+  const mlField = (raw, clr='var(--text-secondary)', sz='11px') =>
+    (raw||'').split('\n').map(l=>l.trim()).filter(Boolean)
+      .map(l => ln(escapeHtml(l), clr, sz)).join('');
 
-  const tevHtml = p.tev
-    ? `<div style="margin-top:6px;"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:2px;">TEV</div><div style="font-size:11.5px;color:var(--text-secondary);">${escapeHtml(p.tev).replace(/\n/g,'<br>')}</div></div>`
-    : '';
+  // ── COL 1: Paciente (13%) ────────────────────────────────────
+  const col1 = `
+    <div style="font-size:10px;font-weight:800;color:var(--blue-400);letter-spacing:.5px;margin-bottom:1px;">LT ${escapeHtml(String(p.leito||''))}</div>
+    <div style="font-size:12px;font-weight:700;color:var(--text-primary);line-height:1.3;margin-bottom:4px;">${escapeHtml(cleanPatientName(p.nome||''))}</div>
+    ${p.idade ? ln(escapeHtml(p.idade), 'var(--text-muted)', '10.5px') : ''}
+    ${p.pront ? ln('Pt '+escapeHtml(p.pront), 'var(--text-muted)', '10.5px') : ''}
+    ${p.dih   ? ln('DIH: '+escapeHtml(p.dih), 'var(--text-muted)', '10.5px') : ''}
+    ${p.mi    ? `<div style="margin-top:4px;font-size:10px;font-weight:700;color:var(--warning);line-height:1.35;">${escapeHtml(p.mi)}</div>` : ''}`;
 
-  // COL 4: Exames + Pareceres
-  const labsHtml = p.labs
-    ? `<div style="margin-bottom:8px;"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--blue-400);margin-bottom:3px;">Exames Laboratoriais</div><div style="font-size:11.5px;color:var(--text-secondary);line-height:1.6;">${escapeHtml(p.labs).replace(/\n/g,'<br>')}</div></div>`
-    : '';
-  const imgHtml = p.imagem
-    ? `<div style="margin-bottom:8px;"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--blue-400);margin-bottom:3px;">Exames de Imagem</div><div style="font-size:11.5px;color:var(--text-secondary);line-height:1.6;">${escapeHtml(p.imagem).replace(/\n/g,'<br>')}</div></div>`
-    : '';
-  const parHtml = p.pareceres
-    ? `<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--warning);margin-bottom:3px;">Pareceres</div><div style="font-size:11.5px;color:var(--text-secondary);line-height:1.6;">${escapeHtml(p.pareceres).replace(/\n/g,'<br>')}</div></div>`
-    : '';
+  // ── COL 2: Problemas (21%) ───────────────────────────────────
+  const probs = (p.problemas||[]).filter(Boolean);
+  const col2 = [
+    probs.map(pr =>
+      `<div style="display:flex;gap:5px;align-items:baseline;margin-bottom:4px;">
+        <span style="flex-shrink:0;width:3px;height:3px;border-radius:50%;background:rgba(78,120,200,.7);margin-top:5px;"></span>
+        <span style="font-size:11px;font-weight:600;color:var(--text-primary);line-height:1.4;">${escapeHtml(pr)}</span>
+       </div>`
+    ).join(''),
+    p.resumo ? `<div style="margin-top:${probs.length?'5px':'0'};font-size:10.5px;color:var(--text-muted);line-height:1.55;">${escapeHtml(p.resumo).replace(/\n/g,'<br>')}</div>` : ''
+  ].join('') || ln('—','var(--text-muted)');
 
-  // COL 5: Programação (bullet list)
-  const progHtml = p.programacao.length
-    ? p.programacao.map(item => {
-        const isDone = /^(?:☑|✅|✓|FEITO)/i.test(item);
-        const cleaned = item.replace(/^(?:☑|☐|□|●|•|-)\s*/,'').trim();
-        return `<div style="display:flex;gap:6px;align-items:flex-start;padding:3px 0;border-bottom:1px solid var(--border);">
-          <span style="color:${isDone?'var(--success)':'var(--blue-400)'};font-size:13px;flex-shrink:0;">${isDone?'☑':'☐'}</span>
-          <span style="font-size:12px;color:${isDone?'var(--text-muted)':'var(--text-primary)'};${isDone?'text-decoration:line-through;':''}">${escapeHtml(cleaned)}</span>
+  // ── COL 3: Dispositivos · ATB · TEV (13%) ────────────────────
+  const col3 = [
+    p.dispositivos ? lbl('Dispositivos','rgba(96,165,250,.75)') + mlField(p.dispositivos) : '',
+    p.atb          ? lbl('ATB','rgba(245,158,11,.85)')          + mlField(p.atb, 'var(--text-secondary)', '11px') : '',
+    p.culturas     ? lbl('Culturas','rgba(167,139,250,.75)')    + mlField(p.culturas) : '',
+    p.tev          ? lbl('TEV / Profilaxia')                   + mlField(p.tev) : '',
+  ].filter(Boolean).join('') || ln('—','var(--text-muted)');
+
+  // ── COL 4: Exames · Imagem · Pareceres (30%) ─────────────────
+  const col4 = [
+    p.labs      ? lbl('Laboratório','rgba(96,165,250,.75)')    + mlField(p.labs,      'var(--text-secondary)', '10.5px') : '',
+    p.imagem    ? lbl('Imagem','rgba(96,165,250,.65)')         + mlField(p.imagem,    'var(--text-secondary)', '10.5px') : '',
+    p.pareceres ? lbl('Pareceres','rgba(167,139,250,.85)')     + mlField(p.pareceres, 'var(--text-secondary)', '10.5px') : '',
+  ].filter(Boolean).join('') || ln('—','var(--text-muted)');
+
+  // ── COL 5: Pendências / Programação (23%) ────────────────────
+  const prog = (p.programacao||[]).filter(Boolean);
+  const col5 = prog.length
+    ? prog.map((item, i) => {
+        const done = /^(?:☑|✅|✓)/u.test(item);
+        const txt  = escapeHtml(item.replace(/^[☑☐□✅✓●•\-]\s*/u,'').trim());
+        const isLast = i === prog.length - 1;
+        return `<div style="display:flex;align-items:baseline;gap:5px;padding:3px 0;${isLast?'':'border-bottom:1px solid rgba(255,255,255,.04);'}">
+          <span style="flex-shrink:0;font-size:11px;color:${done?'var(--success)':'rgba(148,163,184,.45)'};line-height:1;">☐</span>
+          <span style="font-size:11px;color:${done?'var(--text-muted)':'var(--text-primary)'};line-height:1.45;${done?'text-decoration:line-through;opacity:.5;':''}">${txt}</span>
         </div>`;
       }).join('')
-    : '<div style="font-size:11px;color:var(--text-muted);">Sem programação</div>';
+    : ln('—','var(--text-muted)');
 
   return `<tr>
-    ${td(idHtml)}
-    ${td(probHtml + resumoHtml)}
-    ${td(dispoHtml + atbHtml + tevHtml)}
-    ${td(labsHtml + imgHtml + parHtml)}
-    ${td(progHtml)}
+    ${td(col1,'13%')}
+    ${td(col2,'21%')}
+    ${td(col3,'13%')}
+    ${td(col4,'30%')}
+    ${td(col5,'23%')}
   </tr>`;
 }
+
 
 function renderPassagemFromStorage() {
   const wrap = document.getElementById('passagem-table-wrap');
@@ -7582,14 +7723,14 @@ function renderPassagemFromStorage() {
 
   wrap.innerHTML = `
     <div style="overflow-x:auto;">
-    <table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:800px;">
+    <table style="width:100%;border-collapse:collapse;font-size:11.5px;min-width:760px;">
       <thead>
         <tr style="background:var(--blue-800);">
-          <th style="padding:10px 12px;text-align:left;color:var(--blue-200);font-size:11px;text-transform:uppercase;letter-spacing:.5px;width:16%;border:1px solid var(--border);">Identificação</th>
-          <th style="padding:10px 12px;text-align:left;color:var(--blue-200);font-size:11px;text-transform:uppercase;letter-spacing:.5px;width:24%;border:1px solid var(--border);">Lista de Problemas</th>
-          <th style="padding:10px 12px;text-align:left;color:var(--blue-200);font-size:11px;text-transform:uppercase;letter-spacing:.5px;width:16%;border:1px solid var(--border);">Dispositivos | ATB e Culturas</th>
-          <th style="padding:10px 12px;text-align:left;color:var(--blue-200);font-size:11px;text-transform:uppercase;letter-spacing:.5px;width:28%;border:1px solid var(--border);">Exames e Pareceres Relevantes</th>
-          <th style="padding:10px 12px;text-align:left;color:var(--blue-200);font-size:11px;text-transform:uppercase;letter-spacing:.5px;width:16%;border:1px solid var(--border);">Programação</th>
+          <th style="padding:6px 10px;text-align:left;color:var(--blue-200);font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;width:13%;border:1px solid var(--border);">Paciente</th>
+          <th style="padding:6px 10px;text-align:left;color:var(--blue-200);font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;width:21%;border:1px solid var(--border);">Problemas / Resumo</th>
+          <th style="padding:6px 10px;text-align:left;color:var(--blue-200);font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;width:13%;border:1px solid var(--border);">Disp. · ATB · TEV</th>
+          <th style="padding:6px 10px;text-align:left;color:var(--blue-200);font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;width:30%;border:1px solid var(--border);">Exames · Imagem · Pareceres</th>
+          <th style="padding:6px 10px;text-align:left;color:var(--blue-200);font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;width:23%;border:1px solid var(--border);">Pendências / Programação</th>
         </tr>
       </thead>
       <tbody>
@@ -8903,7 +9044,7 @@ function selectWard(ward) {
 
 // Alternar abas no prontuário do paciente
 function switchTab(tab) {
-  const allTabs = ['tab-evolucao','tab-exames','tab-imagem','tab-timeline','tab-tardefixa-tab','tab-ai-suggest','tab-sumario'];
+  const allTabs = ['tab-evolucao','tab-updates','tab-exames','tab-imagem','tab-timeline','tab-tardefixa-tab','tab-ai-suggest','tab-sumario'];
   document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('[onclick^="switchTab"]').forEach(t => {
     if (t.getAttribute('onclick') === "switchTab('" + tab + "')") t.classList.add('active');
@@ -8924,6 +9065,7 @@ function switchTab(tab) {
   if (!patient) return;
 
   if (tab === 'evolucao')       renderEvolucaoCompleta(patient);
+  if (tab === 'updates')        renderUpdatesTab(patient);
   if (tab === 'exames')         renderLaboratorio(patient);
   if (tab === 'imagem')         renderExamesImagem(patient);
   if (tab === 'timeline')       renderTimeline(patient);
@@ -8943,102 +9085,554 @@ function switchTab(tab) {
 // ══════════════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════
-//  TARDE FIXA TAB — render no prontuário do paciente
+//  TARDE FIXA REPORT — import & parse
+//  Format: "LT XX - NOME\nO que ocorreu hoje | Pendências\n..."
 // ══════════════════════════════════════════════════════════════════
-function renderTardeFixaTab(patient) {
-  const el = document.getElementById('tab-tardefixa-tab');
-  if (!el) return;
 
-  const tf = patient.tardeFixa;
-  if (!tf || (!tf.rawText && !tf.observacoes?.length && !tf.pendencias?.length && !tf.dieta?.valor)) {
-    el.innerHTML = `
-      <div style="text-align:center;padding:60px 20px;">
-        <div style="font-size:48px;margin-bottom:14px;">🌅</div>
-        <div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:8px;">Tarde Fixa</div>
-        <div style="font-size:13px;color:var(--text-muted);">Nenhuma tarde fixa importada para este paciente ainda.<br>
-        Importe um arquivo com "tarde fixa" no nome para preencher esta aba.</div>
-      </div>`;
-    return;
+async function importTardeFixaReport(file) {
+  if (!file) return;
+  const wrap = document.getElementById('passagem-table-wrap');
+  const loadEl = document.getElementById('import-loading');
+  const loadTxt = document.getElementById('import-loading-text');
+  const uploadBtn = document.getElementById('import-upload-btn');
+
+  if (uploadBtn) { uploadBtn.style.display='inline-flex'; uploadBtn.disabled=true; uploadBtn.textContent='⏳ Processando Tarde Fixa...'; }
+  if (loadEl) loadEl.style.display='flex';
+  if (loadTxt) loadTxt.textContent = `🌅 Processando: ${file.name}`;
+
+  try {
+    const text = await readFileAsText(file);
+    if (!text?.trim()) throw new Error('Arquivo vazio ou ilegível');
+
+    // Parse blocks
+    const blocks = parseTardeFixaReport(text, file.name);
+    if (!blocks.length) throw new Error('Nenhum paciente identificado no relatório');
+
+    // Use AI to enrich if key is available
+    const useAI = !!getApiKey();
+    const date  = (() => {
+      const m = text.match(/Tarde\s+Fixa[^\d]*(\d{2})[\/\-](\d{2})(?:[\/\-](\d{2,4}))?/i)
+             || file.name.match(/[_\-\s](\d{2})[_\-\/](\d{2})/);
+      if (m) return `${m[1]}/${m[2]}/${new Date().getFullYear()}`;
+      return new Date().toLocaleDateString('pt-BR');
+    })();
+
+    if (useAI) {
+      if (loadTxt) loadTxt.textContent = '🤖 IA extraindo atualizações...';
+      for (const block of blocks) {
+        try {
+          const enriched = await enrichBlockWithAI(block, date);
+          Object.assign(block, enriched);
+        } catch(e) { console.warn('[TF AI]', block.leito, e.message); }
+      }
+    }
+
+    // Apply to patients
+    const data = await getDataAsync();
+    let applied = 0, notFound = [];
+    for (const block of blocks) {
+      const leitoNum = parseFloat(block.leito) || 0;
+      let patient = null, ward = null;
+      // ── Ward-aware leito matching ──
+      // If CCM prefix present → search ccm first, then others
+      // If no prefix → could be same leito number in different ward:
+      //   1) Try name fuzzy match first (most reliable)
+      //   2) Then leito exact match prioritizing likely ward (cmm/cmf1/cmf2)
+      const searchOrder = block.wardHint === 'ccm'
+        ? ['ccm','cmm','cmf1','cmf2']
+        : ['cmm','cmf1','cmf2','ccm'];
+
+      // Helper: normalize name for comparison
+      const normName = s => String(s||'').toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+        .replace(/[^a-z0-9\s]/g,'').trim();
+
+      const blockName = normName(block.name);
+
+      // Pass 1: name + leito match (best)
+      outer: for (const w of searchOrder) {
+        for (const p of (data[w]||[])) {
+          const pl = parseFloat(String(p.leito||'')) || 0;
+          const pn = normName(p.name);
+          // Both leito AND first word of name match
+          if (leitoNum > 0 && pl === leitoNum && blockName && pn) {
+            const blockFirst = blockName.split(' ')[0];
+            if (pn.includes(blockFirst) || blockName.includes(pn.split(' ')[0])) {
+              patient=p; ward=w; break outer;
+            }
+          }
+        }
+      }
+
+      // Pass 2: prontuário match
+      if (!patient) {
+        outer2: for (const w of searchOrder) {
+          for (const p of (data[w]||[])) {
+            const pp = String(p.pront||'').replace(/\D/g,'');
+            if (block.pront?.length>=4 && pp===block.pront) {
+              patient=p; ward=w; break outer2;
+            }
+          }
+        }
+      }
+
+      // Pass 3: leito only (fallback, may pick wrong if duplicate)
+      if (!patient) {
+        outer3: for (const w of searchOrder) {
+          for (const p of (data[w]||[])) {
+            const pl = parseFloat(String(p.leito||'')) || 0;
+            if (leitoNum > 0 && pl === leitoNum) {
+              patient=p; ward=w; break outer3;
+            }
+          }
+        }
+      }
+      if (!patient) { notFound.push(`LT ${block.leito} ${block.name}`); continue; }
+
+      // Save update to patient
+      if (!patient.updates) patient.updates = [];
+      // Remove existing update for same date
+      patient.updates = patient.updates.filter(u => u.date !== date);
+      patient.updates.unshift({
+        date,
+        source: file.name,
+        ocorreu:    block.ocorreu   || '',
+        pendencias: block.pendencias|| '',
+        exames:     block.exames    || [],
+        pareceres:  block.pareceres || [],
+        agendados:  block.agendados || [],
+        atb:        block.atb       || '',
+        clexane:    block.clexane   || '',
+        obito:      block.obito     || false,
+        critical:   block.critical  || false,
+        paliativo:  block.paliativo || false,
+        raw: block.rawText,
+      });
+
+      // Mark óbito
+      if (block.obito) { patient.status = 'alta'; patient.altaReason = 'Óbito'; patient.altaDate = date; }
+
+      applied++;
+    }
+    saveData(data);
+
+    if (loadEl) loadEl.style.display='none';
+    if (uploadBtn) { uploadBtn.style.display='none'; }
+
+    // Show result in preview
+    const previewEl = document.getElementById('import-preview');
+    if (previewEl) {
+      let html = `<div style="font-size:12px;font-weight:700;color:var(--warning);margin-bottom:8px;">🌅 Tarde Fixa ${date} — ${file.name}</div>`;
+      html += `<div style="font-size:12px;color:var(--success);margin-bottom:6px;">✅ ${applied} paciente(s) atualizados</div>`;
+      if (notFound.length) {
+        html += `<div style="font-size:11px;color:var(--danger);margin-bottom:4px;">❌ Não encontrados: ${notFound.join(', ')}</div>`;
+      }
+      blocks.forEach(b => {
+        const ok = !notFound.includes(`LT ${b.leito} ${b.name}`);
+        html += `<div style="font-size:12px;padding:2px 0;color:${ok?'var(--text-secondary)':'var(--danger)'};">
+          ${ok?'✅':'❌'} LT ${escapeHtml(b.leito)} ${escapeHtml(b.name)}
+          ${b.obito?'<span style="color:var(--danger);font-weight:700;">⚠️ ÓBITO</span>':''}
+        </div>`;
+      });
+      previewEl.innerHTML = `<div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:12px;max-height:220px;overflow-y:auto;">${html}</div>`;
+      previewEl.style.display='block';
+    }
+
+    updateCounts();
+    showToast(`✅ Tarde Fixa: ${applied} pacientes atualizados`, 'success');
+    closeModal('modal-import');
+    showView('patients');
+
+  } catch(e) {
+    if (loadEl) loadEl.style.display='none';
+    if (uploadBtn) { uploadBtn.disabled=false; uploadBtn.textContent='⚠️ Erro — tentar novamente'; }
+    showToast('❌ ' + e.message, 'error');
+    console.error('[TF report]', e);
   }
-
-  const date = tf.date || '—';
-  const rows = [];
-
-  // Raw text display (AI-parsed content)
-  if (tf.rawText) {
-    el.innerHTML = `
-      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:14px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);">
-          <div style="font-size:14px;font-weight:700;color:var(--warning);">🌅 Tarde Fixa — ${escapeHtml(date)}</div>
-        </div>
-        <div style="white-space:pre-wrap;font-size:13px;color:var(--text-secondary);line-height:1.8;">${escapeHtml(tf.rawText)}</div>
-      </div>`;
-    return;
-  }
-
-  // Structured display
-  const section = (label, val, flag, color) => {
-    if (!val) return '';
-    return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border);">
-      <div style="font-size:12px;font-weight:700;color:var(--text-muted);min-width:90px;text-transform:uppercase;letter-spacing:.4px;padding-top:1px;">${label}</div>
-      <div style="font-size:13px;color:${flag ? color||'var(--warning)' : 'var(--text-primary)'};flex:1;">${escapeHtml(val)}</div>
-    </div>`;
-  };
-
-  const obsHtml = (tf.observacoes||[]).filter(Boolean).map(o =>
-    `<div style="font-size:13px;color:var(--text-secondary);padding:3px 0;">• ${escapeHtml(o)}</div>`).join('');
-
-  const pendHtml = (tf.pendencias||[]).filter(p=>p.text).map(p =>
-    `<label style="display:flex;gap:8px;align-items:flex-start;padding:4px 0;cursor:pointer;">
-      <input type="checkbox" ${p.done?'checked':''} style="margin-top:2px;accent-color:var(--success);" onchange="tfTogglePend('${patient.id}','${escapeHtml(p.text)}',this.checked)">
-      <span style="font-size:13px;color:${p.done?'var(--text-muted)':'var(--text-primary)'};${p.done?'text-decoration:line-through;':''}">
-        ${escapeHtml(p.text)}
-      </span>
-    </label>`).join('');
-
-  el.innerHTML = `
-    <div style="background:var(--bg-card);border:1px solid var(--warning);border-radius:12px;overflow:hidden;">
-      <div style="background:rgba(245,158,11,.1);padding:14px 18px;border-bottom:1px solid var(--warning);display:flex;justify-content:space-between;align-items:center;">
-        <div style="font-size:14px;font-weight:700;color:var(--warning);">🌅 Tarde Fixa — ${escapeHtml(date)}</div>
-      </div>
-      <div style="padding:16px 18px;">
-        ${obsHtml ? `<div style="margin-bottom:12px;">${obsHtml}</div>` : ''}
-        ${pendHtml ? `<div style="margin-bottom:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:6px;">Pendências</div>${pendHtml}</div>` : ''}
-        ${section('Dieta', tf.dieta?.valor, tf.dieta?.flag)}
-        ${section('Clexane', tf.clexane?.valor, tf.clexane?.flag)}
-        ${section('ATB', tf.atb?.valor, tf.atb?.flag, '#ef4444')}
-        ${section('Risco', tf.risco?.valor, tf.risco?.flag)}
-        ${tf.labs ? section('Labs', tf.labs, false) : ''}
-      </div>
-    </div>`;
 }
 
-function tfTogglePend(patientId, text, done) {
-  const data = getData();
-  for (const w of ['cmm','cmf1','cmf2','ccm']) {
-    const p = (data[w]||[]).find(x=>x.id===patientId);
-    if (p && p.tardeFixa?.pendencias) {
-      const pend = p.tardeFixa.pendencias.find(pd=>pd.text===text);
-      if (pend) { pend.done = done; saveData(data); }
-      break;
+function parseTardeFixaReport(text, filename) {
+
+  // ════════════════════════════════════════════════════════════
+  //  PASSO 1 — Reconstruir linhas do PDF
+  //  O pdf.js fragmenta texto justificado em pedaços de 1-3
+  //  palavras por linha. Reunimos cada parágrafo numa linha só.
+  // ════════════════════════════════════════════════════════════
+  const isStructuralLine = t =>
+    /^LT\s+(CCM)?\d/i.test(t)           ||
+    /^O que ocorreu hoje/i.test(t)       ||
+    /^Pendências|^Condutas|^Pendencias/i.test(t) ||
+    /^[-●•◦►🔴🟡🦋📆]\s/.test(t)       ||
+    /^OBS[:.]?\s/i.test(t)              ||
+    /^MODELO\s*$/i.test(t);
+
+  const rawLines = text.split('\n');
+  const rebuilt  = [];
+  let   buf      = '';
+
+  for (let i = 0; i < rawLines.length; i++) {
+    const curT = rawLines[i].trim();
+    const nxtT = (rawLines[i + 1] ?? '').trim();
+
+    if (!curT) {
+      if (buf) { rebuilt.push(buf); buf = ''; }
+      rebuilt.push('');
+      continue;
+    }
+
+    if (isStructuralLine(curT)) {
+      if (buf) { rebuilt.push(buf); buf = ''; }
+      rebuilt.push(curT);
+      continue;
+    }
+
+    // Linha longa → já é um parágrafo completo
+    if (curT.length > 80) {
+      if (buf) { rebuilt.push(buf); buf = ''; }
+      rebuilt.push(curT);
+      continue;
+    }
+
+    // Acumula no buffer
+    buf = buf ? buf + ' ' + curT : curT;
+
+    // Decide se encerra o parágrafo aqui
+    const endsClean     = /[.!?:;]$/.test(curT);
+    const nextStructural = !nxtT || isStructuralLine(nxtT) || nxtT.length > 80;
+
+    if (endsClean || nextStructural) {
+      rebuilt.push(buf);
+      buf = '';
     }
   }
+  if (buf) rebuilt.push(buf);
+
+  // ════════════════════════════════════════════════════════════
+  //  PASSO 2 — Dividir em blocos por paciente (LT XX - NOME)
+  //  rawText do bloco = tudo entre dois cabeçalhos LT, intacto
+  // ════════════════════════════════════════════════════════════
+  const blocks = [];
+  let cur      = null;
+  let section  = null;
+
+  for (const line of rebuilt) {
+    const t = line.trim();
+
+    if (/^MODELO\s*$/i.test(t)) break;
+
+    // ── Cabeçalho de paciente ──
+    const ltm = t.match(/^LT\s+(CCM)?(\d+(?:[.,]\d+)?[A-Za-z]?)\s*[-–]\s*(.+)/i);
+    if (ltm) {
+      if (cur) blocks.push(cur);
+      cur = {
+        leito:     ltm[2].replace(',', '.'),
+        name:      ltm[3].trim(),
+        wardHint:  ltm[1] ? 'ccm' : null,
+        pront:     '',
+        ocorreu:   '',
+        pendencias:'',
+        exames:    [],
+        pareceres: [],
+        agendados: [],
+        condutas:  [],
+        atb:       '',
+        clexane:   '',
+        obito:     false,
+        critical:  false,
+        paliativo: false,
+        _rawLines: [t],   // ← PRESERVA TUDO, incluindo o próprio cabeçalho
+      };
+      section = null;
+      continue;
+    }
+
+    if (!cur) continue;
+
+    // Sempre acumula a linha no rawText
+    cur._rawLines.push(line); // linha ANTES do trim para preservar indentação original
+
+    // ── Detecção de seção ──
+    if (/^O que ocorreu hoje/i.test(t))              { section = 'o'; continue; }
+    if (/^Pendências|^Condutas|^Pendencias/i.test(t)){ section = 'p'; continue; }
+
+    const cleanT = t.replace(/^[-●•◦►]\s*/, '');
+
+    // Acumula texto por seção (para o renderer de 2 colunas)
+    if      (section === 'o') cur.ocorreu    = cur.ocorreu    ? cur.ocorreu    + '\n' + t : t;
+    else if (section === 'p') cur.pendencias = cur.pendencias ? cur.pendencias + '\n' + t : t;
+
+    // ── Flags clínicas ──
+    if (/óbito|DO preenchido|faleceu|Preenchido DO/i.test(t))   cur.obito    = true;
+    if (/fim de vida|paliativo|proporcionais/i.test(t))         cur.paliativo = true;
+    if (/dripping|midazolam.*dripping/i.test(t))                cur.critical  = true;
+    if (/enoxaparina|clexane/i.test(t))                        cur.clexane   = cleanT;
+    if (/ceftriaxona|meropenem|piperacilina|tazocin|vancomicina|ciprofloxacino|ampicilina/i.test(t))
+      cur.atb = cur.atb ? cur.atb + '; ' + cleanT : cleanT;
+
+    // ── Exames / resultados ──
+    if (/resultado|crescimento|negativo|positivo|cultura|laudo|ECOTT|biopsia|lavado bronco|proteinúria|mg\/24h|ml\/h|g\/dL|ufc\/ml|PET-CT|BAAR|solicitação n/i.test(t))
+      cur.exames.push(cleanT);
+
+    // ── Agendamentos ──
+    if (/agendado|programado|dia\s+\d{2}\/\d{2}|amanhã\s+\d{2}\/\d{2}|ambulância|VED|videodeglutograma/i.test(t))
+      cur.agendados.push(cleanT);
+
+    // ── Pareceres ──
+    if (/cardiologia|oncologia|reumatologia|nefrologia|geriatria|ORL|parecer|responde que/i.test(t))
+      cur.pareceres.push(cleanT);
+
+    // ── Condutas ──
+    if (section === 'p' && /suspenso|retirar|aumentado|ajustado|mantido|iniciado|dieta zero|SNG|SNE|sifonagem|bolus|dripping/i.test(t))
+      cur.condutas.push(cleanT);
+  }
+  if (cur) blocks.push(cur);
+
+  // ════════════════════════════════════════════════════════════
+  //  PASSO 3 — Finalizar: rawText é o bloco completo intacto
+  // ════════════════════════════════════════════════════════════
+  blocks.forEach(b => {
+    b.rawText = b._rawLines.join('\n');
+    b.exames    = [...new Set(b.exames)];
+    b.agendados = [...new Set(b.agendados)];
+    b.pareceres = [...new Set(b.pareceres)];
+    b.condutas  = [...new Set(b.condutas)];
+    delete b._rawLines;
+  });
+
+  return blocks.filter(b => b.leito);
+}
+
+async function enrichBlockWithAI(block, date) {
+  const prompt = `Analise este bloco de Tarde Fixa hospitalar e extraia informações estruturadas.
+
+PACIENTE: LT ${block.leito} - ${block.name}
+DATA: ${date}
+
+CONTEÚDO:
+${block.rawText}
+
+Retorne APENAS este JSON:
+{
+  "resumo_update": "resumo em 1-2 frases do que aconteceu hoje com este paciente",
+  "exames_novos": ["resultado de exame 1", "resultado de exame 2"],
+  "agendados": ["exame/procedimento agendado com data se houver"],
+  "pareceres": ["parecer de especialidade com data se houver"],
+  "condutas": ["conduta implementada hoje"],
+  "atb": "ATB em uso ou vazio",
+  "clexane": "clexane/enoxaparina status ou vazio",
+  "obito": false,
+  "critico": false
+}`;
+
+  const raw = await callClaude(prompt, 500);
+  const clean = raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+  let parsed;
+  try { parsed = JSON.parse(clean); }
+  catch { const m = clean.match(/\{[\s\S]+\}/); if(m) parsed = JSON.parse(m[0]); }
+  if (!parsed) return {};
+
+  return {
+    resumo:     parsed.resumo_update || '',
+    exames:     [...(block.exames||[]), ...(parsed.exames_novos||[])],
+    agendados:  [...(block.agendados||[]), ...(parsed.agendados||[])],
+    pareceres:  [...(block.pareceres||[]), ...(parsed.pareceres||[])],
+    condutas:   parsed.condutas || [],
+    atb:        parsed.atb     || block.atb    || '',
+    clexane:    parsed.clexane || block.clexane|| '',
+    obito:      parsed.obito   || block.obito  || false,
+    critical:   parsed.critico || block.critical||false,
+  };
+}
+
+// ── Render Atualizações box in patient detail ──
+function renderAtualizacoes(patient) {
+  if (!patient.updates?.length) return '';
+  const upd = patient.updates[0]; // most recent only in evolucao tab
+  return _renderUpdateBox(upd, patient, true);
 }
 
 
-//  Texto integral do arquivo até o fim da seção de condutas
-// ══════════════════════════════════════════════════════════════════
+// ── Render a single update box — layout espelha o PDF da Tarde Fixa ──
+function _renderUpdateBox(upd, patient, compact) {
+
+  // ── Texto das colunas ──
+  let ocText  = upd.ocorreu    || '';
+  let penText = upd.pendencias || '';
+
+  // Fallback: re-split rawText
+  if (!ocText && !penText) {
+    const raw = upd.raw || upd.rawText || '';
+    let sec = null;
+    for (const line of raw.split('\n')) {
+      const t = line.trim();
+      if (!t || /^LT\s+(CCM)?\d/i.test(t)) continue;
+      if (/^O que ocorreu hoje/i.test(t))               { sec='o'; continue; }
+      if (/^Pendências|^Condutas|^Pendencias/i.test(t)) { sec='p'; continue; }
+      if      (sec==='o') ocText  += (ocText  ?'\n':'') + t;
+      else if (sec==='p') penText += (penText ?'\n':'') + t;
+      else                ocText  += (ocText  ?'\n':'') + t;
+    }
+  }
+
+  // ── Renderizador de coluna — cada linha com tipo detectado ──
+  const renderCol = (text) => {
+    if (!text?.trim()) return `<p style="margin:0;font-size:13px;color:var(--text-muted);font-style:italic;">—</p>`;
+
+    return text.split('\n').map(raw => {
+      const t = raw.trim();
+
+      // Linha vazia → espaçador
+      if (!t) return `<div style="height:6px;"></div>`;
+
+      // Bullet ● (sem sangria, texto justificado)
+      if (/^●\s/.test(t)) {
+        const clean = t.slice(2).trim();
+        return `<div style="display:flex;gap:7px;align-items:baseline;text-align:justify;">
+          <span style="flex-shrink:0;font-size:11px;color:var(--blue-300);line-height:1.6;margin-top:1px;">●</span>
+          <span style="font-size:13px;color:var(--text-secondary);line-height:1.6;text-align:justify;flex:1;">${escapeHtml(clean)}</span>
+        </div>`;
+      }
+
+      // Sub-item com travessão - (recuado)
+      if (/^-\s/.test(t)) {
+        const clean = t.slice(2).trim();
+        return `<div style="display:flex;gap:6px;align-items:baseline;margin-left:16px;text-align:justify;">
+          <span style="flex-shrink:0;font-size:13px;color:var(--text-muted);line-height:1.6;">-</span>
+          <span style="font-size:13px;color:var(--text-secondary);line-height:1.6;text-align:justify;flex:1;">${escapeHtml(clean)}</span>
+        </div>`;
+      }
+
+      // Linha de solicitação > (resultado de exame)
+      if (/^>/.test(t)) {
+        const clean = t.slice(1).trim();
+        return `<div style="display:flex;gap:5px;align-items:baseline;margin-left:8px;">
+          <span style="flex-shrink:0;font-size:11px;color:var(--blue-400);line-height:1.6;">›</span>
+          <span style="font-size:12.5px;color:var(--text-secondary);line-height:1.6;font-style:italic;">${escapeHtml(clean)}</span>
+        </div>`;
+      }
+
+      // OBS
+      if (/^OBS[:.]?/i.test(t)) {
+        return `<p style="margin:3px 0;font-size:12.5px;color:var(--warning);font-style:italic;line-height:1.5;text-align:justify;">${escapeHtml(t)}</p>`;
+      }
+
+      // Numeração (1. 2. 3.)
+      if (/^\d+\.\s/.test(t)) {
+        const m = t.match(/^(\d+\.)\s+(.+)/);
+        return `<div style="display:flex;gap:7px;align-items:baseline;margin-left:4px;">
+          <span style="flex-shrink:0;font-size:13px;color:var(--blue-300);line-height:1.6;min-width:18px;">${escapeHtml(m[1])}</span>
+          <span style="font-size:13px;color:var(--text-secondary);line-height:1.6;text-align:justify;flex:1;">${escapeHtml(m[2])}</span>
+        </div>`;
+      }
+
+      // Texto normal — justificado
+      return `<p style="margin:2px 0;font-size:13px;color:var(--text-primary);line-height:1.65;text-align:justify;">${escapeHtml(t)}</p>`;
+
+    }).join('');
+  };
+
+  // ── Badges clínicos ──
+  const badges = [
+    upd.obito     ? `<span style="background:rgba(239,68,68,.2);color:#fca5a5;font-size:10px;padding:1px 8px;border-radius:4px;font-weight:700;letter-spacing:.3px;">⚠️ ÓBITO</span>` : '',
+    upd.critical  ? `<span style="background:rgba(239,68,68,.12);color:#fca5a5;font-size:10px;padding:1px 8px;border-radius:4px;">🔴 CRÍTICO</span>` : '',
+    upd.paliativo ? `<span style="background:rgba(167,139,250,.15);color:#c4b5fd;font-size:10px;padding:1px 8px;border-radius:4px;">🦋 PALIATIVO</span>` : '',
+  ].filter(Boolean);
+
+  const twoCols  = penText.trim().length > 0;
+  const patLabel = patient ? `LT ${escapeHtml(String(patient.leito||''))} — ${escapeHtml((patient.name||'').toUpperCase())}` : '';
+
+  return `
+  <div style="margin-bottom:20px;border:1px solid rgba(78,120,200,.25);border-radius:10px;overflow:hidden;background:var(--bg-card);">
+
+    <!-- ── Cabeçalho do paciente ── -->
+    <div style="padding:8px 14px;background:linear-gradient(90deg,rgba(30,58,120,.45),rgba(17,24,39,.3));border-bottom:1px solid rgba(78,120,200,.3);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <span style="font-size:12.5px;font-weight:800;color:var(--blue-200);letter-spacing:.3px;font-family:Syne,sans-serif;">${patLabel}</span>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap;">
+        ${badges.join('')}
+        <span style="font-size:10px;color:var(--text-muted);">🌅 ${escapeHtml(upd.date||'—')}</span>
+        <span style="font-size:9.5px;color:rgba(148,163,184,.5);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(upd.source||'')}">${escapeHtml((upd.source||'').replace(/\.pdf$/i,''))}</span>
+      </div>
+    </div>
+
+    <!-- ── Cabeçalhos das colunas ── -->
+    <div style="display:grid;grid-template-columns:${twoCols?'1fr 1fr':'1fr'};border-bottom:1px solid rgba(78,120,200,.2);">
+      <div style="padding:6px 14px;background:rgba(30,58,120,.2);${twoCols?'border-right:1px solid rgba(78,120,200,.2);':''}">
+        <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--blue-300);">O que ocorreu hoje</span>
+      </div>
+      ${twoCols ? `<div style="padding:6px 14px;background:rgba(30,58,120,.2);">
+        <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--warning);">Pendências / Condutas</span>
+      </div>` : ''}
+    </div>
+
+    <!-- ── Corpo das colunas ── -->
+    <div style="display:grid;grid-template-columns:${twoCols?'1fr 1fr':'1fr'};min-width:0;">
+      <div style="padding:12px 14px;${twoCols?'border-right:1px solid rgba(78,120,200,.15);':''}min-width:0;">
+        ${renderCol(ocText)}
+      </div>
+      ${twoCols ? `<div style="padding:12px 14px;min-width:0;">
+        ${renderCol(penText)}
+      </div>` : ''}
+    </div>
+
+  </div>`;
+}
+
+
+
+
+// ── Dedicated Atualizações tab — shows ALL updates with full raw text ──
+function renderUpdatesTab(patient) {
+  const el = document.getElementById('tab-updates');
+  if (!el) return;
+
+  if (!patient?.updates?.length) {
+    el.innerHTML = `<div style="text-align:center;padding:60px 20px;">
+      <div style="font-size:48px;margin-bottom:14px;">📋</div>
+      <div style="font-size:14px;font-weight:700;color:var(--text-primary);margin-bottom:8px;">Sem atualizações</div>
+      <div style="font-size:13px;color:var(--text-muted);">
+        Importe um relatório de Tarde Fixa para ver as atualizações deste paciente.
+      </div>
+    </div>`;
+    return;
+  }
+
+  // Show ALL updates, newest first, each with full raw text
+  let html = '';
+  patient.updates.forEach((upd, i) => {
+    html += _renderUpdateBox(upd, patient, false);
+    if (i < patient.updates.length - 1) {
+      html += `<div style="border-top:1px dashed var(--border);margin:4px 0 14px;opacity:.4;"></div>`;
+    }
+  });
+
+  el.innerHTML = html;
+}
+
+// ── Show/hide Atualizações tab button depending on patient having updates ──
+function _syncUpdatesTabVisibility(patient) {
+  const btn = document.getElementById('tab-btn-updates');
+  if (!btn) return;
+  const hasUpdates = patient?.updates?.length > 0;
+  btn.style.display = hasUpdates ? 'flex' : 'none';
+  if (hasUpdates) {
+    const count = patient.updates.length;
+    btn.innerHTML = `📋 Atualizações${count > 0 ? ` <span style="background:var(--warning);color:#000;font-size:10px;padding:1px 6px;border-radius:20px;margin-left:4px;font-weight:800;">${count}</span>` : ''}`;
+  }
+}
+
 function renderEvolucaoCompleta(patient) {
   const el = document.getElementById('evolucao-completa-body');
   if (!el) return;
   const evols = [...(patient.evolutions || [])].reverse(); // mais recente primeiro
 
+  // ── Atualizações box (Tarde Fixa report) — always shown at top if present ──
+  const atualizacoesHtml = renderAtualizacoes(patient);
   if (!evols.length) {
-    el.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-muted);">Nenhuma evolução importada ainda.</div>';
+    el.innerHTML = (atualizacoesHtml || '') + '<div style="text-align:center;padding:60px 20px;color:var(--text-muted);">Nenhuma evolução importada ainda.</div>';
     return;
   }
 
-  el.innerHTML = evols.map(ev => {
+  el.innerHTML = (atualizacoesHtml || '') + evols.map(ev => {
     // Build raw text content
     let raw = ev.rawText || '';
 
@@ -9858,6 +10452,7 @@ function renderPatientDetail(patient) {
   const days = patient.dt ? Math.floor((new Date() - new Date(patient.dt)) / 86400000) : '?';
   const header = document.getElementById('detail-header');
   if (header) renderPatientHeader(header, patient, days);
+  _syncUpdatesTabVisibility(patient);
   switchTab('evolucao');
 }
 
@@ -10487,12 +11082,12 @@ async function importHandleFiles(fileList) {
   const files = Array.from(fileList || []).filter(f => /\.(docx?|pdf|txt)$/i.test(f.name));
   if (!files.length) { showToast('⚠️ Nenhum arquivo compatível (.docx, .pdf, .txt)', 'error'); return; }
 
-  // Show file list
-  const listEl   = document.getElementById('import-filelist');
-  const namesEl  = document.getElementById('import-filelist-names');
+  const listEl    = document.getElementById('import-filelist');
+  const namesEl   = document.getElementById('import-filelist-names');
   const uploadBtn = document.getElementById('import-upload-btn');
   const previewEl = document.getElementById('import-preview');
-  const saveBtnEl = document.getElementById('import-save-btn');
+  const loadEl    = document.getElementById('import-loading');
+  const loadTxt   = document.getElementById('import-loading-text');
 
   if (listEl && namesEl) {
     namesEl.innerHTML = files.map(f =>
@@ -10501,98 +11096,138 @@ async function importHandleFiles(fileList) {
     listEl.style.display = 'block';
   }
   if (previewEl) previewEl.style.display = 'none';
-  if (saveBtnEl) saveBtnEl.style.display = 'none';
-  if (uploadBtn) uploadBtn.style.display = 'none';
-
-  const loadEl  = document.getElementById('import-loading');
-  const loadTxt = document.getElementById('import-loading-text');
+  if (uploadBtn) {
+    uploadBtn.style.display = 'inline-flex';
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = `⏳ Processando ${files.filter(f=>!/tarde|fixa/i.test(f.name)).length} arquivo(s)...`;
+  }
   if (loadEl) loadEl.style.display = 'flex';
 
   const useAI = !!getApiKey();
-  if (loadTxt) loadTxt.textContent = useAI
-    ? `🤖 Extraindo com IA: 0/${files.length}...`
-    : `Lendo 0/${files.length} arquivos...`;
-
-  const isTF = f => /tarde|fixa/i.test(f.name);
+  const isTF  = f => /tarde|fixa/i.test(f.name);
   const results = [], errors = [];
   let done = 0;
 
   for (const f of files) {
-    if (loadTxt) loadTxt.textContent = useAI
-      ? `🤖 IA processando ${++done}/${files.length}: ${f.name}`
-      : `Lendo ${++done}/${files.length}: ${f.name}`;
+    done++;
+    if (loadTxt) loadTxt.textContent = `${useAI?'🤖 IA':'📄'} ${done}/${files.length}: ${f.name.length>38?f.name.substring(0,38)+'…':f.name}`;
+
     try {
       const text = await readFileAsText(f);
-      if (!text?.trim()) { errors.push({file: f.name, reason: 'Arquivo vazio ou ilegível'}); continue; }
+
       if (isTF(f)) {
-        const r = await parseTardeFixa(text, f.name);
-        results.push(...r.map(x => ({...x, isTardeFixa: true})));
-      } else {
-        // Try AI extraction first, fall back to regex
-        let ext;
-        if (useAI) {
-          try {
-            ext = await extractWithAI(text, f.name);
-          } catch(aiErr) {
-            console.warn('[import] AI failed for', f.name, '— falling back to regex:', aiErr.message);
-            ext = await extractPatientDataFromText(text, f.name);
-          }
-        } else {
-          ext = await extractPatientDataFromText(text, f.name);
+        try {
+          const r = await parseTardeFixa(text || '', f.name);
+          results.push(...r.map(x => ({...x, isTardeFixa: true})));
+        } catch(tfErr) {
+          console.warn('[import TF]', f.name, tfErr.message);
+          errors.push({file: f.name, reason: 'Tarde Fixa: ' + tfErr.message});
         }
-        results.push({filename: f.name, extracted: ext, isTardeFixa: false, rawText: text});
+        continue;
       }
+
+      // Evolution file — always produce something
+      let ext = null;
+
+      // 1. Try AI
+      if (useAI && text?.trim()) {
+        try { ext = await extractWithAI(text, f.name); }
+        catch(aiErr) { console.warn('[import] AI fail:', f.name, aiErr.message); }
+      }
+
+      // 2. Regex fallback / gap-fill
+      if (!ext?.leito || !ext?.name) {
+        try {
+          const rx = text?.trim() ? await extractPatientDataFromText(text, f.name) : {};
+          if (!ext) { ext = rx; }
+          else {
+            if (!ext.name  && rx.name)  ext.name  = rx.name;
+            if (!ext.leito && rx.leito) ext.leito = rx.leito;
+            if (!ext.pront && rx.pront) ext.pront = rx.pront;
+            if (!ext.mih   && rx.mih)   ext.mih   = rx.mih;
+            if (!ext.labs  && rx.labs)   ext.labs  = rx.labs;
+          }
+        } catch(rxErr) { console.warn('[import] regex fail:', f.name, rxErr.message); if(!ext) ext={}; }
+      }
+
+      // 3. Absolute fallback from filename
+      if (!ext) ext = {};
+      if (!ext.leito) {
+        const fn2 = f.name.replace(/^C[oó]pia\s+de\s+/i,'').replace(/^ADMISS[AÃ]O\s+/i,'');
+        const lm  = fn2.match(/LT\s*(\d+(?:[.,]\d+)?)/i);
+        if (lm) ext.leito = lm[1].replace(',','.');
+      }
+      if (!cleanPatientName(ext.name||'')) {
+        let fn2 = f.name.replace(/\.docx?$/i,'')
+          .replace(/^C[oó]pia\s+de\s+/i,'').replace(/^ADMISS[AÃ]O\s+/i,'')
+          .replace(/\bCCM\b/i,'').replace(/\bCMM\b/i,'')
+          .replace(/LT\s*\d+\s*[-–]\s*/i,'')
+          .replace(/\s*\(?\d{2}[_\/]\d{2}\)?\s*$/,'')
+          .replace(/[_]+/g,' ').trim();
+        if (fn2.length > 2) ext.name = fn2;
+      }
+
+      const finalName  = cleanPatientName(ext.name || '');
+      const finalLeito = (ext.leito || '').trim();
+
+      if (finalName || finalLeito) {
+        results.push({filename: f.name, extracted: ext, isTardeFixa: false, rawText: text || ''});
+        console.log(`[import] ✅ ${done}/${files.length} LT${finalLeito||'?'} "${finalName}"`);
+      } else {
+        console.warn(`[import] ❌ SKIP ${f.name} — no leito/name`);
+        errors.push({file: f.name, reason: 'Não foi possível identificar paciente'});
+      }
+
     } catch(e) {
-      console.warn('[import]', f.name, e);
-      errors.push({file: f.name, reason: e.message || 'Erro de processamento'});
+      console.error('[import] error:', f.name, e.message);
+      errors.push({file: f.name, reason: e.message || 'Erro inesperado'});
     }
   }
 
   if (loadEl) loadEl.style.display = 'none';
-
   _batchImportData = results.filter(r => !r.isTardeFixa);
   _batchTardesData = results.filter(r => r.isTardeFixa);
 
-  // Show preview
+  // Preview
   if (previewEl) {
-    const total = _batchImportData.length + _batchTardesData.length;
-    if (!total && !errors.length) {
-      previewEl.innerHTML = '<div style="color:var(--danger);padding:10px;">Nenhum paciente identificado nos arquivos.</div>';
-    } else {
-      let html = '';
-      if (useAI && _batchImportData.length) {
-        html += `<div style="font-size:11px;color:var(--success);margin-bottom:8px;padding:6px 10px;background:rgba(16,185,129,.08);border-radius:6px;">🤖 Extração com IA — campos enriquecidos automaticamente</div>`;
-      }
-      if (_batchImportData.length) {
-        html += `<div style="font-size:11px;font-weight:700;color:var(--blue-400);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">📋 Evoluções (${_batchImportData.length})</div>`;
-        _batchImportData.forEach(r => {
-          const ex = r.extracted || {};
-          const name = cleanPatientName(ex.name || r.filename || '—');
-          html += `<div style="font-size:12.5px;padding:5px 0;border-bottom:1px solid var(--border);">
-            LT ${escapeHtml(String(ex.leito||'?'))} · <strong>${escapeHtml(name)}</strong>
-            <span style="color:var(--text-muted);font-size:11px;"> ${escapeHtml((ex.mih||ex.diag||'').substring(0,60))}</span>
-          </div>`;
-        });
-      }
-      if (_batchTardesData.length) {
-        html += `<div style="font-size:11px;font-weight:700;color:var(--warning);text-transform:uppercase;letter-spacing:.6px;margin:10px 0 6px;">🌅 Tarde Fixa (${_batchTardesData.length})</div>`;
-        _batchTardesData.forEach(r => {
-          html += `<div style="font-size:12px;padding:3px 0;">LT ${r.leito||'?'} · ${escapeHtml(cleanPatientName(r.name||'—'))}</div>`;
-        });
-      }
-      if (errors.length) {
-        html += `<div style="font-size:11px;font-weight:700;color:var(--danger);margin:10px 0 4px;">⚠️ Erros (${errors.length})</div>`;
-        errors.forEach(e => { html += `<div style="font-size:11px;color:var(--danger);">• ${escapeHtml(e.file)}: ${escapeHtml(e.reason)}</div>`; });
-      }
-      previewEl.innerHTML = `<div style="background:var(--bg-hover);border-radius:8px;padding:12px;max-height:260px;overflow-y:auto;">${html}</div>`;
+    let html2 = '';
+    if (useAI && _batchImportData.length) {
+      html2 += `<div style="font-size:11px;color:var(--success);margin-bottom:6px;padding:5px 10px;background:rgba(16,185,129,.08);border-radius:6px;">🤖 Extração com IA</div>`;
     }
+    if (_batchImportData.length) {
+      html2 += `<div style="font-size:11px;font-weight:700;color:var(--blue-400);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">📋 ${_batchImportData.length} Evoluções</div>`;
+      _batchImportData.forEach(r => {
+        const ex = r.extracted || {};
+        const nm = cleanPatientName(ex.name||'') || '—';
+        html2 += `<div style="font-size:12.5px;padding:3px 0;border-bottom:1px solid var(--border);">
+          <span style="color:var(--blue-400);font-weight:700;">LT ${escapeHtml(String(ex.leito||'?'))}</span>
+          · <strong>${escapeHtml(nm)}</strong>
+          <span style="color:var(--text-muted);font-size:11px;"> ${escapeHtml((ex.mih||ex.diag||'').substring(0,50))}</span>
+        </div>`;
+      });
+    }
+    if (_batchTardesData.length) {
+      html2 += `<div style="font-size:11px;font-weight:700;color:var(--warning);text-transform:uppercase;margin:8px 0 4px;">🌅 ${_batchTardesData.length} Tarde(s) Fixa(s)</div>`;
+      _batchTardesData.forEach(r => {
+        html2 += `<div style="font-size:12px;padding:2px 0;">LT ${r.leito||'?'} · ${escapeHtml(cleanPatientName(r.name||'—'))}</div>`;
+      });
+    }
+    if (errors.length) {
+      html2 += `<div style="font-size:11px;font-weight:700;color:var(--danger);margin:8px 0 3px;">⚠️ ${errors.length} com erro</div>`;
+      errors.slice(0,5).forEach(e => {
+        html2 += `<div style="font-size:11px;color:var(--danger);">• ${escapeHtml(e.file.substring(0,35))}: ${escapeHtml(e.reason.substring(0,60))}</div>`;
+      });
+    }
+    if (!html2) html2 = '<div style="color:var(--danger);">Nenhum arquivo processado.</div>';
+    previewEl.innerHTML = `<div style="background:var(--bg-hover);border-radius:8px;padding:12px;max-height:240px;overflow-y:auto;">${html2}</div>`;
     previewEl.style.display = 'block';
   }
 
-  if (uploadBtn && (_batchImportData.length || _batchTardesData.length)) {
-    uploadBtn.style.display = 'inline-flex';
+  if (uploadBtn) {
     uploadBtn.disabled = false;
-    uploadBtn.textContent = `✅ Confirmar (${_batchImportData.length + _batchTardesData.length} pacientes)`;
+    uploadBtn.textContent = _batchImportData.length || _batchTardesData.length
+      ? `✅ Confirmar ${_batchImportData.length + _batchTardesData.length} paciente(s)`
+      : '⚠️ Nenhum arquivo válido';
   }
 }
 function handleFileUpload(event)   { importHandleFiles(event.target?.files || event.files || []); }
